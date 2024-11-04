@@ -1,0 +1,4 @@
+/target
+/Cargo.lock
+/collision_meshes
+/.vscode
