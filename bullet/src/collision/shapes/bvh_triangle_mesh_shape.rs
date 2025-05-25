@@ -1,28 +1,48 @@
 use super::{
-    optimized_bvh::OptimizedBvh, striding_mesh_interface::StridingMeshInterface,
-    triangle_callback::TriangleCallback, triangle_info_map::TriangleInfoMap,
-    triangle_mesh_shape::TriangleMeshShape,
+    collision_shape::CollisionShape, optimized_bvh::OptimizedBvh,
+    striding_mesh_interface::StridingMeshInterface, triangle_callback::TriangleCallback,
+    triangle_info_map::TriangleInfoMap, triangle_mesh_shape::TriangleMeshShape,
 };
 use crate::collision::broadphase::{
     broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MyNodeOverlapCallback,
 };
-use glam::Vec3A;
-use std::rc::Rc;
+use glam::{Affine3A, Vec3A};
+use std::sync::Arc;
 
 pub struct BvhTriangleMeshShape {
-    triangle_mesh_shape: TriangleMeshShape,
+    pub triangle_mesh_shape: Arc<TriangleMeshShape>,
     bvh: OptimizedBvh,
     triangle_info_map: Option<TriangleInfoMap>,
 }
 
 impl BvhTriangleMeshShape {
     pub fn new(
-        mesh_interface: Rc<dyn StridingMeshInterface>,
+        mesh_interface: Arc<dyn StridingMeshInterface + Send + Sync>,
         use_quantized_aabb_compression: bool,
     ) -> Self {
         let mut triangle_mesh_shape = TriangleMeshShape::new(mesh_interface.clone());
         triangle_mesh_shape.concave_shape.collision_shape.shape_type =
             BroadphaseNativeTypes::TriangleMeshShapeProxytype;
+
+        // pre-calculate the aabb
+        let trans = Affine3A::IDENTITY;
+        let (aabb_min, aabb_max) = triangle_mesh_shape.get_aabb(&trans);
+        triangle_mesh_shape
+            .concave_shape
+            .collision_shape
+            .aabb_cached = true;
+        triangle_mesh_shape
+            .concave_shape
+            .collision_shape
+            .aabb_min_cache = aabb_min;
+        triangle_mesh_shape
+            .concave_shape
+            .collision_shape
+            .aabb_max_cache = aabb_max;
+        triangle_mesh_shape
+            .concave_shape
+            .collision_shape
+            .aabb_cache_trans = trans;
 
         Self {
             bvh: Self::build_optimized_bvh(
@@ -31,7 +51,7 @@ impl BvhTriangleMeshShape {
                 triangle_mesh_shape.local_aabb_max,
                 use_quantized_aabb_compression,
             ),
-            triangle_mesh_shape,
+            triangle_mesh_shape: Arc::new(triangle_mesh_shape),
             triangle_info_map: None,
         }
     }
@@ -77,5 +97,9 @@ impl BvhTriangleMeshShape {
             aabb_min,
             aabb_max,
         );
+    }
+
+    pub fn get_collision_shape(&self) -> &CollisionShape {
+        &self.triangle_mesh_shape.concave_shape.collision_shape
     }
 }

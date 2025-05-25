@@ -37,23 +37,28 @@ struct ConnectivityProcessor<'a> {
 }
 
 impl TriangleCallback for ConnectivityProcessor<'_> {
-    fn process_triangle(&mut self, triangle: &[Vec3A], part_id: usize, triangle_index: usize) {
+    fn process_triangle(
+        &mut self,
+        triangle: &[Vec3A],
+        part_id: usize,
+        triangle_index: usize,
+    ) -> bool {
         if self.part_id_a == part_id && self.triangle_index_a == triangle_index {
-            return;
+            return true;
         }
 
         let cross_b_sqr = (triangle[1] - triangle[0])
             .cross(triangle[2] - triangle[0])
             .length_squared();
         if cross_b_sqr < self.triangle_info_map.equal_vertex_threshold {
-            return;
+            return true;
         }
 
         let cross_a_sqr = (self.triangle_vertices_a[1] - self.triangle_vertices_a[0])
             .cross(self.triangle_vertices_a[2] - self.triangle_vertices_a[0])
             .length_squared();
         if cross_a_sqr < self.triangle_info_map.equal_vertex_threshold {
-            return;
+            return true;
         }
 
         let mut num_shared = 0;
@@ -188,6 +193,8 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 _ => unreachable!(),
             }
         }
+
+        true
     }
 }
 

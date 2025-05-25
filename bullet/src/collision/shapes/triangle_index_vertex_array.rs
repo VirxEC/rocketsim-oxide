@@ -1,7 +1,5 @@
-use glam::Vec3A;
-use std::cell::RefCell;
-
 use super::striding_mesh_interface::StridingMeshInterface;
+use glam::Vec3A;
 
 #[derive(Debug, Default)]
 pub struct IndexedMesh {
@@ -13,12 +11,15 @@ pub struct IndexedMesh {
     pub vertex_stride: usize,
 }
 
+unsafe impl Send for IndexedMesh {}
+unsafe impl Sync for IndexedMesh {}
+
 #[derive(Debug)]
 pub struct TriangleIndexVertexArray {
     pub indexed_meshes: Vec<IndexedMesh>,
-    pub has_aabb: RefCell<bool>,
-    pub aabb_min: RefCell<Vec3A>,
-    pub aabb_max: RefCell<Vec3A>,
+    pub has_aabb: bool,
+    pub aabb_min: Vec3A,
+    pub aabb_max: Vec3A,
     pub scaling: Vec3A,
 }
 
@@ -26,9 +27,9 @@ impl Default for TriangleIndexVertexArray {
     fn default() -> Self {
         Self {
             indexed_meshes: Vec::new(),
-            has_aabb: RefCell::default(),
-            aabb_min: RefCell::default(),
-            aabb_max: RefCell::default(),
+            has_aabb: false,
+            aabb_min: Vec3A::ZERO,
+            aabb_max: Vec3A::ZERO,
             scaling: Vec3A::ONE,
         }
     }
@@ -40,17 +41,17 @@ impl StridingMeshInterface for TriangleIndexVertexArray {
     }
 
     fn has_premade_aabb(&self) -> bool {
-        *self.has_aabb.borrow()
+        self.has_aabb
     }
 
-    fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A) {
-        *self.aabb_min.borrow_mut() = aabb_min;
-        *self.aabb_max.borrow_mut() = aabb_max;
-    }
+    // fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A) {
+    //     *self.aabb_min.borrow_mut() = aabb_min;
+    //     *self.aabb_max.borrow_mut() = aabb_max;
+    // }
 
     fn get_premade_aabb(&self, aabb_min: &mut Vec3A, aabb_max: &mut Vec3A) {
-        *aabb_min = *self.aabb_min.borrow();
-        *aabb_max = *self.aabb_max.borrow();
+        *aabb_min = self.aabb_min;
+        *aabb_max = self.aabb_max;
     }
 
     fn get_scaling(&self) -> Vec3A {

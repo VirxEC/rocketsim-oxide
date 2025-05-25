@@ -2,6 +2,7 @@ pub use ahash;
 pub use bullet;
 
 pub mod consts;
+pub mod sim;
 
 mod collision_meshes;
 
@@ -17,8 +18,20 @@ use std::{
     fs,
     io::{Error as IoError, ErrorKind, Result as IoResult},
     path::Path,
+    sync::RwLock,
     time::Instant,
 };
+
+pub(crate) enum UserInfoTypes {
+    None,
+    Car,
+    Ball,
+    DropshotTile,
+}
+
+pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
+    Option<AHashMap<GameMode, Vec<BvhTriangleMeshShape>>>,
+> = RwLock::new(None);
 
 /// BulletPhysics Units (1m) to Unreal Units (2cm) conversion scale
 pub(crate) const BT_TO_UU: f32 = 50.0;
@@ -26,8 +39,9 @@ pub(crate) const BT_TO_UU: f32 = 50.0;
 /// Unreal Units (2cm) to BulletPhysics Units (1m) conversion scale
 pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum GameMode {
+    #[default]
     Soccar,
     Hoops,
     Heatseeker,
@@ -132,15 +146,13 @@ fn init_from_path(collision_meshes_folder: &Path, silent: bool) -> IoResult<()> 
         mesh_file_map.insert(game_mode, files);
     }
 
-    init_from_mem(mesh_file_map, silent)?;
-
-    Ok(())
+    init_from_mem(mesh_file_map, silent)
 }
 
 pub fn init_from_mem(
     mesh_file_map: AHashMap<GameMode, Vec<Vec<u8>>>,
     silent: bool,
-) -> IoResult<AHashMap<GameMode, Vec<BvhTriangleMeshShape>>> {
+) -> IoResult<()> {
     if !silent {
         println!("Initializing RocketSim, originally by Zealan and ported to Rust by Virx...");
     }
@@ -148,6 +160,12 @@ pub fn init_from_mem(
     let start_time = Instant::now();
 
     // DropshotTiles::Init();
+
+    let mut arena_collision_shapes_lock = ARENA_COLLISION_SHAPES.write().unwrap();
+    assert!(
+        arena_collision_shapes_lock.is_none(),
+        "Called init(..) twice"
+    );
 
     let mut arena_collision_shapes = AHashMap::new();
 
@@ -203,19 +221,19 @@ pub fn init_from_mem(
             " > Soccar: {}",
             arena_collision_shapes
                 .get(&GameMode::Soccar)
-                .map_or(0, Vec::len)
+                .map_or(0, |m| m.len())
         );
         println!(
             " > Hoops: {}",
             arena_collision_shapes
                 .get(&GameMode::Hoops)
-                .map_or(0, Vec::len)
+                .map_or(0, |m| m.len())
         );
         println!(
             " > Dropshot: {}",
             arena_collision_shapes
                 .get(&GameMode::Dropshot)
-                .map_or(0, Vec::len)
+                .map_or(0, |m| m.len())
         );
 
         let elapsed_time = Instant::now().duration_since(start_time);
@@ -225,5 +243,7 @@ pub fn init_from_mem(
         );
     }
 
-    Ok(arena_collision_shapes)
+    *arena_collision_shapes_lock = Some(arena_collision_shapes);
+
+    Ok(())
 }

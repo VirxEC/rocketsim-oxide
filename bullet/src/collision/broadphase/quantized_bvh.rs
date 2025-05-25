@@ -5,7 +5,7 @@ use crate::{
     linear_math::aabb_util_2::test_quantized_aabb_against_quantized_aabb,
 };
 use glam::{U16Vec3, Vec3A};
-use std::{cell::RefCell, mem, ptr};
+use std::{mem, ptr};
 
 pub const MAX_SUBTREE_SIZE_IN_BYTES: usize = 2048;
 pub const MAX_NUM_PARTS_IN_BITS: usize = 10;
@@ -90,7 +90,6 @@ pub struct QuantizedBvh {
     pub quantized_leaf_nodes: Vec<QuantizedBvhNode>,
     pub quantized_contiguous_nodes: Vec<QuantizedBvhNode>,
     pub subtree_headers: Vec<BvhSubtreeInfo>,
-    pub subtree_header_count: RefCell<usize>,
 }
 
 impl QuantizedBvh {
@@ -367,8 +366,6 @@ impl QuantizedBvh {
                 subtree_size: right_subtree_size,
             });
         }
-
-        *self.subtree_header_count.borrow_mut() = self.subtree_headers.len();
     }
 
     pub fn build_tree(&mut self, start_index: usize, end_index: usize) {

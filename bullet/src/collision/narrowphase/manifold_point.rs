@@ -1,0 +1,40 @@
+use glam::Vec3A;
+
+pub struct ManifoldPoint {
+    local_point_a: Vec3A,
+    local_point_b: Vec3A,
+    position_world_on_b: Vec3A,
+    position_world_on_a: Vec3A,
+    normal_world_on_b: Vec3A,
+    distance_1: f32,
+    combined_friction: f32,
+    combined_rolling_friction: f32,
+    combined_spinning_friction: f32,
+    combined_restitution: f32,
+    part_id_0: i32,
+    part_id_1: i32,
+    index_0: i32,
+    index_1: i32,
+    // mutable void* m_userPersistentData,
+    contact_point_flags: i32,
+    applied_impulse: f32,
+    prev_rhs: f32,
+    applied_impulse_lateral_1: f32,
+    applied_impulse_lateral_2: f32,
+    contact_motion_1: f32,
+    contact_motion_2: f32,
+    // union {
+    //     f32 m_contactCFM,
+    //     f32 m_combinedContactStiffness1,
+    // },
+
+    // union {
+    //     f32 m_contactERP,
+    //     f32 m_combinedContactDamping1,
+    // },
+    friction_cfm: f32,
+    life_time: i32,
+    lateral_friction_dir_1: Vec3A,
+    lateral_friction_dir_2: Vec3A,
+    is_special: bool,
+}

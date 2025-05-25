@@ -1,3 +1,9 @@
-pub(crate) mod collision_object;
+pub mod collision_configuration;
+pub mod collision_dispatcher;
+pub mod collision_object;
+pub mod collision_world;
+pub mod default_collision_configuration;
 pub mod internal_edge_utility;
 pub(crate) mod manifold_result;
+pub mod simulation_island_manager;
+pub(crate) mod union_find;

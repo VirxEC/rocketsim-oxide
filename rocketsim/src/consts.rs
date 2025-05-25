@@ -380,10 +380,10 @@ pub mod boostpads {
     pub const COOLDOWN_SMALL: f32 = 4.;
     pub const BOOST_AMOUNT_BIG: f32 = 100.;
     pub const BOOST_AMOUNT_SMALL: f32 = 12.;
-    pub const LOCS_AMOUNT_SMALL_SOCCAR: i32 = 28;
-    pub const LOCS_AMOUNT_SMALL_HOOPS: i32 = 14;
-    pub const LOCS_AMOUNT_BIG: i32 = 6;
-    pub const LOCS_SMALL_SOCCAR: [Vec3A; LOCS_AMOUNT_SMALL_SOCCAR as usize] = [
+    pub const LOCS_AMOUNT_SMALL_SOCCAR: usize = 28;
+    pub const LOCS_AMOUNT_SMALL_HOOPS: usize = 14;
+    pub const LOCS_AMOUNT_BIG: usize = 6;
+    pub const LOCS_SMALL_SOCCAR: [Vec3A; LOCS_AMOUNT_SMALL_SOCCAR] = [
         Vec3A::new(0., -4240., 70.),
         Vec3A::new(-1792., -4184., 70.),
         Vec3A::new(1792., -4184., 70.),
@@ -413,7 +413,7 @@ pub mod boostpads {
         Vec3A::new(1792., 4184., 70.),
         Vec3A::new(0., 4240., 70.),
     ];
-    pub const LOCS_BIG_SOCCAR: [Vec3A; LOCS_AMOUNT_BIG as usize] = [
+    pub const LOCS_BIG_SOCCAR: [Vec3A; LOCS_AMOUNT_BIG] = [
         Vec3A::new(-3584., 0., 73.),
         Vec3A::new(3584., 0., 73.),
         Vec3A::new(-3072., 4096., 73.),
@@ -421,7 +421,7 @@ pub mod boostpads {
         Vec3A::new(-3072., -4096., 73.),
         Vec3A::new(3072., -4096., 73.),
     ];
-    pub const LOCS_BIG_HOOPS: [Vec3A; LOCS_AMOUNT_BIG as usize] = [
+    pub const LOCS_BIG_HOOPS: [Vec3A; LOCS_AMOUNT_BIG] = [
         Vec3A::new(-2176., 2944., 72.),
         Vec3A::new(2176., -2944., 72.),
         Vec3A::new(-2176., -2944., 72.),
@@ -429,7 +429,7 @@ pub mod boostpads {
         Vec3A::new(2432., 0., 72.),
         Vec3A::new(2175.99, 2944., 72.),
     ];
-    pub const LOCS_SMALL_HOOPS: [Vec3A; LOCS_AMOUNT_SMALL_HOOPS as usize] = [
+    pub const LOCS_SMALL_HOOPS: [Vec3A; LOCS_AMOUNT_SMALL_HOOPS] = [
         Vec3A::new(1536., -1024., 64.),
         Vec3A::new(-1280., -2304., 64.),
         Vec3A::new(0., -2816., 64.),

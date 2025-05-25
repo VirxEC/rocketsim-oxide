@@ -30,7 +30,7 @@ impl OptimizedBvh {
                 triangle: &[Vec3A],
                 part_id: usize,
                 triangle_index: usize,
-            ) {
+            ) -> bool {
                 const MIN_AABB_DIMENSION: f32 = 0.002;
                 const MIN_AABB_HALF_DIMENSION: f32 = MIN_AABB_DIMENSION / 2.0;
 
@@ -70,6 +70,7 @@ impl OptimizedBvh {
                 };
 
                 self.optimized_tree.quantized_leaf_nodes.push(node);
+                true
             }
         }
 
@@ -117,8 +118,6 @@ impl OptimizedBvh {
             });
         }
 
-        *self.quantized_bvh.subtree_header_count.borrow_mut() =
-            self.quantized_bvh.subtree_headers.len();
         self.quantized_bvh.quantized_leaf_nodes.clear();
         self.quantized_bvh.leaf_nodes.clear();
     }

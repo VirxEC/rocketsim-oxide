@@ -1,4 +1,9 @@
+use crate::collision::dispatch::collision_object::CollisionObject;
+use glam::Vec3A;
+use std::{cell::RefCell, rc::Rc};
+
 #[allow(dead_code)]
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BroadphaseNativeTypes {
     // polyhedral convex shapes
     BoxShapeProxytype,
@@ -47,7 +52,34 @@ pub enum BroadphaseNativeTypes {
     SoftbodyShapeProxytype,
     HfFluidShapeProxytype,
     HfFluidBuoyantConvexShapeProxytype,
+    #[default]
     InvalidShapeProxytype,
 
     MaxBroadphaseCollisionTypes,
+}
+
+pub enum CollisionFilterGroups {
+    DefaultFilter = 1,
+    StaticFilter = 2,
+    KinematicFilter = 4,
+    DebrisFilter = 8,
+    SensorTrigger = 16,
+    CharacterFilter = 32,
+    AllFilter = -1,
+}
+
+#[derive(Clone, Default)]
+pub struct BroadphaseProxy {
+    pub client_object: Rc<RefCell<CollisionObject>>,
+    pub collision_filter_group: i32,
+    pub collision_filter_mask: i32,
+    pub unique_id: i32,
+    pub aabb_min: Vec3A,
+    pub aabb_max: Vec3A,
+}
+
+pub struct BroadphasePair {
+    proxy0: BroadphaseProxy,
+    proxy1: BroadphaseProxy,
+    // mutable btCollisionAlgorithm* m_algorithm;
 }

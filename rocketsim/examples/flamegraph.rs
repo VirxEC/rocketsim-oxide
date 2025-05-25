@@ -1,10 +1,10 @@
-use rocketsim::init_from_default;
-use std::io::Result as IoResult;
+use rocketsim::{GameMode, init_from_default, sim::Arena};
+use std::hint::black_box;
 
-fn main() -> IoResult<()> {
+fn main() {
+    init_from_default(true).unwrap();
+
     for _ in 0..200 {
-        std::hint::black_box(init_from_default(true)?);
+        black_box(Arena::new(GameMode::Soccar));
     }
-
-    Ok(())
 }

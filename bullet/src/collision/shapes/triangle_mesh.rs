@@ -1,10 +1,9 @@
-use std::rc::Rc;
-
 use super::{
     striding_mesh_interface::StridingMeshInterface,
     triangle_index_vertex_array::{IndexedMesh, TriangleIndexVertexArray},
 };
 use glam::Vec3A;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TriangleMesh {
@@ -53,7 +52,7 @@ impl TriangleMesh {
         self.triangle_index_vertex_array.indexed_meshes[0].num_vertices = vertices.len();
         self.four_component_vertices = vertices;
 
-        let ptr = &raw const self.four_component_vertices[0];
+        let ptr = self.four_component_vertices.as_ptr();
         self.triangle_index_vertex_array.indexed_meshes[0].vertex_base = Some(ptr.cast::<u8>());
     }
 
@@ -78,13 +77,13 @@ impl TriangleMesh {
         self.triangle_index_vertex_array.indexed_meshes[0].num_triangles += indices.len() / 3;
         self.u32_indices = indices;
 
-        let ptr = &raw const self.u32_indices[0];
+        let ptr = self.u32_indices.as_ptr();
         self.triangle_index_vertex_array.indexed_meshes[0].triangle_index_base =
             Some(ptr.cast::<u8>());
     }
 
-    pub fn into_mesh_interface(self) -> Rc<dyn StridingMeshInterface> {
-        Rc::new(self)
+    pub fn into_mesh_interface(self) -> Arc<dyn StridingMeshInterface + Send + Sync> {
+        Arc::new(self)
     }
 }
 
@@ -102,10 +101,10 @@ impl StridingMeshInterface for TriangleMesh {
         self.triangle_index_vertex_array.has_premade_aabb()
     }
 
-    fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A) {
-        self.triangle_index_vertex_array
-            .set_premade_aabb(aabb_min, aabb_max);
-    }
+    // fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A) {
+    //     self.triangle_index_vertex_array
+    //         .set_premade_aabb(aabb_min, aabb_max);
+    // }
 
     fn get_total_num_faces(&self) -> usize {
         self.triangle_index_vertex_array.get_total_num_faces()

@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ptr, slice};
 
 use glam::Vec3A;
 
@@ -42,14 +42,20 @@ pub trait StridingMeshInterface {
                     let graphics_base =
                         unsafe { vertex_base.byte_add(*tri_indices.add(i) as usize * stride) }
                             .cast::<f32>();
+                    let verts = unsafe { slice::from_raw_parts(graphics_base, 3) };
 
-                    vert.x = unsafe { *graphics_base.add(0) };
-                    vert.y = unsafe { *graphics_base.add(1) };
-                    vert.z = unsafe { *graphics_base.add(2) };
+                    vert.x = verts[0];
+                    vert.y = verts[1];
+                    vert.z = verts[2];
                     *vert *= mesh_scaling;
                 }
 
-                callback.internal_process_triangle_index(&triangle, part, gfx_index);
+                let continue_processing =
+                    callback.internal_process_triangle_index(&triangle, part, gfx_index);
+                if !continue_processing {
+                    self.unlock_read_only_vertex_base(part);
+                    return;
+                }
             }
 
             self.unlock_read_only_vertex_base(part);
@@ -76,7 +82,7 @@ pub trait StridingMeshInterface {
     fn has_premade_aabb(&self) -> bool {
         false
     }
-    fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A);
+    // fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A);
     fn get_premade_aabb(&self, aabb_min: &mut Vec3A, aabb_max: &mut Vec3A);
 
     fn get_scaling(&self) -> Vec3A;
