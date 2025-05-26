@@ -11,7 +11,6 @@ pub mod sphere_shape;
 pub mod static_plane_shape;
 pub mod striding_mesh_interface;
 pub(crate) mod triangle_callback;
-pub(crate) mod triangle_index_vertex_array;
 pub mod triangle_info_map;
 pub mod triangle_mesh;
 pub(crate) mod triangle_mesh_shape;

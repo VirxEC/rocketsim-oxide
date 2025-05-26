@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     collision::shapes::triangle_callback::InternalTriangleIndexCallback,
-    linear_math::aabb_util_2::test_triangle_against_aabb2,
+    linear_math::aabb_util_2::test_aabb_against_aabb,
 };
 use glam::{Affine3A, Vec3A};
 use std::sync::Arc;
@@ -19,10 +19,12 @@ impl InternalTriangleIndexCallback for FilteredCallback<'_> {
     fn internal_process_triangle_index(
         &mut self,
         triangle: &[Vec3A],
+        tri_aabb_min: Vec3A,
+        tri_aabb_max: Vec3A,
         part_id: usize,
         triangle_index: usize,
     ) -> bool {
-        if test_triangle_against_aabb2(triangle, &self.aabb_min, &self.aabb_max) {
+        if test_aabb_against_aabb(tri_aabb_min, tri_aabb_max, self.aabb_min, self.aabb_max) {
             self.callback
                 .process_triangle(triangle, part_id, triangle_index)
         } else {

@@ -5,7 +5,7 @@ use crate::{
     linear_math::aabb_util_2::test_quantized_aabb_against_quantized_aabb,
 };
 use glam::{U16Vec3, Vec3A};
-use std::{mem, ptr};
+use std::mem;
 
 pub const MAX_SUBTREE_SIZE_IN_BYTES: usize = 2048;
 pub const MAX_NUM_PARTS_IN_BITS: usize = 10;
@@ -39,42 +39,19 @@ impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
     fn process_node(&mut self, node_subpart: usize, node_triangle_index: usize) {
         self.num_overlap += 1;
 
-        let mut vertex_base = ptr::null();
-        let mut num_verts = 0;
-        let mut vertex_stride = 0;
-        let mut index_base = ptr::null();
-        let mut num_faces = 0;
-        let mut index_stride = 0;
+        let (verts, ids, _aabbs) = self.mesh_interface.get_verts_ids_aabbs(node_subpart);
 
-        self.mesh_interface.get_locked_read_only_vertex_index_base(
-            &mut vertex_base,
-            &mut num_verts,
-            &mut vertex_stride,
-            &mut index_base,
-            &mut index_stride,
-            &mut num_faces,
-            node_subpart,
-        );
-
-        let tri_indices =
-            unsafe { index_base.byte_add(node_triangle_index * index_stride) }.cast::<u32>();
         let mesh_scaling = self.mesh_interface.get_scaling();
-
-        for (i, vert) in self.triangle.iter_mut().enumerate().rev() {
-            let graphics_base =
-                unsafe { vertex_base.byte_add(*tri_indices.add(i) as usize * vertex_stride) }
-                    .cast::<f32>();
-
-            vert.x = unsafe { *graphics_base.add(0) };
-            vert.y = unsafe { *graphics_base.add(1) };
-            vert.z = unsafe { *graphics_base.add(2) };
-            *vert *= mesh_scaling;
+        for (vert, &id) in self
+            .triangle
+            .iter_mut()
+            .zip(&ids[node_triangle_index * 3..])
+        {
+            *vert = verts[id] * mesh_scaling;
         }
 
         self.callback
             .process_triangle(&self.triangle, node_subpart, node_triangle_index);
-        self.mesh_interface
-            .unlock_read_only_vertex_base(node_subpart);
     }
 }
 

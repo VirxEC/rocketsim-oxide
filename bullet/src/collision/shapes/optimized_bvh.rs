@@ -27,7 +27,9 @@ impl OptimizedBvh {
         impl InternalTriangleIndexCallback for QuantizedNodeTriangleCallback<'_> {
             fn internal_process_triangle_index(
                 &mut self,
-                triangle: &[Vec3A],
+                _triangle: &[Vec3A],
+                mut aabb_min: Vec3A,
+                mut aabb_max: Vec3A,
                 part_id: usize,
                 triangle_index: usize,
             ) -> bool {
@@ -36,9 +38,6 @@ impl OptimizedBvh {
 
                 debug_assert!(part_id < (1 << MAX_NUM_PARTS_IN_BITS));
                 debug_assert!(triangle_index < (1 << (31 - MAX_NUM_PARTS_IN_BITS)));
-
-                let mut aabb_min = triangle[0].min(triangle[1]).min(triangle[2]);
-                let mut aabb_max = triangle[0].max(triangle[1]).max(triangle[2]);
 
                 let diff = (aabb_max - aabb_min).cmplt(const { Vec3A::splat(MIN_AABB_DIMENSION) });
 

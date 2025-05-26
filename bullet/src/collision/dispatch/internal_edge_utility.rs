@@ -13,7 +13,7 @@ use crate::collision::{
     },
 };
 use glam::{Quat, Vec3A};
-use std::{f32::consts::PI, mem, ptr};
+use std::{f32::consts::PI, mem};
 
 // pub(crate) enum InternalEdgeAdjustFlags {
 //     TriangleConvexBackfaceMode = 1,
@@ -68,7 +68,7 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
         for (i, vert_a) in self.triangle_vertices_a.iter().enumerate() {
             for (j, vert) in triangle.iter().enumerate() {
                 if vert_a.distance_squared(*vert) < self.triangle_info_map.equal_vertex_threshold {
-                    debug_assert!(num_shared < 3, "degenerate triangle");
+                    debug_assert!(num_shared < 2, "degenerate triangle");
 
                     shared_verts_a[num_shared] = i;
                     shared_verts_b[num_shared] = j;
@@ -213,56 +213,24 @@ pub fn generate_internal_edge_info(
         .internal_map
         .reserve(mesh_interface.get_total_num_faces());
 
+    let mut triangle = [Vec3A::ZERO; 3];
+
     for part_id in 0..mesh_interface.get_num_sub_parts() {
-        let mut vertex_base = ptr::null();
-        let mut num_verts = 0;
-        let mut vertex_stride = 0;
-        let mut index_base = ptr::null();
-        let mut num_faces = 0;
-        let mut index_stride = 0;
+        let (verts, ids, aabbs) = mesh_interface.get_verts_ids_aabbs(part_id);
 
-        let mut triangle_verts = [Vec3A::ZERO; 3];
-
-        mesh_interface.get_locked_read_only_vertex_index_base(
-            &mut vertex_base,
-            &mut num_verts,
-            &mut vertex_stride,
-            &mut index_base,
-            &mut index_stride,
-            &mut num_faces,
-            part_id,
-        );
-
-        for gfx_index in 0..num_faces {
-            let tri_indices =
-                unsafe { index_base.byte_add(gfx_index * index_stride) }.cast::<u32>();
-
-            for (i, vert) in triangle_verts.iter_mut().enumerate().rev() {
-                let graphics_base =
-                    unsafe { vertex_base.byte_add(*tri_indices.add(i) as usize * vertex_stride) }
-                        .cast::<f32>();
-
-                vert.x = unsafe { *graphics_base.add(0) };
-                vert.y = unsafe { *graphics_base.add(1) };
-                vert.z = unsafe { *graphics_base.add(2) };
-                *vert *= mesh_scaling;
+        for (i, (inner_ids, (aabb_min, aabb_max))) in ids.chunks_exact(3).zip(aabbs).enumerate() {
+            for (vert, &id) in triangle.iter_mut().zip(inner_ids).rev() {
+                *vert = verts[id] * mesh_scaling;
             }
-
-            let aabb_min = triangle_verts[0]
-                .min(triangle_verts[1])
-                .min(triangle_verts[2]);
-            let aabb_max = triangle_verts[0]
-                .max(triangle_verts[1])
-                .max(triangle_verts[2]);
 
             let mut connectivity_processor = ConnectivityProcessor {
                 part_id_a: part_id,
-                triangle_index_a: gfx_index,
-                triangle_vertices_a: &triangle_verts,
+                triangle_index_a: i,
+                triangle_vertices_a: &triangle,
                 triangle_info_map,
             };
 
-            tri_mesh_shape.process_all_triangles(&mut connectivity_processor, aabb_min, aabb_max);
+            tri_mesh_shape.process_all_triangles(&mut connectivity_processor, *aabb_min, *aabb_max);
         }
     }
 }

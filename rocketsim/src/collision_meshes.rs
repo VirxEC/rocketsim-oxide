@@ -26,7 +26,7 @@ impl FromCursor for Vec3A {
 }
 
 pub struct CollisionMeshFile {
-    indices: Vec<u32>,
+    indices: Vec<usize>,
     vertices: Vec<Vec3A>,
     hash: u32,
 }
@@ -38,14 +38,14 @@ impl CollisionMeshFile {
     }
 
     /// From: <https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector/72073933#72073933>
-    fn calculate_hash(indices: &Vec<u32>, vertices: &[Vec3A]) -> u32 {
+    fn calculate_hash(indices: &Vec<usize>, vertices: &[Vec3A]) -> u32 {
         let mut hash = Wrapping((vertices.len() + (indices.len() / 3 * vertices.len())) as u32);
 
         const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D9F3B);
         const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E3779B9);
 
         for &vert_index in indices {
-            for pos in vertices[vert_index as usize].to_array() {
+            for pos in vertices[vert_index].to_array() {
                 let mut cur_val = Wrapping(pos as i32 as u32);
                 cur_val = ((cur_val >> 16) ^ cur_val) * HASH_VAL_MUELLER;
                 cur_val = ((cur_val >> 16) ^ cur_val) * HASH_VAL_MUELLER;
@@ -72,7 +72,7 @@ impl CollisionMeshFile {
         );
 
         let indices = (0..num_indices)
-            .map(|_| bytes.read_u32::<LittleEndian>())
+            .map(|_| bytes.read_u32::<LittleEndian>().map(|x| x as usize))
             .collect::<Result<Vec<_>, _>>()?;
         let vertices = (0..num_vertices)
             .map(|_| Vec3A::from_cursor(&mut bytes))
@@ -81,9 +81,9 @@ impl CollisionMeshFile {
         #[cfg(debug_assertions)]
         {
             // Verify that the triangle data is correct
-            for vert_index in &indices {
+            for &vert_index in &indices {
                 assert!(
-                    (*vert_index as usize) < num_vertices,
+                    vert_index < num_vertices,
                     "{ERROR_PREFIX_STR}Invalid collision mesh file (bad triangle vertex index)"
                 );
             }
@@ -103,10 +103,6 @@ impl CollisionMeshFile {
     }
 
     pub fn make_bullet_mesh(self) -> TriangleMesh {
-        let mut result = TriangleMesh::default();
-        result.set_vertices(self.vertices);
-        result.set_indices(self.indices);
-
-        result
+        TriangleMesh::new(self.vertices, self.indices)
     }
 }

@@ -205,19 +205,20 @@ impl RsBroadphase {
         let max = self.get_cell_indices(aabb_max);
 
         let col_obj = &*inner_proxy.client_object.borrow();
-
-        let mut callback_inst = BoolHitTriangleCallback::default();
-        let mut cells = Vec::with_capacity(27);
-
         let obj = col_obj.get_collision_shape().as_ref().unwrap().borrow();
         let tri_mesh_shape = match &*obj {
             CollisionShapes::TriangleMesh(mesh) => Some(&*mesh.mesh_interface),
             _ => None,
         };
 
+        let mut callback_inst = BoolHitTriangleCallback::default();
+        let mut cells = Vec::with_capacity(27);
+
         for i in min.x..=max.x {
             for j in min.y..=max.y {
                 for k in min.z..=max.z {
+                    debug_assert!(cells.is_empty());
+
                     for i1 in 0..=2 {
                         for j1 in 0..=2 {
                             for k1 in 0..=2 {
@@ -251,6 +252,7 @@ impl RsBroadphase {
                             );
 
                             if !callback_inst.hit {
+                                cells.clear();
                                 continue;
                             }
                         }

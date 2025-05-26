@@ -1,8 +1,5 @@
-use std::{ptr, slice};
-
-use glam::Vec3A;
-
 use super::triangle_callback::InternalTriangleIndexCallback;
+use glam::Vec3A;
 
 pub trait StridingMeshInterface {
     fn internal_process_all_triangles(
@@ -11,71 +8,30 @@ pub trait StridingMeshInterface {
         _aabb_min: &Vec3A,
         _aabb_max: &Vec3A,
     ) {
-        let graphics_sub_parts = self.get_num_sub_parts();
-
-        let mut vertex_base: *const u8 = ptr::null();
-        let mut index_base: *const u8 = ptr::null();
-
-        let mut index_stride = 0;
-        let mut stride = 0;
-        let mut num_verts = 0;
-        let mut num_triangles = 0;
         let mut triangle = [Vec3A::ZERO; 3];
 
         let mesh_scaling = self.get_scaling();
-        for part in 0..graphics_sub_parts {
-            self.get_locked_read_only_vertex_index_base(
-                &mut vertex_base,
-                &mut num_verts,
-                &mut stride,
-                &mut index_base,
-                &mut index_stride,
-                &mut num_triangles,
-                part,
-            );
+        for part in 0..self.get_num_sub_parts() {
+            let (verts, ids, aabbs) = self.get_verts_ids_aabbs(part);
 
-            for gfx_index in 0..num_triangles {
-                let tri_indices =
-                    unsafe { index_base.byte_add(gfx_index * index_stride) }.cast::<u32>();
-
-                for (i, vert) in triangle.iter_mut().enumerate() {
-                    let graphics_base =
-                        unsafe { vertex_base.byte_add(*tri_indices.add(i) as usize * stride) }
-                            .cast::<f32>();
-                    let verts = unsafe { slice::from_raw_parts(graphics_base, 3) };
-
-                    vert.x = verts[0];
-                    vert.y = verts[1];
-                    vert.z = verts[2];
-                    *vert *= mesh_scaling;
+            for (i, (inner_ids, (aabb_min, aabb_max))) in ids.chunks_exact(3).zip(aabbs).enumerate()
+            {
+                for (vert, &id) in triangle.iter_mut().zip(inner_ids) {
+                    *vert = verts[id] * mesh_scaling;
                 }
 
-                let continue_processing =
-                    callback.internal_process_triangle_index(&triangle, part, gfx_index);
+                let continue_processing = callback
+                    .internal_process_triangle_index(&triangle, *aabb_min, *aabb_max, part, i);
                 if !continue_processing {
-                    self.unlock_read_only_vertex_base(part);
                     return;
                 }
             }
-
-            self.unlock_read_only_vertex_base(part);
         }
     }
 
     fn get_total_num_faces(&self) -> usize;
 
-    fn get_locked_read_only_vertex_index_base(
-        &self,
-        vertex_base: &mut *const u8,
-        num_verts: &mut usize,
-        vertex_stride: &mut usize,
-        index_base: &mut *const u8,
-        index_stride: &mut usize,
-        num_faces: &mut usize,
-        subpart: usize,
-    );
-
-    fn unlock_read_only_vertex_base(&self, subpart: usize);
+    fn get_verts_ids_aabbs(&self, subpart: usize) -> (&[Vec3A], &[usize], &[(Vec3A, Vec3A)]);
 
     fn get_num_sub_parts(&self) -> usize;
 
