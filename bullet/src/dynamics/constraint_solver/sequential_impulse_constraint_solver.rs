@@ -137,6 +137,29 @@ impl SequentialImpulseConstraintSolver {
         self.tmp_solver_body_pool.clear();
         self.tmp_solver_body_pool.reserve(manifolds.len() * 2);
 
+        for manifold in manifolds.iter() {
+            manifold.body0.borrow_mut().companion_id = None;
+            manifold.body1.borrow_mut().companion_id = None;
+        }
+
+        for rb in bodies {
+            let rb_ref = rb.borrow();
+
+            if rb_ref.inverse_mass != 0.0 || rb_ref.collision_object.borrow().is_kinematic_object()
+            {
+                let solver_body_id = self.tmp_solver_body_pool.len();
+                rb_ref.collision_object.borrow_mut().companion_id = Some(solver_body_id);
+
+                self.tmp_solver_body_pool
+                    .push(SolverBody::new(rb.clone(), info.time_step));
+            } else if self.fixed_body_id.is_none() {
+                let solver_body_id = self.tmp_solver_body_pool.len();
+                rb_ref.collision_object.borrow_mut().companion_id = Some(solver_body_id);
+                self.fixed_body_id = Some(solver_body_id);
+                self.tmp_solver_body_pool.push(SolverBody::DEFAULT);
+            }
+        }
+
         for manifold in manifolds.drain(..) {
             let solver_body_id_a =
                 self.get_or_init_solver_body(bodies, &manifold.body0, info.time_step);
@@ -687,9 +710,12 @@ impl SequentialImpulseConstraintSolver {
         }
 
         for _ in 0..info.num_iterations {
-            for (i, contact) in self.tmp_solver_contact_constraint_pool.iter().enumerate() {
+            for (i, contact) in self
+                .tmp_solver_contact_constraint_pool
+                .iter_mut()
+                .enumerate()
+            {
                 let mask = 1 << i;
-                // println!("{should_run:b} & (1 << {i}) = {}", should_run & mask);
                 if should_run & mask == 0 {
                     continue;
                 }
@@ -813,9 +839,9 @@ impl SequentialImpulseConstraintSolver {
             body.set_angular_velocity(solver.angular_velocity + solver.external_torque_impulse);
 
             debug_assert!(info.split_impulse);
-            let mut co = body.collision_object.borrow_mut();
-            co.set_world_transform(solver.world_transform);
-            co.companion_id = None;
+            body.collision_object
+                .borrow_mut()
+                .set_world_transform(solver.world_transform);
         }
 
         self.tmp_solver_contact_constraint_pool.clear();

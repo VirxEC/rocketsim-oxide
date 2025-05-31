@@ -115,8 +115,7 @@ impl CollisionWorld {
     pub fn perform_discrete_collision_detection(&mut self) {
         self.update_aabbs();
 
-        self.broadphase_pair_cache
-            .calculate_overlapping_pairs(&mut self.dispatcher1);
+        self.broadphase_pair_cache.calculate_overlapping_pairs();
 
         self.dispatcher1.dispatch_all_collision_pairs(
             self.broadphase_pair_cache.get_overlapping_pair_cache(),

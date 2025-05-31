@@ -1,6 +1,6 @@
 use super::{
-    broadphase_proxy::BroadphasePair, overlapping_pair_callback::OverlappingPairCallback,
-    rs_broadphase::RsBroadphaseProxy,
+    broadphase_proxy::BroadphasePair, dispatcher::DispatcherInfo,
+    overlapping_pair_callback::OverlappingPairCallback, rs_broadphase::RsBroadphaseProxy,
 };
 use crate::collision::dispatch::collision_dispatcher::CollisionDispatcher;
 use ahash::AHashMap;
@@ -15,13 +15,9 @@ pub trait OverlapFilterCallback {
 }
 
 pub trait OverlappingPairCache: OverlappingPairCallback {
-    fn has_deffered_removal(&self) -> bool;
+    fn is_empty(&self) -> bool;
 
-    fn contains_pair(
-        &mut self,
-        proxy0: &Rc<RefCell<RsBroadphaseProxy>>,
-        proxy1: &Rc<RefCell<RsBroadphaseProxy>>,
-    ) -> bool;
+    fn contains_pair(&mut self, proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) -> bool;
 
     fn needs_broadphase_collision(
         &self,
@@ -29,14 +25,16 @@ pub trait OverlappingPairCache: OverlappingPairCallback {
         proxy1: &RsBroadphaseProxy,
     ) -> bool;
 
-    fn process_all_overlapping_pairs(&mut self, callback: &mut dyn OverlapCallback);
+    fn process_all_overlapping_pairs(
+        &mut self,
+        dispatcher: &mut CollisionDispatcher,
+        dispatch_info: &DispatcherInfo,
+    );
 }
 
 pub struct HashedOverlappingPairCache {
     overlapping_pair_array: Vec<BroadphasePair>,
     overlap_filter_callback: Option<Box<dyn OverlapFilterCallback>>,
-    // hash_table: Vec<usize>,
-    // next: Vec<i32>,
     hash_table: AHashMap<(u32, u32), usize>,
     ghost_pair_callback: Option<Box<dyn OverlappingPairCallback>>,
 }
@@ -94,38 +92,25 @@ impl OverlappingPairCallback for HashedOverlappingPairCache {
 
         self.internal_add_pair(proxy0, proxy1);
     }
-
-    fn remove_overlapping_pair(
-        &mut self,
-        proxy0: &Rc<RefCell<RsBroadphaseProxy>>,
-        proxy1: &Rc<RefCell<RsBroadphaseProxy>>,
-        dispatcher: &mut CollisionDispatcher,
-    ) {
-        dbg!(
-            proxy0.borrow().broadphase_proxy.unique_id,
-            proxy1.borrow().broadphase_proxy.unique_id
-        );
-        todo!();
-    }
 }
 
 impl OverlappingPairCache for HashedOverlappingPairCache {
-    fn has_deffered_removal(&self) -> bool {
-        false
+    fn is_empty(&self) -> bool {
+        self.hash_table.is_empty()
     }
 
     fn contains_pair<'a>(
         &mut self,
-        mut proxy0: &'a Rc<RefCell<RsBroadphaseProxy>>,
-        mut proxy1: &'a Rc<RefCell<RsBroadphaseProxy>>,
+        mut proxy0: &'a RsBroadphaseProxy,
+        mut proxy1: &'a RsBroadphaseProxy,
     ) -> bool {
-        if proxy0.borrow().broadphase_proxy.unique_id > proxy1.borrow().broadphase_proxy.unique_id {
+        if proxy0.broadphase_proxy.unique_id > proxy1.broadphase_proxy.unique_id {
             mem::swap(&mut proxy0, &mut proxy1);
         }
 
         self.hash_table.contains_key(&(
-            proxy0.borrow().broadphase_proxy.unique_id,
-            proxy1.borrow().broadphase_proxy.unique_id,
+            proxy0.broadphase_proxy.unique_id,
+            proxy1.broadphase_proxy.unique_id,
         ))
     }
 
@@ -146,11 +131,15 @@ impl OverlappingPairCache for HashedOverlappingPairCache {
                 != 0
     }
 
-    fn process_all_overlapping_pairs(&mut self, callback: &mut dyn OverlapCallback) {
-        for pair in &self.overlapping_pair_array {
-            if callback.process_overlap(pair) {
-                unimplemented!()
-            }
+    fn process_all_overlapping_pairs(
+        &mut self,
+        dispatcher: &mut CollisionDispatcher,
+        dispatch_info: &DispatcherInfo,
+    ) {
+        for pair in self.overlapping_pair_array.drain(..) {
+            dispatcher.near_callback(pair, dispatch_info);
         }
+
+        self.hash_table.clear();
     }
 }

@@ -339,7 +339,7 @@ impl Arena {
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
-        for _ in 0..ticks_to_simulate {
+        for i in 0..ticks_to_simulate {
             self.internal_step();
         }
     }

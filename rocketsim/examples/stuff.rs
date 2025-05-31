@@ -17,7 +17,7 @@ fn main() {
     arena.ball.set_state(ball);
 
     let start = Instant::now();
-    arena.step(1);
+    arena.step(440);
     println!(
         "Stepped Arena in {}s!",
         Instant::now().duration_since(start).as_secs_f32()
@@ -25,4 +25,5 @@ fn main() {
 
     let ball = arena.ball.get_state();
     dbg!(ball.physics.pos);
+    dbg!(ball.physics.vel);
 }

@@ -7,7 +7,7 @@ use crate::collision::{
         broadphase_proxy::{BroadphaseNativeTypes, BroadphasePair},
         collision_algorithm::CollisionAlgorithm,
         dispatcher::{DispatchFunc, DispatcherInfo},
-        overlapping_pair_cache::{OverlapCallback, OverlappingPairCache},
+        overlapping_pair_cache::OverlappingPairCache,
     },
     narrowphase::persistent_manifold::PersistentManifold,
 };
@@ -27,18 +27,6 @@ pub type NearCallback = fn(
 
 const MAX_BROADPHASE_COLLISION_TYPES: usize =
     BroadphaseNativeTypes::MaxBroadphaseCollisionTypes as usize;
-
-struct CollisionPairCallback<'a> {
-    dispatch_info: &'a DispatcherInfo,
-    dispatcher: &'a mut CollisionDispatcher,
-}
-
-impl OverlapCallback for CollisionPairCallback<'_> {
-    fn process_overlap(&mut self, pair: &BroadphasePair) -> bool {
-        self.dispatcher.near_callback(pair, self.dispatch_info);
-        false
-    }
-}
 
 #[derive(Default)]
 pub struct CollisionDispatcher {
@@ -95,7 +83,11 @@ impl CollisionDispatcher {
         }
     }
 
-    fn near_callback(&mut self, collision_pair: &BroadphasePair, dispatch_info: &DispatcherInfo) {
+    pub fn near_callback(
+        &mut self,
+        collision_pair: BroadphasePair,
+        dispatch_info: &DispatcherInfo,
+    ) {
         let proxy0 = collision_pair.proxy0.borrow();
         let proxy1 = collision_pair.proxy1.borrow();
 
@@ -142,11 +134,6 @@ impl CollisionDispatcher {
         pair_cache: &mut dyn OverlappingPairCache,
         dispatch_info: &DispatcherInfo,
     ) {
-        let mut collision_callback = CollisionPairCallback {
-            dispatch_info,
-            dispatcher: self,
-        };
-
-        pair_cache.process_all_overlapping_pairs(&mut collision_callback);
+        pair_cache.process_all_overlapping_pairs(self, dispatch_info);
     }
 }

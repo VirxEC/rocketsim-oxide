@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     collision::{
-        dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
+        dispatch::collision_object::CollisionObject,
         shapes::{
             collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
             triangle_mesh_shape::TriangleMeshShape,
@@ -94,10 +94,6 @@ pub struct RsBroadphase {
     total_dyn_pairs: u32,
     total_real_pairs: u32,
     total_iters: u32,
-    active_pairs: Vec<(
-        Rc<RefCell<RsBroadphaseProxy>>,
-        Rc<RefCell<RsBroadphaseProxy>>,
-    )>,
     cells: Vec<Cell>,
     handles: Vec<Rc<RefCell<RsBroadphaseProxy>>>,
     first_free_handle: usize,
@@ -155,7 +151,6 @@ impl RsBroadphase {
             total_dyn_pairs: 0,
             total_real_pairs: 0,
             total_iters: 0,
-            active_pairs: Vec::new(),
             cells,
             handles,
             first_free_handle: 0,
@@ -430,22 +425,10 @@ impl BroadphaseInterface for RsBroadphase {
         self.handles[new_handle_idx].clone()
     }
 
-    fn calculate_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher) {
+    fn calculate_overlapping_pairs(&mut self) {
         // let last_real_pairs = self.total_real_pairs;
 
-        let should_remove = !self.pair_cache.has_deffered_removal();
-
-        if should_remove {
-            for (first, second) in &self.active_pairs {
-                self.pair_cache
-                    .remove_overlapping_pair(first, second, dispatcher);
-            }
-
-            self.active_pairs.clear();
-        } else {
-            unreachable!();
-        }
-
+        debug_assert!(self.pair_cache.is_empty());
         if self.num_handles == 0 {
             return;
         }
@@ -468,10 +451,9 @@ impl BroadphaseInterface for RsBroadphase {
                 self.total_static_pairs += 1;
 
                 if Self::aabb_overlap(&proxy_ref, &other_proxy_ref)
-                    && !self.pair_cache.contains_pair(proxy, other_proxy)
+                    && !self.pair_cache.contains_pair(&proxy_ref, &other_proxy_ref)
                 {
                     self.pair_cache.add_overlapping_pair(proxy, other_proxy);
-                    self.active_pairs.push((proxy.clone(), other_proxy.clone()));
                     self.total_real_pairs += 1;
                 }
             }

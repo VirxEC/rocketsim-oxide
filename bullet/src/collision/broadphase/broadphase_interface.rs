@@ -28,7 +28,7 @@ pub trait BroadphaseInterface {
         // dispatcher: &CollisionDispatcher,
     ) -> Rc<RefCell<RsBroadphaseProxy>>;
 
-    fn calculate_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher);
+    fn calculate_overlapping_pairs(&mut self);
 
     fn get_overlapping_pair_cache(&mut self) -> &mut dyn OverlappingPairCache;
 }
