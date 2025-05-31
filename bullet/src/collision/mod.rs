@@ -1,4 +1,4 @@
 pub mod broadphase;
 pub mod dispatch;
-pub mod narrowphase;
+pub(crate) mod narrowphase;
 pub mod shapes;

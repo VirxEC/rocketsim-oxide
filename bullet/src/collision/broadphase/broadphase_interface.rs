@@ -2,9 +2,7 @@ use super::{
     broadphase_proxy::BroadphaseNativeTypes, overlapping_pair_cache::OverlappingPairCache,
     rs_broadphase::RsBroadphaseProxy,
 };
-use crate::collision::dispatch::{
-    collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject,
-};
+use crate::collision::dispatch::collision_object::CollisionObject;
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
 

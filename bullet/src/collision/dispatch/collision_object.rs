@@ -36,12 +36,6 @@ pub enum CollisionObjectTypes {
     FeatherstoneLink = 64,
 }
 
-pub enum AnisotropicFrictionFlags {
-    FrictionDisabled = 0,
-    Friction = 1,
-    RollingFriction = 2,
-}
-
 pub struct SpecialResolveInfo {
     pub num_special_collisions: u16,
     pub total_normal: Vec3A,

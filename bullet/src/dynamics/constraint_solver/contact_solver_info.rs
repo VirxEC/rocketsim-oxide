@@ -1,18 +1,3 @@
-pub enum SolverMode {
-    RandomizeOrder = 1,
-    FrictionSeparate = 2,
-    UseWarmstarting = 4,
-    Use2FrictionDirections = 16,
-    EnableFrictionDirectionCaching = 32,
-    DisableVelocityDependentFrictionDirection = 64,
-    CacheFriendly = 128,
-    Simd = 256,
-    InterleaveContactAndFrictionConstraints = 512,
-    AllowZeroLengthFrictionDirections = 1024,
-    DisableImplicitConeFriction = 2048,
-    UseArticulatedWarmstarting = 4096,
-}
-
 pub struct ContactSolverInfo {
     pub tau: f32,
     pub damping: f32,
@@ -36,7 +21,7 @@ pub struct ContactSolverInfo {
     pub linear_slop: f32,
     pub warmstarting_factor: f32,
     pub articulated_warmstarting_factor: f32,
-    pub solver_mode: i32,
+    // pub solver_mode: i32,
     pub minimum_solver_batch_size: i32,
     pub max_gyroscopic_force: f32,
     // pub single_axis_rolling_friction_threshold: f32,
@@ -73,7 +58,7 @@ impl Default for ContactSolverInfo {
             linear_slop: 0.0,
             warmstarting_factor: 0.85,
             articulated_warmstarting_factor: 0.85,
-            solver_mode: SolverMode::UseWarmstarting as i32 | SolverMode::Simd as i32,
+            // solver_mode: SolverMode::UseWarmstarting as i32 | SolverMode::Simd as i32,
             minimum_solver_batch_size: 128,
             max_gyroscopic_force: 100.0,
             // single_axis_rolling_friction_threshold: 1e30,

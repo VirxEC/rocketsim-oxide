@@ -1,11 +1,6 @@
 use super::solver_body::SolverBody;
 use glam::Vec3A;
 
-pub enum SolverConstraintType {
-    Contact1D = 0,
-    Friction1D,
-}
-
 #[derive(Default)]
 pub struct SolverConstraint {
     pub rel_pos1_cross_normal: Vec3A,

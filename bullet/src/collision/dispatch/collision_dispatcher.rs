@@ -6,18 +6,12 @@ use crate::collision::{
     broadphase::{
         broadphase_proxy::{BroadphaseNativeTypes, BroadphasePair},
         collision_algorithm::CollisionAlgorithm,
-        dispatcher::{DispatchFunc, DispatcherInfo},
+        dispatcher::DispatcherInfo,
         overlapping_pair_cache::OverlappingPairCache,
     },
     narrowphase::persistent_manifold::PersistentManifold,
 };
 use std::{cell::RefCell, rc::Rc};
-
-pub enum DispatcherFlags {
-    CdStaticStaticReported = 1,
-    CdUseRelativeContactBreakingThreshold = 2,
-    CdDisableContactpoolDynamicAllocation = 4,
-}
 
 pub type NearCallback = fn(
     collision_pair: &BroadphasePair,
@@ -123,7 +117,6 @@ impl CollisionDispatcher {
                 .clone(),
         );
 
-        debug_assert_eq!(dispatch_info.dispatch_func, DispatchFunc::DispatchDiscrete);
         algorithm.process_collision(&col_obj_0, &col_obj_1);
 
         self.manifolds.push(algorithm.into_manifold());

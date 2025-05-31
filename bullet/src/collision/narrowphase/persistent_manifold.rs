@@ -14,13 +14,8 @@ use std::{cell::RefCell, mem, rc::Rc};
 pub const CONTACT_BREAKING_THRESHOLD: f32 = 0.02;
 pub const MANIFOLD_CACHE_SIZE: usize = 4;
 
-enum ContactManifoldTypes {
-    MinContactManifoldType = 1024,
-    PersistentManifoldType,
-}
-
 pub struct PersistentManifold {
-    object_type: i32,
+    // object_type: i32,
     pub point_cache: ArrayVec<ManifoldPoint, MANIFOLD_CACHE_SIZE>,
     pub body0: Rc<RefCell<CollisionObject>>,
     pub body1: Rc<RefCell<CollisionObject>>,
@@ -61,7 +56,7 @@ impl PersistentManifold {
             body1,
             contact_breaking_threshold,
             contact_processing_threshold,
-            object_type: ContactManifoldTypes::PersistentManifoldType as i32,
+            // object_type: ContactManifoldTypes::PersistentManifoldType as i32,
             point_cache: const { ArrayVec::new_const() },
             companion_id_a: 0,
             companion_id_b: 0,
@@ -371,7 +366,7 @@ impl PersistentManifold {
                 self.remove_contact_point(i);
             } else {
                 let projected_point =
-                    point.position_world_on_a - point.position_world_on_b * point.distance_1;
+                    point.position_world_on_a - point.normal_world_on_b * point.distance_1;
                 let projected_difference = point.position_world_on_b - projected_point;
                 let distance_2d = projected_difference.dot(projected_difference);
                 if distance_2d > contact_breaking_threshold_sq {

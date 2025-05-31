@@ -10,7 +10,7 @@ use crate::{
             persistent_manifold::{MANIFOLD_CACHE_SIZE, PersistentManifold},
         },
     },
-    dynamics::{constraint_solver::contact_solver_info::SolverMode, rigid_body::RigidBody},
+    dynamics::rigid_body::RigidBody,
     linear_math::{
         plane_space,
         transform_util::{integrate_transform, integrate_transform_no_rot},
@@ -325,7 +325,6 @@ impl SequentialImpulseConstraintSolver {
                     (velocity_impulse, penetration_impulse)
                 };
 
-                debug_assert!(info.solver_mode & SolverMode::UseWarmstarting as i32 != 0);
                 let applied_impulse = cp.applied_impulse * info.warmstarting_factor;
                 if rb0.is_some() {
                     solver_body_a.internal_apply_impulse(
@@ -379,19 +378,12 @@ impl SequentialImpulseConstraintSolver {
                 let rel_vel = cp.normal_world_on_b.dot(vel);
 
                 debug_assert!(
-                    info.solver_mode & SolverMode::EnableFrictionDirectionCaching as i32 == 0
-                        || cp.contact_point_flags
-                            & ContactPointFlags::LateralFrictionInitialized as i32
-                            == 0
+                    cp.contact_point_flags & ContactPointFlags::LateralFrictionInitialized as i32
+                        == 0
                 );
 
                 cp.lateral_friction_dir_1 = vel - cp.normal_world_on_b * rel_vel;
                 let lat_rel_vel = cp.lateral_friction_dir_1.length_squared();
-
-                debug_assert!(
-                    info.solver_mode & SolverMode::DisableVelocityDependentFrictionDirection as i32
-                        == 0
-                );
 
                 if lat_rel_vel > f32::EPSILON {
                     cp.lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
@@ -403,8 +395,6 @@ impl SequentialImpulseConstraintSolver {
                     debug_assert!(!manifold.body0.borrow().has_anisotropic_friction);
                     debug_assert!(!manifold.body1.borrow().has_anisotropic_friction);
                 }
-
-                debug_assert!(info.solver_mode & SolverMode::Use2FrictionDirections as i32 == 0);
 
                 let rb0 = solver_body_a.original_body.as_ref();
                 let rb1 = solver_body_b.original_body.as_ref();
@@ -638,17 +628,11 @@ impl SequentialImpulseConstraintSolver {
         let mut lateral_friction_dir_1 = vel - normal_world_on_b * rel_vel;
         let lat_rel_vel = lateral_friction_dir_1.length_squared();
 
-        debug_assert!(
-            info.solver_mode & SolverMode::DisableVelocityDependentFrictionDirection as i32 == 0
-        );
-
         if lat_rel_vel > f32::EPSILON {
             lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
         } else {
             (lateral_friction_dir_1, _) = plane_space(normal_world_on_b);
         }
-
-        debug_assert!(info.solver_mode & SolverMode::Use2FrictionDirections as i32 == 0);
 
         let rb0 = solver_body_a.original_body.as_ref();
 
@@ -741,16 +725,14 @@ impl SequentialImpulseConstraintSolver {
         }
     }
 
-    fn solve_single_iteration(&mut self, info: &ContactSolverInfo) -> f32 {
+    fn solve_single_iteration(&mut self) -> f32 {
         let mut least_squares_residual = 0.0;
 
-        debug_assert_eq!(info.solver_mode & SolverMode::RandomizeOrder as i32, 0);
-        debug_assert_eq!(
-            info.solver_mode & SolverMode::InterleaveContactAndFrictionConstraints as i32,
-            0
-        );
-
         for contact in &mut self.tmp_solver_contact_constraint_pool {
+            if contact.is_special {
+                continue;
+            }
+
             debug_assert_ne!(contact.solver_body_id_a, contact.solver_body_id_b);
             let [body_a, body_b] = unsafe {
                 self.tmp_solver_body_pool.get_disjoint_unchecked_mut([
@@ -799,7 +781,7 @@ impl SequentialImpulseConstraintSolver {
         };
 
         for _ in 0..max_iterations {
-            self.least_squares_residual = self.solve_single_iteration(info);
+            self.least_squares_residual = self.solve_single_iteration();
             if self.least_squares_residual <= f32::EPSILON {
                 break;
             }

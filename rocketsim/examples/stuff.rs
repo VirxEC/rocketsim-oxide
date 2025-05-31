@@ -12,6 +12,8 @@ fn main() {
     );
 
     let mut ball = arena.ball.get_state();
+    ball.physics.vel.x = 500.0;
+    ball.physics.vel.y = 500.0;
     ball.physics.vel.z = 500.0;
 
     arena.ball.set_state(ball);
@@ -24,6 +26,7 @@ fn main() {
     );
 
     let ball = arena.ball.get_state();
-    dbg!(ball.physics.pos);
-    dbg!(ball.physics.vel);
+    println!("pos: {}", ball.physics.pos);
+    println!("vel: {}", ball.physics.vel);
+    println!("ang_vel: {}", ball.physics.ang_vel);
 }
