@@ -1,11 +1,10 @@
-use std::sync::Arc;
-
 use super::{
     sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
     triangle_mesh_shape::TriangleMeshShape,
 };
 use crate::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
 use glam::{Affine3A, Vec3A};
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct CollisionShape {
@@ -48,13 +47,13 @@ fn fast_compare_transforms(a: &Affine3A, b: &Affine3A) -> bool {
 impl CollisionShapes {
     pub fn reset_aabb_cache(&mut self) {
         match self {
-            CollisionShapes::Sphere(mesh) => {
+            Self::Sphere(mesh) => {
                 mesh.convex_internal_shape
                     .convex_shape
                     .collision_shape
                     .aabb_cached = false
             }
-            CollisionShapes::StaticPlane(_) | CollisionShapes::TriangleMesh(_) => {
+            Self::StaticPlane(_) | Self::TriangleMesh(_) => {
                 unreachable!();
             }
         }
@@ -62,25 +61,21 @@ impl CollisionShapes {
 
     pub fn get_collision_shape(&self) -> &CollisionShape {
         match self {
-            CollisionShapes::Sphere(shape) => {
-                &shape.convex_internal_shape.convex_shape.collision_shape
-            }
-            CollisionShapes::StaticPlane(shape) => &shape.concave_shape.collision_shape,
-            CollisionShapes::TriangleMesh(shape) => &shape.concave_shape.collision_shape,
+            Self::Sphere(shape) => &shape.convex_internal_shape.convex_shape.collision_shape,
+            Self::StaticPlane(shape) => &shape.concave_shape.collision_shape,
+            Self::TriangleMesh(shape) => &shape.concave_shape.collision_shape,
         }
     }
 
     pub fn get_collision_shape_mut(&mut self) -> &mut CollisionShape {
         match self {
-            CollisionShapes::Sphere(shape) => {
-                &mut shape.convex_internal_shape.convex_shape.collision_shape
-            }
-            CollisionShapes::StaticPlane(_) | CollisionShapes::TriangleMesh(_) => unreachable!(),
+            Self::Sphere(shape) => &mut shape.convex_internal_shape.convex_shape.collision_shape,
+            Self::StaticPlane(_) | Self::TriangleMesh(_) => unreachable!(),
         }
     }
 
     pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
-        if let CollisionShapes::Sphere(shape) = self {
+        if let Self::Sphere(shape) = self {
             // If we're a sphere, its faster to just re-calculate
             return shape.get_aabb(t);
         }
@@ -95,9 +90,31 @@ impl CollisionShapes {
 
     pub fn get_shape_type(&self) -> BroadphaseNativeTypes {
         match self {
-            CollisionShapes::Sphere(_) => BroadphaseNativeTypes::SphereShapeProxytype,
-            CollisionShapes::StaticPlane(_) => BroadphaseNativeTypes::StaticPlaneProxytype,
-            CollisionShapes::TriangleMesh(_) => BroadphaseNativeTypes::TriangleMeshShapeProxytype,
+            Self::Sphere(_) => BroadphaseNativeTypes::SphereShapeProxytype,
+            Self::StaticPlane(_) => BroadphaseNativeTypes::StaticPlaneProxytype,
+            Self::TriangleMesh(_) => BroadphaseNativeTypes::TriangleMeshShapeProxytype,
         }
+    }
+
+    fn get_bounding_sphere(&self) -> (Vec3A, f32) {
+        match self {
+            Self::Sphere(sphere) => (Vec3A::ZERO, sphere.get_radius() + 0.08),
+            _ => {
+                let (aabb_min, aabb_max) = self.get_aabb(&Affine3A::IDENTITY);
+                let center = (aabb_min + aabb_max) * 0.5;
+                let radius = (aabb_max - aabb_min).length() * 0.5;
+
+                (center, radius)
+            }
+        }
+    }
+
+    fn get_angular_motion_disc(&self) -> f32 {
+        let (center, disc) = self.get_bounding_sphere();
+        disc + center.length()
+    }
+
+    pub fn get_contact_breaking_threshold(&self, default_contact_threshold: f32) -> f32 {
+        self.get_angular_motion_disc() * default_contact_threshold
     }
 }

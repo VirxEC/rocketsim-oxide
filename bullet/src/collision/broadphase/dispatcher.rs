@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DispatchFunc {
     DispatchDiscrete = 1,
     DispatchContinuous,
@@ -9,7 +8,7 @@ pub struct DispatcherInfo {
     pub time_step: f32,
     pub step_count: u32,
     pub dispatch_func: DispatchFunc,
-    pub time_of_impact: RefCell<f32>,
+    // pub time_of_impact: RefCell<f32>,
     pub use_continuous: bool,
     pub enable_sat_convex: bool,
     pub enable_spu: bool,
@@ -26,7 +25,7 @@ impl Default for DispatcherInfo {
             time_step: 0.0,
             step_count: 0,
             dispatch_func: DispatchFunc::DispatchDiscrete,
-            time_of_impact: RefCell::new(1.0),
+            // time_of_impact: RefCell::new(1.0),
             use_continuous: true,
             enable_sat_convex: false,
             enable_spu: true,

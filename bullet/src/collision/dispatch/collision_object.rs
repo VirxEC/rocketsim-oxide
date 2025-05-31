@@ -1,5 +1,5 @@
 use crate::collision::{
-    broadphase::broadphase_proxy::BroadphaseProxy, shapes::collision_shape::CollisionShapes,
+    broadphase::rs_broadphase::RsBroadphaseProxy, shapes::collision_shape::CollisionShapes,
 };
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
@@ -42,13 +42,28 @@ pub enum AnisotropicFrictionFlags {
     RollingFriction = 2,
 }
 
-#[derive(Default)]
 pub struct SpecialResolveInfo {
-    pub num_special_collisions: i32,
+    pub num_special_collisions: u16,
     pub total_normal: Vec3A,
     pub total_dist: f32,
     pub restitution: f32,
     pub friction: f32,
+}
+
+impl Default for SpecialResolveInfo {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl SpecialResolveInfo {
+    pub const DEFAULT: Self = Self {
+        num_special_collisions: 0,
+        total_normal: Vec3A::ZERO,
+        total_dist: 0.0,
+        restitution: 0.0,
+        friction: 0.0,
+    };
 }
 
 pub struct CollisionObject {
@@ -60,20 +75,20 @@ pub struct CollisionObject {
     pub has_anisotropic_friction: bool,
     pub contact_processing_threshold: f32,
     // btBroadphaseProxy* m_broadphaseHandle;
-    broadphase_handle: Option<Rc<RefCell<BroadphaseProxy>>>,
+    broadphase_handle: Option<Rc<RefCell<RsBroadphaseProxy>>>,
     collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
     // void* m_extensionPointer;
     pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
     pub collision_flags: i32,
     pub island_tag_1: i32,
-    pub companion_id: i32,
+    pub companion_id: Option<usize>,
     pub world_array_index: i32,
-    pub activation_state_1: RefCell<i32>,
-    pub deactivation_time: RefCell<f32>,
+    pub activation_state_1: i32,
+    pub deactivation_time: f32,
     pub friction: f32,
     pub restitution: f32,
-    pub rolling_friction: f32,
-    pub spinning_friction: f32,
+    // pub rolling_friction: f32,
+    // pub spinning_friction: f32,
     pub contact_damping: f32,
     pub contact_stiffness: f32,
     pub no_rot: bool,
@@ -106,14 +121,14 @@ impl Default for CollisionObject {
             root_collision_shape: None,
             collision_flags: 0,
             island_tag_1: -1,
-            companion_id: -1,
+            companion_id: None,
             world_array_index: -1,
-            activation_state_1: RefCell::new(1),
-            deactivation_time: RefCell::new(0.0),
+            activation_state_1: ACTIVE_TAG,
+            deactivation_time: 0.0,
             friction: 0.5,
             restitution: 0.0,
-            rolling_friction: 0.0,
-            spinning_friction: 0.0,
+            // rolling_friction: 0.0,
+            // spinning_friction: 0.0,
             contact_damping: 0.1,
             contact_stiffness: f32::MAX,
             no_rot: false,
@@ -164,17 +179,41 @@ impl CollisionObject {
         self.collision_flags & CollisionFlags::StaticObject as i32 != 0
     }
 
+    pub fn is_kinematic_object(&self) -> bool {
+        self.collision_flags & CollisionFlags::KinematicObject as i32 != 0
+    }
+
     pub fn is_static_or_kinematic_object(&self) -> bool {
         self.collision_flags
             & (CollisionFlags::KinematicObject as i32 | CollisionFlags::StaticObject as i32)
             != 0
     }
 
-    pub fn set_activation_state(&self, new_state: i32) {
-        if *self.activation_state_1.borrow() != DISABLE_DEACTIVATION
-            && *self.activation_state_1.borrow() != DISABLE_SIMULATION
+    pub fn is_active(&self) -> bool {
+        self.activation_state_1 != FIXED_BASE_MULTI_BODY
+            && self.activation_state_1 != ISLAND_SLEEPING
+            && self.activation_state_1 != DISABLE_SIMULATION
+    }
+
+    pub fn has_contact_response(&self) -> bool {
+        self.collision_flags & CollisionFlags::NoContactResponse as i32 == 0
+    }
+
+    pub fn get_activation_state(&self) -> i32 {
+        self.activation_state_1
+    }
+
+    pub fn set_activation_state(&mut self, new_state: i32) {
+        if self.activation_state_1 != DISABLE_DEACTIVATION
+            && self.activation_state_1 != DISABLE_SIMULATION
         {
-            *self.activation_state_1.borrow_mut() = new_state;
+            self.activation_state_1 = new_state;
+        }
+    }
+
+    pub fn activate(&mut self) {
+        if self.is_static_or_kinematic_object() {
+            self.set_activation_state(ACTIVE_TAG);
         }
     }
 
@@ -186,7 +225,27 @@ impl CollisionObject {
         self.world_array_index = index;
     }
 
-    pub fn set_broadphase_handle(&mut self, handle: Rc<RefCell<BroadphaseProxy>>) {
+    pub fn set_broadphase_handle(&mut self, handle: Rc<RefCell<RsBroadphaseProxy>>) {
         self.broadphase_handle = Some(handle);
+    }
+
+    pub fn get_broadphase_handle(&self) -> Option<&Rc<RefCell<RsBroadphaseProxy>>> {
+        self.broadphase_handle.as_ref()
+    }
+
+    pub fn get_ccd_square_motion_threshold(&self) -> f32 {
+        self.ccd_motion_threshold * self.ccd_motion_threshold
+    }
+
+    fn check_collide_with_override(&self, co: &CollisionObject) -> bool {
+        todo!()
+    }
+
+    pub fn check_collide_with(&self, co: &CollisionObject) -> bool {
+        if self.check_collide_with {
+            self.check_collide_with_override(co)
+        } else {
+            true
+        }
     }
 }

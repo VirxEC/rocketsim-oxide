@@ -21,7 +21,7 @@ pub struct DynamicsWorld {
     internal_tick_callback: Option<InternalTickCallback>,
     internal_pre_tick_callback: Option<InternalTickCallback>,
     // void* m_worldUserInfo;
-    solver_info: ContactSolverInfo,
+    pub solver_info: ContactSolverInfo,
 }
 
 impl DynamicsWorld {
@@ -32,9 +32,5 @@ impl DynamicsWorld {
             internal_pre_tick_callback: None,
             solver_info: ContactSolverInfo::default(),
         }
-    }
-
-    pub fn get_solver_info(&mut self) -> &mut ContactSolverInfo {
-        &mut self.solver_info
     }
 }

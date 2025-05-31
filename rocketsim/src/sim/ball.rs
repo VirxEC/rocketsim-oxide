@@ -1,4 +1,5 @@
 use bullet::{
+    UserInfoTypes,
     collision::{
         broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
         dispatch::collision_object::{ACTIVE_TAG, CollisionFlags},
@@ -13,7 +14,7 @@ use glam::{Affine3A, Mat3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
 use super::{CollisionMasks, MutatorConfig, PhysState};
-use crate::{GameMode, UU_TO_BT, UserInfoTypes, consts};
+use crate::{BT_TO_UU, GameMode, UU_TO_BT, consts};
 
 #[derive(Clone, Copy, Debug)]
 pub struct HeatseekerInfo {
@@ -99,11 +100,11 @@ impl BallState {
 }
 
 pub struct Ball {
-    internal_state: BallState,
-    rigid_body: Rc<RefCell<RigidBody>>,
-    collision_shape: Rc<RefCell<CollisionShapes>>,
-    ground_stick_applied: bool,
-    velocity_impulse_cache: Vec3A,
+    pub(crate) internal_state: BallState,
+    pub(crate) rigid_body: Rc<RefCell<RigidBody>>,
+    pub(crate) collision_shape: Rc<RefCell<CollisionShapes>>,
+    pub(crate) ground_stick_applied: bool,
+    pub(crate) velocity_impulse_cache: Vec3A,
 }
 
 impl Ball {
@@ -121,7 +122,7 @@ impl Ball {
         }
     }
 
-    pub fn new(
+    pub(crate) fn new(
         game_mode: GameMode,
         bullet_world: &mut DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
@@ -176,6 +177,19 @@ impl Ball {
         }
     }
 
+    pub fn get_state(&self) -> BallState {
+        let mut state = self.internal_state;
+        let rb = self.rigid_body.borrow();
+        state.physics.vel = rb.linear_velocity * BT_TO_UU;
+        state.physics.ang_vel = rb.angular_velocity;
+
+        let trans = *rb.collision_object.borrow().get_world_transform();
+        state.physics.pos = trans.translation * BT_TO_UU;
+        state.physics.rot_mat = trans.matrix3;
+
+        state
+    }
+
     pub fn set_state(&mut self, state: BallState) {
         let mut rb = self.rigid_body.borrow_mut();
 
@@ -186,7 +200,7 @@ impl Ball {
                 translation: state.physics.pos * UU_TO_BT,
             });
 
-        rb.set_linear_velocity(state.physics.vel);
+        rb.set_linear_velocity(state.physics.vel * UU_TO_BT);
         rb.set_angular_velocity(state.physics.ang_vel);
         rb.update_inertia_tensor();
 
@@ -198,5 +212,39 @@ impl Ball {
 
         self.internal_state = state;
         self.internal_state.tick_count_since_update = 0;
+    }
+
+    pub(crate) fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
+        match game_mode {
+            GameMode::Heatseeker => todo!(),
+            GameMode::Snowday => self.ground_stick_applied = false,
+            GameMode::Dropshot | GameMode::Hoops => {
+                // launch ball after a short delay on kickoff
+                todo!()
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn finish_physics_tick(&mut self, mutator_config: &MutatorConfig) {
+        let mut rb = self.rigid_body.borrow_mut();
+
+        if self.velocity_impulse_cache.length_squared() != 0.0 {
+            rb.linear_velocity += self.velocity_impulse_cache;
+            self.velocity_impulse_cache = Vec3A::ZERO;
+        }
+
+        let ball_max_speed_bt = mutator_config.ball_max_speed * UU_TO_BT;
+        if rb.linear_velocity.length_squared() > ball_max_speed_bt * ball_max_speed_bt {
+            rb.linear_velocity = rb.linear_velocity.normalize() * ball_max_speed_bt;
+        }
+
+        if rb.angular_velocity.length_squared()
+            > consts::BALL_MAX_ANG_SPEED * consts::BALL_MAX_ANG_SPEED
+        {
+            rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
+        }
+
+        self.internal_state.tick_count_since_update += 1;
     }
 }

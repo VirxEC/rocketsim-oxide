@@ -171,12 +171,15 @@ impl QuantizedBvh {
     }
 
     fn swap_leaf_nodes(&mut self, i: usize, split_index: usize) {
+        debug_assert_ne!(i, split_index);
         if self.use_quantization {
-            let (a, b) = self.quantized_leaf_nodes.split_at_mut(i);
-            mem::swap(&mut a[split_index], &mut b[0]);
+            let [a, b] = unsafe {
+                self.quantized_leaf_nodes
+                    .get_disjoint_unchecked_mut([split_index, i])
+            };
+
+            mem::swap(a, b);
         } else {
-            // let (a, b) = self.leaf_nodes.split_at_mut(i);
-            // mem::swap(&mut a[split_index], &mut b[0]);
             unimplemented!();
         }
     }

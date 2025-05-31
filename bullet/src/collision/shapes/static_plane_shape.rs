@@ -19,15 +19,16 @@ impl StaticPlaneShape {
     pub fn new(plane_normal: Vec3A, plane_constant: f32) -> Self {
         debug_assert!(plane_normal.is_normalized());
 
-        let [x, y, z]: [u32; 3] = plane_normal.abs().cmpge(Vec3A::splat(f32::EPSILON)).into();
+        let [x, y, z]: [bool; 3] = plane_normal.abs().cmpge(Vec3A::splat(f32::EPSILON)).into();
 
-        let (is_single_axis, single_axis_idx, single_axis_backwards) = if x + y + z == 1 {
-            let axis = plane_normal.abs().max_position();
+        let (is_single_axis, single_axis_idx, single_axis_backwards) =
+            if x as u8 + y as u8 + z as u8 == 1 {
+                let axis = plane_normal.abs().max_position();
 
-            (true, axis, plane_normal[axis].is_sign_negative())
-        } else {
-            (false, 0, false)
-        };
+                (true, axis, plane_normal[axis].is_sign_negative())
+            } else {
+                (false, 0, false)
+            };
 
         Self {
             concave_shape: ConcaveShape {
@@ -71,5 +72,13 @@ impl StaticPlaneShape {
         }
 
         (aabb_min, aabb_max)
+    }
+
+    pub fn get_plane_normal(&self) -> Vec3A {
+        self.plane_normal
+    }
+
+    pub fn get_plane_constant(&self) -> f32 {
+        self.plane_constant
     }
 }

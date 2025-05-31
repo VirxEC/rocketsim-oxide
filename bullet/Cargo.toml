@@ -8,4 +8,5 @@ workspace = true
 
 [dependencies]
 ahash = { workspace = true }
+arrayvec = "0.7.6"
 glam = { workspace = true }

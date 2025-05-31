@@ -1,5 +1,6 @@
 use crate::collision::{
-    broadphase::quantized_bvh::MAX_NUM_PARTS_IN_BITS,
+    broadphase::{broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MAX_NUM_PARTS_IN_BITS},
+    narrowphase::manifold_point::ManifoldPoint,
     shapes::{
         bvh_triangle_mesh_shape::BvhTriangleMeshShape,
         striding_mesh_interface::StridingMeshInterface,
@@ -14,6 +15,8 @@ use crate::collision::{
 };
 use glam::{Quat, Vec3A};
 use std::{f32::consts::PI, mem};
+
+use super::collision_object::CollisionObject;
 
 // pub(crate) enum InternalEdgeAdjustFlags {
 //     TriangleConvexBackfaceMode = 1,
@@ -82,8 +85,8 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 shared_verts_a[0] = 2;
                 shared_verts_a[1] = 0;
 
-                let (a, b) = shared_verts_b.split_at_mut(1);
-                mem::swap(&mut a[0], &mut b[0]);
+                let [a, b] = unsafe { shared_verts_b.get_disjoint_unchecked_mut([0, 1]) };
+                mem::swap(a, b);
             }
 
             let hash = get_hash(self.part_id_a, self.triangle_index_a);
@@ -233,4 +236,25 @@ pub fn generate_internal_edge_info(
             tri_mesh_shape.process_all_triangles(&mut connectivity_processor, *aabb_min, *aabb_max);
         }
     }
+}
+
+pub fn adjust_internal_edge_contacts(
+    cp: &ManifoldPoint,
+    col_obj_0: &CollisionObject,
+    col_obj_1: &CollisionObject,
+) {
+    let normal_adjust_flags = 0;
+
+    if col_obj_0
+        .get_collision_shape()
+        .as_ref()
+        .unwrap()
+        .borrow()
+        .get_shape_type()
+        != BroadphaseNativeTypes::TriangleShapeProxytype
+    {
+        return;
+    }
+
+    todo!()
 }

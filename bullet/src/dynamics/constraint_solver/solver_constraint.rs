@@ -1,35 +1,98 @@
+use super::solver_body::SolverBody;
 use glam::Vec3A;
-use std::cell::RefCell;
 
 pub enum SolverConstraintType {
     Contact1D = 0,
     Friction1D,
 }
 
+#[derive(Default)]
 pub struct SolverConstraint {
-    relpos1_cross_normal: Vec3A,
-    contact_normal_1: Vec3A,
-    relpos2_cross_normal: Vec3A,
-    contact_normal_2: Vec3A,
-    angular_component_a: Vec3A,
-    angular_component_b: Vec3A,
-    applied_push_impulse: RefCell<Vec3A>,
-    applied_impulse: RefCell<Vec3A>,
-    friction: f32,
-    jac_diag_ab_inv: f32,
-    rhs: f32,
-    cfm: f32,
-    lower_limit: f32,
-    upper_limit: f32,
-    rhs_penetration: f32,
-    // union {
-    //     void* m_originalContactPoint;
-    //     btScalar m_unusedPadding4;
-    //     int m_numRowsForNonContactConstraint;
-    // };
-    override_num_solver_iterations: i32,
-    friction_index: i32,
-    solver_body_id_a: i32,
-    solver_body_id_b: i32,
-    is_special: bool,
+    pub rel_pos1_cross_normal: Vec3A,
+    pub contact_normal_1: Vec3A,
+    pub rel_pos2_cross_normal: Vec3A,
+    pub contact_normal_2: Vec3A,
+    pub angular_component_a: Vec3A,
+    pub angular_component_b: Vec3A,
+    pub applied_push_impulse: f32,
+    pub applied_impulse: f32,
+    pub friction: f32,
+    pub jac_diag_ab_inv: f32,
+    pub rhs: f32,
+    pub lower_limit: f32,
+    pub upper_limit: f32,
+    pub rhs_penetration: f32,
+    pub override_num_solver_iterations: i32,
+    pub friction_index: usize,
+    pub solver_body_id_a: usize,
+    pub solver_body_id_b: usize,
+    pub is_special: bool,
+}
+
+impl SolverConstraint {
+    pub fn resolve_single_constraint_row_generic(
+        &mut self,
+        body_a: &mut SolverBody,
+        body_b: &mut SolverBody,
+    ) -> f32 {
+        todo!()
+    }
+
+    pub fn resolve_single_constraint_row_lower_limit(
+        &mut self,
+        body_a: &mut SolverBody,
+        body_b: &mut SolverBody,
+    ) -> f32 {
+        let mut delta_impulse = self.rhs;
+
+        let delta_vel_1_dot_n = self.contact_normal_1.dot(body_a.delta_linear_velocity)
+            + self
+                .rel_pos1_cross_normal
+                .dot(body_a.delta_angular_velocity);
+        let delta_vel_2_dot_n = self.contact_normal_2.dot(body_b.delta_linear_velocity)
+            + self
+                .rel_pos2_cross_normal
+                .dot(body_b.delta_angular_velocity);
+
+        delta_impulse -= delta_vel_1_dot_n * self.jac_diag_ab_inv;
+        delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
+
+        let sum = self.applied_impulse + delta_impulse;
+        let low_min_applied = self.lower_limit - self.applied_impulse;
+        delta_impulse = if sum < self.lower_limit {
+            low_min_applied
+        } else {
+            delta_impulse
+        };
+
+        self.applied_impulse = sum.max(self.lower_limit);
+
+        body_a.delta_linear_velocity +=
+            self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
+        body_a.delta_angular_velocity +=
+            self.angular_component_a * delta_impulse * body_a.angular_factor;
+
+        body_b.delta_linear_velocity +=
+            self.contact_normal_1 * body_b.inv_mass * delta_impulse * body_b.linear_factor;
+        body_b.delta_angular_velocity +=
+            self.angular_component_a * delta_impulse * body_b.angular_factor;
+
+        delta_impulse / self.jac_diag_ab_inv
+    }
+
+    pub fn resolve_split_penetration_impulse(
+        &self,
+        body_a: &mut SolverBody,
+        body_b: &mut SolverBody,
+    ) -> f32 {
+        if self.rhs_penetration == 0.0 {
+            return 0.0;
+        }
+
+        let mut delta_impulse = 0.0;
+
+        todo!();
+
+        delta_impulse
+    }
 }

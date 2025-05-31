@@ -1,6 +1,3 @@
-pub use ahash;
-pub use bullet;
-
 pub mod consts;
 pub mod sim;
 
@@ -21,13 +18,6 @@ use std::{
     sync::RwLock,
     time::Instant,
 };
-
-pub(crate) enum UserInfoTypes {
-    None,
-    Car,
-    Ball,
-    DropshotTile,
-}
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<BvhTriangleMeshShape>>>,

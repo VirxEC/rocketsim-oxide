@@ -19,10 +19,10 @@ pub(crate) enum CollisionMasks {
 
 #[derive(Clone, Copy, Debug)]
 pub struct PhysState {
-    pos: Vec3A,
-    rot_mat: Mat3A,
-    vel: Vec3A,
-    ang_vel: Vec3A,
+    pub pos: Vec3A,
+    pub rot_mat: Mat3A,
+    pub vel: Vec3A,
+    pub ang_vel: Vec3A,
 }
 
 impl Default for PhysState {

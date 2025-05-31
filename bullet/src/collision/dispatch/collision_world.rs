@@ -1,13 +1,18 @@
-use super::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject};
-use crate::collision::broadphase::{
-    broadphase_interface::BroadphaseInterface, dispatcher::DispatcherInfo,
+use super::{
+    collision_dispatcher::CollisionDispatcher,
+    collision_object::{CollisionObject, CollisionObjectTypes},
 };
+use crate::collision::{
+    broadphase::{broadphase_interface::BroadphaseInterface, dispatcher::DispatcherInfo},
+    narrowphase::persistent_manifold::CONTACT_BREAKING_THRESHOLD,
+};
+use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct CollisionWorld {
-    collision_objects: Vec<Rc<RefCell<CollisionObject>>>,
-    dispatcher1: CollisionDispatcher,
-    dispatcher_info: DispatcherInfo,
+    pub collision_objects: Vec<Rc<RefCell<CollisionObject>>>,
+    pub dispatcher1: CollisionDispatcher,
+    pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: Box<dyn BroadphaseInterface>,
     force_update_all_aabbs: bool,
 }
@@ -55,5 +60,67 @@ impl CollisionWorld {
 
         object.borrow_mut().set_broadphase_handle(proxy);
         self.collision_objects.push(object);
+    }
+
+    fn update_single_aabb(&mut self, col_obj_idx: usize) {
+        let col_obj = self.collision_objects[col_obj_idx].borrow();
+        let (mut min_aabb, mut max_aabb) = col_obj
+            .get_collision_shape()
+            .as_ref()
+            .unwrap()
+            .borrow()
+            .get_aabb(col_obj.get_world_transform());
+
+        let contact_threshold = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
+        min_aabb -= contact_threshold;
+        max_aabb += contact_threshold;
+
+        if self.dispatcher_info.use_continuous
+            && col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
+            && !col_obj.is_static_or_kinematic_object()
+        {
+            let (mut min_aabb_2, mut max_aabb_2) = col_obj
+                .get_collision_shape()
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_aabb(&col_obj.interpolation_world_transform);
+            min_aabb_2 -= contact_threshold;
+            max_aabb_2 += contact_threshold;
+
+            min_aabb = min_aabb.min(min_aabb_2);
+            max_aabb = max_aabb.max(max_aabb_2);
+        }
+
+        let bp = &mut *self.broadphase_pair_cache;
+
+        if col_obj.is_static_object() || (max_aabb - min_aabb).length_squared() < 1e12 {
+            bp.set_aabb(col_obj.get_broadphase_handle().unwrap(), min_aabb, max_aabb);
+        } else {
+            unreachable!()
+        }
+    }
+
+    fn update_aabbs(&mut self) {
+        for i in 0..self.collision_objects.len() {
+            let col_obj = &self.collision_objects[i];
+            debug_assert!(col_obj.borrow().get_world_array_index() as usize == i);
+
+            if self.force_update_all_aabbs || col_obj.borrow().is_active() {
+                self.update_single_aabb(i);
+            }
+        }
+    }
+
+    pub fn perform_discrete_collision_detection(&mut self) {
+        self.update_aabbs();
+
+        self.broadphase_pair_cache
+            .calculate_overlapping_pairs(&mut self.dispatcher1);
+
+        self.dispatcher1.dispatch_all_collision_pairs(
+            self.broadphase_pair_cache.get_overlapping_pair_cache(),
+            &self.dispatcher_info,
+        );
     }
 }

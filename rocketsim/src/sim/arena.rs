@@ -10,9 +10,7 @@ use bullet::{
         },
         dispatch::{
             collision_dispatcher::CollisionDispatcher,
-            default_collision_configuration::{
-                DefaultCollisionConfiguration, DefaultCollisionConstructionInfo,
-            },
+            collision_object::{ACTIVE_TAG, ISLAND_SLEEPING},
         },
         shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
     },
@@ -74,7 +72,7 @@ pub struct Arena {
     mutator_config: MutatorConfig,
     tick_time: f32,
     bullet_world: DiscreteDynamicsWorld,
-    ball: Ball,
+    pub ball: Ball,
     boost_pads: Vec<BoostPad>,
 }
 
@@ -92,21 +90,7 @@ impl Arena {
 
         let mutator_config = MutatorConfig::new(game_mode);
 
-        let mut collision_construction_info = DefaultCollisionConstructionInfo::default();
-
-        match config.mem_weight_mode {
-            ArenaMemWeightMode::Light => {
-                collision_construction_info.default_max_persistent_manifold_pool_size /= 32;
-                collision_construction_info.default_max_collision_algorithm_pool_size /= 64;
-            }
-            ArenaMemWeightMode::Heavy => {
-                collision_construction_info.default_max_persistent_manifold_pool_size /= 16;
-                collision_construction_info.default_max_collision_algorithm_pool_size /= 32;
-            }
-        }
-
-        let collision_config = DefaultCollisionConfiguration::new(collision_construction_info);
-        let collision_dispatcher = CollisionDispatcher::new(&collision_config);
+        let collision_dispatcher = CollisionDispatcher::default();
         let constraint_solver = SequentialImpulseConstraintSolver::default();
         let overlapping_pair_cache = Box::new(HashedOverlappingPairCache::default());
 
@@ -129,9 +113,9 @@ impl Arena {
 
         let mut bullet_world =
             DiscreteDynamicsWorld::new(collision_dispatcher, broadphase, constraint_solver);
-        bullet_world.set_gravity(mutator_config.gravity);
+        bullet_world.set_gravity(mutator_config.gravity * UU_TO_BT);
 
-        let solver_info = bullet_world.dynamics_world.get_solver_info();
+        let solver_info = &mut bullet_world.dynamics_world.solver_info;
         solver_info.split_impulse_penetration_threshold = 1e30;
         solver_info.erp_2 = 0.8;
 
@@ -324,6 +308,38 @@ impl Arena {
                 add_plane(Vec3A::new(-extent_x, 0.0, height / 2.), Vec3A::X, 0);
                 add_plane(Vec3A::new(extent_x, 0.0, height / 2.), Vec3A::NEG_X, 0);
             }
+        }
+    }
+
+    fn internal_step(&mut self) {
+        let ball_rb = self.ball.rigid_body.borrow();
+        ball_rb.collision_object.borrow_mut().set_activation_state(
+            if ball_rb.linear_velocity.length_squared() == 0.0
+                && ball_rb.angular_velocity.length_squared() == 0.0
+            {
+                ISLAND_SLEEPING
+            } else {
+                ACTIVE_TAG
+            },
+        );
+        drop(ball_rb);
+
+        let ball_only = true;
+        let has_arena_stuff = self.game_mode != GameMode::TheVoid;
+
+        if has_arena_stuff && !ball_only {
+            todo!()
+        }
+
+        self.ball.pre_tick_update(self.game_mode, self.tick_time);
+
+        self.bullet_world
+            .step_simulation(self.tick_time, 0, self.tick_time);
+    }
+
+    pub fn step(&mut self, ticks_to_simulate: u32) {
+        for _ in 0..ticks_to_simulate {
+            self.internal_step();
         }
     }
 }
