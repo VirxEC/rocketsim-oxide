@@ -1,8 +1,7 @@
+use super::rs_broadphase::RsBroadphaseProxy;
 use crate::collision::dispatch::collision_object::CollisionObject;
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
-
-use super::rs_broadphase::RsBroadphaseProxy;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]

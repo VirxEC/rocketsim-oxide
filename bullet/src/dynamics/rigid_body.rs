@@ -1,4 +1,3 @@
-use super::constraint_solver::typed_constraint::TypedConstraint;
 use crate::{
     collision::{
         dispatch::collision_object::{
@@ -95,7 +94,7 @@ pub struct RigidBody {
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
     pub motion_state: Option<Box<dyn MotionState>>,
-    pub constraint_refs: Vec<TypedConstraint>,
+    // pub constraint_refs: Vec<TypedConstraint>,
     pub rigidbody_flags: i32,
     pub delta_linear_velocity: Vec3A,
     pub delta_angular_velocity: Vec3A,
@@ -181,7 +180,7 @@ impl RigidBody {
             linear_sleeping_threshold: info.linear_sleeping_threshold,
             angular_sleeping_threshold: info.angular_sleeping_threshold,
             motion_state: info.motion_state,
-            constraint_refs: Vec::new(),
+            // constraint_refs: Vec::new(),
             rigidbody_flags,
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,

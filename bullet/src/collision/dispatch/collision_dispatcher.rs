@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use super::{
     collision_object::CollisionObject,
     convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
@@ -13,6 +11,7 @@ use crate::collision::{
     },
     narrowphase::persistent_manifold::PersistentManifold,
 };
+use std::{cell::RefCell, rc::Rc};
 
 pub enum DispatcherFlags {
     CdStaticStaticReported = 1,

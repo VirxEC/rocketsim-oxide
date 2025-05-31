@@ -2,7 +2,6 @@ use super::{
     constraint_solver::{
         contact_solver_info::ContactSolverInfo,
         sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
-        typed_constraint::TypedConstraint,
     },
     rigid_body::{RigidBody, RigidBodyFlags},
     world::DynamicsWorld,
@@ -13,10 +12,7 @@ use crate::collision::{
     },
     dispatch::{
         collision_dispatcher::CollisionDispatcher,
-        collision_object::{
-            ACTIVE_TAG, CollisionObject, DISABLE_DEACTIVATION, ISLAND_SLEEPING, WANTS_DEACTIVATION,
-        },
-        simulation_island_manager::{IslandCallback, SimulationIslandManager},
+        collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING, WANTS_DEACTIVATION},
     },
 };
 use glam::Vec3A;
@@ -44,8 +40,6 @@ impl InplaceSolverIslandCallback {
         }
     }
 }
-
-impl IslandCallback for InplaceSolverIslandCallback {}
 
 pub struct DiscreteDynamicsWorld {
     pub dynamics_world: DynamicsWorld,
@@ -202,46 +196,6 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn create_predictive_contacts_internal(&mut self, time_step: f32) {
-        for body in &self.non_static_rigid_bodies {
-            let body = body.borrow();
-            let mut co = body.collision_object.borrow_mut();
-            co.hit_fraction = 1.0;
-
-            debug_assert!(!co.is_static_or_kinematic_object());
-            if self
-                .dynamics_world
-                .collision_world
-                .dispatcher_info
-                .use_continuous
-                && co.is_active()
-            {
-                let predicted_trans = co.interpolation_world_transform;
-
-                let square_motion = (predicted_trans.translation
-                    - co.get_world_transform().translation)
-                    .length_squared();
-
-                if co.get_ccd_square_motion_threshold() != 0.0
-                    && co.get_ccd_square_motion_threshold() < square_motion
-                {
-                    unimplemented!();
-                }
-            }
-        }
-    }
-
-    fn release_predictive_contacts(&mut self) {
-        // self.predictive_manifolds.clear();
-    }
-
-    fn create_predictive_contacts(&mut self, time_step: f32) {
-        self.release_predictive_contacts();
-
-        debug_assert!(!self.non_static_rigid_bodies.is_empty());
-        self.create_predictive_contacts_internal(time_step);
-    }
-
     fn calculation_simulation_islands(&mut self) {
         for manifold in &self.dynamics_world.collision_world.dispatcher1.manifolds {
             let body0 = &manifold.body0;
@@ -349,10 +303,6 @@ impl DiscreteDynamicsWorld {
         dispatcher_info.time_step = time_step;
         dispatcher_info.step_count = 0;
 
-        // todo: are there never any predictive contacts?
-        // (remove if so)
-        self.create_predictive_contacts(time_step);
-
         self.dynamics_world
             .collision_world
             .perform_discrete_collision_detection();
@@ -366,48 +316,9 @@ impl DiscreteDynamicsWorld {
         self.update_actions(time_step);
     }
 
-    pub fn step_simulation(
-        &mut self,
-        time_step: f32,
-        mut max_sub_steps: u32,
-        mut fixed_time_step: f32,
-    ) {
-        let mut num_simulation_sub_steps = 0;
-
-        if max_sub_steps == 0 {
-            fixed_time_step = time_step;
-            self.local_time = if self.latency_motion_state_interpolation {
-                0.0
-            } else {
-                time_step
-            };
-            self.fixed_time_step = 0.0;
-
-            if time_step.abs() < f32::EPSILON {
-                unimplemented!();
-            } else {
-                num_simulation_sub_steps = 1;
-                max_sub_steps = 1;
-            }
-        } else {
-            unimplemented!()
-        }
-
-        if num_simulation_sub_steps == 0 {
-            unimplemented!();
-        } else {
-            let clamped_simulation_steps = if num_simulation_sub_steps > max_sub_steps {
-                unimplemented!()
-            } else {
-                num_simulation_sub_steps
-            };
-
-            self.apply_gravity();
-
-            for _ in 0..clamped_simulation_steps {
-                self.internal_single_step_simulation(fixed_time_step);
-            }
-        }
+    pub fn step_simulation(&mut self, time_step: f32) {
+        self.apply_gravity();
+        self.internal_single_step_simulation(time_step);
 
         self.clear_forces();
     }

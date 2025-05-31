@@ -333,8 +333,9 @@ impl Arena {
 
         self.ball.pre_tick_update(self.game_mode, self.tick_time);
 
-        self.bullet_world
-            .step_simulation(self.tick_time, 0, self.tick_time);
+        self.bullet_world.step_simulation(self.tick_time);
+
+        self.ball.finish_physics_tick(&self.mutator_config);
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {

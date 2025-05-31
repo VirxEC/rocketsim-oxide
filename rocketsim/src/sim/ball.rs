@@ -1,3 +1,5 @@
+use super::{CollisionMasks, MutatorConfig, PhysState};
+use crate::{BT_TO_UU, GameMode, UU_TO_BT, consts};
 use bullet::{
     UserInfoTypes,
     collision::{
@@ -12,9 +14,6 @@ use bullet::{
 };
 use glam::{Affine3A, Mat3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
-
-use super::{CollisionMasks, MutatorConfig, PhysState};
-use crate::{BT_TO_UU, GameMode, UU_TO_BT, consts};
 
 #[derive(Clone, Copy, Debug)]
 pub struct HeatseekerInfo {

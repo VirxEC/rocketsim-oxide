@@ -1,6 +1,5 @@
-use glam::Vec3A;
-
 use crate::{UU_TO_BT, consts};
+use glam::Vec3A;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct BoostPadConfig {

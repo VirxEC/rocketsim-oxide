@@ -1,3 +1,4 @@
+use super::collision_object::CollisionObject;
 use crate::collision::{
     broadphase::{broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MAX_NUM_PARTS_IN_BITS},
     narrowphase::manifold_point::ManifoldPoint,
@@ -15,8 +16,6 @@ use crate::collision::{
 };
 use glam::{Quat, Vec3A};
 use std::{f32::consts::PI, mem};
-
-use super::collision_object::CollisionObject;
 
 // pub(crate) enum InternalEdgeAdjustFlags {
 //     TriangleConvexBackfaceMode = 1,

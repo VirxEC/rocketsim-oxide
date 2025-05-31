@@ -1,6 +1,3 @@
-use arrayvec::ArrayVec;
-use glam::{Vec3A, Vec4};
-
 use super::manifold_point::ManifoldPoint;
 use crate::{
     UserInfoTypes,
@@ -10,6 +7,8 @@ use crate::{
     },
     linear_math::{AffineTranspose, plane_space},
 };
+use arrayvec::ArrayVec;
+use glam::{Vec3A, Vec4};
 use std::{cell::RefCell, mem, rc::Rc};
 
 pub const CONTACT_BREAKING_THRESHOLD: f32 = 0.02;

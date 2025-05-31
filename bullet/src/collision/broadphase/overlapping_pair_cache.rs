@@ -1,10 +1,9 @@
-use ahash::AHashMap;
-
 use super::{
     broadphase_proxy::BroadphasePair, overlapping_pair_callback::OverlappingPairCallback,
     rs_broadphase::RsBroadphaseProxy,
 };
 use crate::collision::dispatch::collision_dispatcher::CollisionDispatcher;
+use ahash::AHashMap;
 use std::{cell::RefCell, mem, rc::Rc};
 
 pub trait OverlapCallback {
