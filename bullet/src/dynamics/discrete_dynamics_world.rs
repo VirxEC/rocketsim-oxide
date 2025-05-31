@@ -29,7 +29,7 @@ struct InplaceSolverIslandCallback {
 }
 
 impl InplaceSolverIslandCallback {
-    fn new(solver: SequentialImpulseConstraintSolver) -> Self {
+    const fn new(solver: SequentialImpulseConstraintSolver) -> Self {
         Self {
             solver,
             solver_info: None,
@@ -64,6 +64,7 @@ pub struct DiscreteDynamicsWorld {
 }
 
 impl DiscreteDynamicsWorld {
+    #[must_use]
     pub fn new(
         dispatcher: CollisionDispatcher,
         pair_cache: Box<dyn BroadphaseInterface>,
@@ -87,7 +88,7 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    pub fn set_gravity(&mut self, gravity: Vec3A) {
+    pub const fn set_gravity(&mut self, gravity: Vec3A) {
         self.gravity = gravity;
     }
 
@@ -116,10 +117,10 @@ impl DiscreteDynamicsWorld {
             .is_some()
         {
             let co = body.borrow().collision_object.clone();
-            if !co.borrow().is_static_object() {
-                self.non_static_rigid_bodies.push(body);
-            } else {
+            if co.borrow().is_static_object() {
                 co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+            } else {
+                self.non_static_rigid_bodies.push(body);
             }
 
             let (group, mask) = if co.borrow().is_static_or_kinematic_object() {
@@ -158,17 +159,17 @@ impl DiscreteDynamicsWorld {
             .is_some()
         {
             let co = body.borrow().collision_object.clone();
-            if !co.borrow().is_static_object() {
-                self.non_static_rigid_bodies.push(body);
-            } else {
+            if co.borrow().is_static_object() {
                 co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+            } else {
+                self.non_static_rigid_bodies.push(body);
             }
 
             self.add_collision_object(co, group, mask);
         }
     }
 
-    fn apply_gravity(&mut self) {
+    fn apply_gravity(&self) {
         for body in &self.non_static_rigid_bodies {
             if body.borrow().collision_object.borrow().is_active() {
                 body.borrow_mut().apply_gravity();
@@ -176,7 +177,7 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn predict_unconstraint_motion(&mut self, time_step: f32) {
+    fn predict_unconstraint_motion(&self, time_step: f32) {
         for body in &self.non_static_rigid_bodies {
             debug_assert!(
                 !body
@@ -196,7 +197,7 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn calculation_simulation_islands(&mut self) {
+    fn calculation_simulation_islands(&self) {
         for manifold in &self.dynamics_world.collision_world.dispatcher1.manifolds {
             let body0 = &manifold.body0;
             let body1 = &manifold.body1;
@@ -235,7 +236,7 @@ impl DiscreteDynamicsWorld {
         );
     }
 
-    fn integrate_transforms_internal(&mut self, time_step: f32) {
+    fn integrate_transforms_internal(&self, time_step: f32) {
         for body in &self.non_static_rigid_bodies {
             let mut body = body.borrow_mut();
             let mut co = body.collision_object.borrow_mut();
@@ -252,7 +253,7 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn integrate_transforms(&mut self, time_step: f32) {
+    fn integrate_transforms(&self, time_step: f32) {
         if !self.non_static_rigid_bodies.is_empty() {
             self.integrate_transforms_internal(time_step);
         }
@@ -264,7 +265,7 @@ impl DiscreteDynamicsWorld {
         assert!(self.actions.is_empty());
     }
 
-    fn update_activation_state(&mut self, time_step: f32) {
+    fn update_activation_state(&self, time_step: f32) {
         for body in &self.non_static_rigid_bodies {
             let mut body = body.borrow_mut();
 

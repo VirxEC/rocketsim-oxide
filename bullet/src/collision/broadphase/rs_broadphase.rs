@@ -34,9 +34,9 @@ struct Cell {
 
 impl Default for Cell {
     fn default() -> Self {
-        Cell {
-            dyn_handles: Vec::with_capacity(Cell::RESERVED_SIZE),
-            static_handles: Vec::with_capacity(Cell::RESERVED_SIZE),
+        Self {
+            dyn_handles: Vec::with_capacity(Self::RESERVED_SIZE),
+            static_handles: Vec::with_capacity(Self::RESERVED_SIZE),
         }
     }
 }
@@ -103,6 +103,7 @@ pub struct RsBroadphase {
 }
 
 impl RsBroadphase {
+    #[must_use]
     pub fn new(
         min_pos: Vec3A,
         max_pos: Vec3A,
@@ -183,7 +184,7 @@ impl RsBroadphase {
         self.cell_indices_to_index(self.get_cell_indices(pos))
     }
 
-    fn cell_indices_to_index(&self, indices: USizeVec3) -> usize {
+    const fn cell_indices_to_index(&self, indices: USizeVec3) -> usize {
         indices.x * self.num_cells.y * self.num_cells.z + indices.y * self.num_cells.z + indices.z
     }
 
@@ -268,7 +269,7 @@ impl RsBroadphase {
                         }
                     }
 
-                    for i in cells.drain(..) {
+                    for &i in &cells {
                         if ADD {
                             let mut already_exists = false;
                             for static_handle in &self.cells[i].static_handles {
@@ -286,6 +287,8 @@ impl RsBroadphase {
                             self.cells[i].remove_static(proxy);
                         }
                     }
+
+                    cells.clear();
                 }
             }
         }

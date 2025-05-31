@@ -73,6 +73,7 @@ impl BvhTriangleMeshShape {
         bvh
     }
 
+    #[must_use]
     pub const fn get_triangle_info_map(&self) -> Option<&TriangleInfoMap> {
         self.triangle_info_map.as_ref()
     }
@@ -81,6 +82,7 @@ impl BvhTriangleMeshShape {
         self.triangle_info_map = Some(triangle_info_map);
     }
 
+    #[must_use]
     pub fn get_mesh_interface(&self) -> &dyn StridingMeshInterface {
         self.triangle_mesh_shape.mesh_interface.as_ref()
     }
@@ -99,6 +101,7 @@ impl BvhTriangleMeshShape {
         );
     }
 
+    #[must_use]
     pub fn get_collision_shape(&self) -> &CollisionShape {
         &self.triangle_mesh_shape.concave_shape.collision_shape
     }

@@ -11,6 +11,7 @@ pub struct TriangleMesh {
 }
 
 impl TriangleMesh {
+    #[must_use]
     pub fn new(verts: Vec<Vec3A>, ids: Vec<usize>) -> Self {
         debug_assert_eq!(ids.len() % 3, 0);
 
@@ -33,6 +34,7 @@ impl TriangleMesh {
         }
     }
 
+    #[must_use]
     pub fn into_mesh_interface(self) -> Arc<dyn StridingMeshInterface + Send + Sync> {
         Arc::new(self)
     }

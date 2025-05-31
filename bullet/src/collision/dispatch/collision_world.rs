@@ -117,9 +117,7 @@ impl CollisionWorld {
 
         self.broadphase_pair_cache.calculate_overlapping_pairs();
 
-        self.dispatcher1.dispatch_all_collision_pairs(
-            self.broadphase_pair_cache.get_overlapping_pair_cache(),
-            &self.dispatcher_info,
-        );
+        self.dispatcher1
+            .dispatch_all_collision_pairs(self.broadphase_pair_cache.get_overlapping_pair_cache());
     }
 }

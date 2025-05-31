@@ -38,8 +38,9 @@ impl SolverBody {
     pub fn new(rb: Rc<RefCell<RigidBody>>, time_step: f32) -> Self {
         let rb_ref = rb.borrow();
 
+        let world_transform = *rb_ref.collision_object.borrow().get_world_transform();
         Self {
-            world_transform: *rb_ref.collision_object.borrow().get_world_transform(),
+            world_transform,
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
             angular_factor: rb_ref.angular_factor,
@@ -53,7 +54,10 @@ impl SolverBody {
             external_torque_impulse: rb_ref.inv_inertia_tensor_world
                 * rb_ref.total_torque
                 * time_step,
-            original_body: Some(rb.clone()),
+            original_body: {
+                drop(rb_ref);
+                Some(rb)
+            },
         }
     }
 
@@ -68,6 +72,7 @@ impl SolverBody {
         self.delta_angular_velocity += angular_component * impulse_magnitude * self.angular_factor;
     }
 
+    #[must_use]
     pub fn get_velocity_in_local_point_no_delta(&self, rel_pos: Vec3A) -> Vec3A {
         if self.original_body.is_some() {
             self.linear_velocity

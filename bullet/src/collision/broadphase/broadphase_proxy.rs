@@ -60,6 +60,7 @@ pub enum BroadphaseNativeTypes {
 }
 
 impl BroadphaseNativeTypes {
+    #[must_use]
     pub fn is_convex(self) -> bool {
         self < Self::ConcaveShapesStartHere
     }

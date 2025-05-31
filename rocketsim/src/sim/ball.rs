@@ -176,6 +176,7 @@ impl Ball {
         }
     }
 
+    #[must_use]
     pub fn get_state(&self) -> BallState {
         let mut state = self.internal_state;
         let rb = self.rigid_body.borrow();

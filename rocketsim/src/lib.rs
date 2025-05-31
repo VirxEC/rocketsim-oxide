@@ -23,10 +23,10 @@ pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<BvhTriangleMeshShape>>>,
 > = RwLock::new(None);
 
-/// BulletPhysics Units (1m) to Unreal Units (2cm) conversion scale
+/// `BulletPhysics` Units (1m) to Unreal Units (2cm) conversion scale
 pub(crate) const BT_TO_UU: f32 = 50.0;
 
-/// Unreal Units (2cm) to BulletPhysics Units (1m) conversion scale
+/// Unreal Units (2cm) to `BulletPhysics` Units (1m) conversion scale
 pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -151,12 +151,6 @@ pub fn init_from_mem(
 
     // DropshotTiles::Init();
 
-    let mut arena_collision_shapes_lock = ARENA_COLLISION_SHAPES.write().unwrap();
-    assert!(
-        arena_collision_shapes_lock.is_none(),
-        "Called init(..) twice"
-    );
-
     let mut arena_collision_shapes = AHashMap::new();
 
     for (game_mode, mesh_files) in mesh_file_map {
@@ -211,19 +205,19 @@ pub fn init_from_mem(
             " > Soccar: {}",
             arena_collision_shapes
                 .get(&GameMode::Soccar)
-                .map_or(0, |m| m.len())
+                .map_or(0, std::vec::Vec::len)
         );
         println!(
             " > Hoops: {}",
             arena_collision_shapes
                 .get(&GameMode::Hoops)
-                .map_or(0, |m| m.len())
+                .map_or(0, std::vec::Vec::len)
         );
         println!(
             " > Dropshot: {}",
             arena_collision_shapes
                 .get(&GameMode::Dropshot)
-                .map_or(0, |m| m.len())
+                .map_or(0, std::vec::Vec::len)
         );
 
         let elapsed_time = Instant::now().duration_since(start_time);
@@ -233,7 +227,14 @@ pub fn init_from_mem(
         );
     }
 
-    *arena_collision_shapes_lock = Some(arena_collision_shapes);
+    {
+        let mut arena_collision_shapes_lock = ARENA_COLLISION_SHAPES.write().unwrap();
+        assert!(
+            arena_collision_shapes_lock.is_none(),
+            "Called init(..) twice"
+        );
+        *arena_collision_shapes_lock = Some(arena_collision_shapes);
+    }
 
     Ok(())
 }

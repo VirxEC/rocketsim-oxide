@@ -44,6 +44,7 @@ pub struct RigidBodyConstructionInfo {
 }
 
 impl RigidBodyConstructionInfo {
+    #[must_use]
     pub fn new(
         mass: f32,
         motion_state: Option<Box<dyn MotionState>>,
@@ -105,6 +106,7 @@ pub struct RigidBody {
 }
 
 impl RigidBody {
+    #[must_use]
     pub fn new(info: RigidBodyConstructionInfo) -> Self {
         let mut collision_object = CollisionObject::default();
         collision_object.internal_type = CollisionObjectTypes::RigidBody as i32;
@@ -191,7 +193,8 @@ impl RigidBody {
         }
     }
 
-    pub fn get_flags(&self) -> i32 {
+    #[must_use]
+    pub const fn get_flags(&self) -> i32 {
         self.rigidbody_flags
     }
 
@@ -252,6 +255,7 @@ impl RigidBody {
         }
     }
 
+    #[must_use]
     pub fn predict_integration_transform(&self, time_step: f32) -> Affine3A {
         let co = self.collision_object.borrow();
         if co.no_rot {
@@ -279,6 +283,7 @@ impl RigidBody {
         self.update_inertia_tensor();
     }
 
+    #[must_use]
     pub fn get_velocity_in_local_point(&self, rel_pos: Vec3A) -> Vec3A {
         self.linear_velocity + self.angular_velocity.cross(rel_pos)
     }
@@ -303,6 +308,7 @@ impl RigidBody {
         }
     }
 
+    #[must_use]
     pub fn wants_sleeping(&self) -> bool {
         let co = self.collision_object.borrow();
         let activation_state = co.activation_state_1;
@@ -313,7 +319,7 @@ impl RigidBody {
                 || co.deactivation_time > 2.0)
     }
 
-    pub fn clear_forces(&mut self) {
+    pub const fn clear_forces(&mut self) {
         self.total_force = Vec3A::ZERO;
         self.total_torque = Vec3A::ZERO;
     }

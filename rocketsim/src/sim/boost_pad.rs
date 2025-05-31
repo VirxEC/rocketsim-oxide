@@ -38,6 +38,7 @@ pub struct BoostPad {
 }
 
 impl BoostPad {
+    #[must_use]
     pub fn new(config: BoostPadConfig) -> Self {
         let pos_bt = config.pos * UU_TO_BT;
 
@@ -57,11 +58,12 @@ impl BoostPad {
         }
     }
 
-    pub fn get_state(&self) -> &BoostPadState {
+    #[must_use]
+    pub const fn get_state(&self) -> &BoostPadState {
         &self.internal_state
     }
 
-    pub fn set_state(&mut self, state: BoostPadState) {
+    pub const fn set_state(&mut self, state: BoostPadState) {
         self.internal_state = state;
     }
 }

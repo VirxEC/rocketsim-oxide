@@ -207,36 +207,27 @@ impl SequentialImpulseConstraintSolver {
                 let erp = info.erp_2;
 
                 let torque_axis_0 = rel_pos1.cross(cp.normal_world_on_b);
-                let angular_component_a = if let Some(rb) = rb0 {
+                let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
                     rb.borrow().inv_inertia_tensor_world
                         * torque_axis_0
                         * rb.borrow().angular_factor
-                } else {
-                    Vec3A::ZERO
-                };
+                });
 
                 let torque_axis_1 = rel_pos2.cross(cp.normal_world_on_b);
-                let angular_component_b = if let Some(rb) = rb1 {
+                let angular_component_b = rb0.map_or(Vec3A::ZERO, |rb| {
                     rb.borrow().inv_inertia_tensor_world
                         * -torque_axis_0
                         * rb.borrow().angular_factor
-                } else {
-                    Vec3A::ZERO
-                };
+                });
 
-                let denom0 = if let Some(rb) = rb0 {
+                let denom0 = rb0.map_or(0.0, |rb| {
                     let vec = angular_component_a.cross(rel_pos1);
                     rb.borrow().inverse_mass + cp.normal_world_on_b.dot(vec)
-                } else {
-                    0.0
-                };
-
-                let denom1 = if let Some(rb) = rb1 {
+                });
+                let denom1 = rb1.map_or(0.0, |rb| {
                     let vec = angular_component_b.cross(rel_pos2);
                     rb.borrow().inverse_mass + cp.normal_world_on_b.dot(vec)
-                } else {
-                    0.0
-                };
+                });
 
                 let jac_diag_ab_inv = relaxation / (denom0 + denom1);
 
@@ -254,17 +245,12 @@ impl SequentialImpulseConstraintSolver {
 
                 let penetration = cp.distance_1 + info.linear_slop;
 
-                let vel1 = if let Some(rb) = rb0 {
+                let vel1 = rb0.map_or(Vec3A::ZERO, |rb| {
                     rb.borrow().get_velocity_in_local_point(rel_pos1)
-                } else {
-                    Vec3A::ZERO
-                };
-
-                let vel2 = if let Some(rb) = rb1 {
+                });
+                let vel2 = rb0.map_or(Vec3A::ZERO, |rb| {
                     rb.borrow().get_velocity_in_local_point(rel_pos2)
-                } else {
-                    Vec3A::ZERO
-                };
+                });
 
                 let vel = vel1 - vel2;
                 let rel_vel = cp.normal_world_on_b.dot(vel);
@@ -387,13 +373,9 @@ impl SequentialImpulseConstraintSolver {
 
                 if lat_rel_vel > f32::EPSILON {
                     cp.lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
-                    debug_assert!(!manifold.body0.borrow().has_anisotropic_friction);
-                    debug_assert!(!manifold.body1.borrow().has_anisotropic_friction);
                 } else {
                     (cp.lateral_friction_dir_1, cp.lateral_friction_dir_2) =
                         plane_space(cp.normal_world_on_b);
-                    debug_assert!(!manifold.body0.borrow().has_anisotropic_friction);
-                    debug_assert!(!manifold.body1.borrow().has_anisotropic_friction);
                 }
 
                 let rb0 = solver_body_a.original_body.as_ref();
@@ -403,7 +385,7 @@ impl SequentialImpulseConstraintSolver {
                 let normal_axis = cp.lateral_friction_dir_1;
 
                 let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) =
-                    if let Some(rb) = rb1 {
+                    rb0.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
                         let rb = rb.borrow();
                         let torque_axis = rel_pos1.cross(normal_axis);
 
@@ -412,37 +394,28 @@ impl SequentialImpulseConstraintSolver {
                             torque_axis,
                             rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
                         )
-                    } else {
-                        (Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO)
-                    };
+                    });
 
                 let (contact_normal_2, rel_pos2_cross_normal, angular_component_b) =
-                    if let Some(rb) = rb0 {
+                    rb1.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
                         let rb = rb.borrow();
-                        let torque_axis = rel_pos1.cross(normal_axis);
+                        let torque_axis = rel_pos2.cross(-normal_axis);
 
                         (
                             -normal_axis,
                             torque_axis,
                             rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
                         )
-                    } else {
-                        (Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO)
-                    };
+                    });
 
-                let denom0 = if let Some(rb) = rb0 {
+                let denom0 = rb0.map_or(0.0, |rb| {
                     let vec = angular_component_a.cross(rel_pos1);
                     rb.borrow().inverse_mass + normal_axis.dot(vec)
-                } else {
-                    0.0
-                };
-
-                let denom1 = if let Some(rb) = rb1 {
+                });
+                let denom1 = rb1.map_or(0.0, |rb| {
                     let vec = angular_component_b.cross(rel_pos2);
                     rb.borrow().inverse_mass + normal_axis.dot(vec)
-                } else {
-                    0.0
-                };
+                });
 
                 let jac_diag_ab_inv = relaxation / (denom0 + denom1);
 
@@ -537,19 +510,14 @@ impl SequentialImpulseConstraintSolver {
         let erp = info.erp_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
-        let angular_component_a = if let Some(rb) = rb0 {
+        let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
             rb.borrow().inv_inertia_tensor_world * torque_axis_0 * rb.borrow().angular_factor
-        } else {
-            Vec3A::ZERO
-        };
+        });
 
-        let denom = if let Some(rb) = rb0 {
+        let denom = rb0.map_or(0.0, |rb| {
             let vec = angular_component_a.cross(rel_pos1);
             rb.borrow().inverse_mass + normal_world_on_b.dot(vec)
-        } else {
-            0.0
-        };
-
+        });
         let jac_diag_ab_inv = relaxation / denom;
 
         let (contact_normal_1, rel_pos1_cross_normal) = if rb0.is_some() {
@@ -560,12 +528,9 @@ impl SequentialImpulseConstraintSolver {
 
         let penetration = distance + info.linear_slop;
 
-        let vel = if let Some(rb) = rb0 {
+        let vel = rb0.map_or(Vec3A::ZERO, |rb| {
             rb.borrow().get_velocity_in_local_point(rel_pos1)
-        } else {
-            Vec3A::ZERO
-        };
-
+        });
         let rel_vel = normal_world_on_b.dot(vel);
 
         let restitution = Self::restitution_curve(
@@ -637,26 +602,22 @@ impl SequentialImpulseConstraintSolver {
         let rb0 = solver_body_a.original_body.as_ref();
 
         // addFrictionConstraint
-        let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) = if let Some(rb) = rb0 {
-            let rb = rb.borrow();
-            let torque_axis = rel_pos1.cross(lateral_friction_dir_1);
+        let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) =
+            rb0.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
+                let rb = rb.borrow();
+                let torque_axis = rel_pos1.cross(lateral_friction_dir_1);
 
-            (
-                lateral_friction_dir_1,
-                torque_axis,
-                rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
-            )
-        } else {
-            (Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO)
-        };
+                (
+                    lateral_friction_dir_1,
+                    torque_axis,
+                    rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
+                )
+            });
 
-        let denom = if let Some(rb) = rb0 {
+        let denom = rb0.map_or(0.0, |rb| {
             let vec = angular_component_a.cross(rel_pos1);
             rb.borrow().inverse_mass + lateral_friction_dir_1.dot(vec)
-        } else {
-            0.0
-        };
-
+        });
         let jac_diag_ab_inv = relaxation / denom;
 
         let rel_vel = contact_normal_1

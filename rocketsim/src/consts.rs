@@ -213,7 +213,7 @@ impl<const N: usize> LinearPieceCurve<N> {
                 let range_between = after_pair.0 - before_pair.0;
                 let val_diff_between = after_pair.1 - before_pair.1;
                 let linear_interp_factor = (input - before_pair.0) / range_between;
-                return before_pair.1 + val_diff_between * linear_interp_factor;
+                return val_diff_between.mul_add(linear_interp_factor, before_pair.1);
             }
         }
 
@@ -302,7 +302,7 @@ pub mod heatseeker {
     pub const SPEED_BLEND: f32 = 0.3;
     /// Maximum pitch angle of turning
     pub const MAX_TURN_PITCH: f32 = 7000. * PI / (1 << 15) as f32;
-    /// Maximum speed the ball can seek at (different from BALL_MAX_SPEED)
+    /// Maximum speed the ball can seek at (different from `BALL_MAX_SPEED`)
     pub const MAX_SPEED: f32 = 4600.;
     /// Threshold of wall collision Y backwall distance to change goal targets
     pub const WALL_BOUNCE_CHANGE_Y_THRESH: f32 = 300.;

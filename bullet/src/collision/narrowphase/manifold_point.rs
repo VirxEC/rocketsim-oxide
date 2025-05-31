@@ -50,7 +50,7 @@ pub struct ManifoldPoint {
 }
 
 impl ManifoldPoint {
-    pub fn new(point_a: Vec3A, point_b: Vec3A, normal: Vec3A, distance: f32) -> Self {
+    pub const fn new(point_a: Vec3A, point_b: Vec3A, normal: Vec3A, distance: f32) -> Self {
         Self {
             local_point_a: point_a,
             local_point_b: point_b,

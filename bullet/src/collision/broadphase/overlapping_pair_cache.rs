@@ -1,6 +1,6 @@
 use super::{
-    broadphase_proxy::BroadphasePair, dispatcher::DispatcherInfo,
-    overlapping_pair_callback::OverlappingPairCallback, rs_broadphase::RsBroadphaseProxy,
+    broadphase_proxy::BroadphasePair, overlapping_pair_callback::OverlappingPairCallback,
+    rs_broadphase::RsBroadphaseProxy,
 };
 use crate::collision::dispatch::collision_dispatcher::CollisionDispatcher;
 use ahash::AHashMap;
@@ -25,11 +25,7 @@ pub trait OverlappingPairCache: OverlappingPairCallback {
         proxy1: &RsBroadphaseProxy,
     ) -> bool;
 
-    fn process_all_overlapping_pairs(
-        &mut self,
-        dispatcher: &mut CollisionDispatcher,
-        dispatch_info: &DispatcherInfo,
-    );
+    fn process_all_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher);
 }
 
 pub struct HashedOverlappingPairCache {
@@ -131,13 +127,9 @@ impl OverlappingPairCache for HashedOverlappingPairCache {
                 != 0
     }
 
-    fn process_all_overlapping_pairs(
-        &mut self,
-        dispatcher: &mut CollisionDispatcher,
-        dispatch_info: &DispatcherInfo,
-    ) {
+    fn process_all_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher) {
         for pair in self.overlapping_pair_array.drain(..) {
-            dispatcher.near_callback(pair, dispatch_info);
+            dispatcher.near_callback(pair);
         }
 
         self.hash_table.clear();

@@ -98,7 +98,7 @@ impl QuantizedBvh {
         self.quantize(clamped_point, is_max)
     }
 
-    pub fn unquantize(&self, vec_in: &U16Vec3) -> Vec3A {
+    pub fn unquantize(&self, vec_in: U16Vec3) -> Vec3A {
         vec_in.as_vec3a() / self.bvh_quantization + self.bvh_aabb_min
     }
 
@@ -116,7 +116,7 @@ impl QuantizedBvh {
 
         {
             let vec_in = self.quantize(self.bvh_aabb_min, false);
-            let v = self.unquantize(&vec_in);
+            let v = self.unquantize(vec_in);
             self.bvh_aabb_min = self.bvh_aabb_min.min(v - clamp_value);
         }
         aabb_size = self.bvh_aabb_max - self.bvh_aabb_min;
@@ -124,7 +124,7 @@ impl QuantizedBvh {
 
         {
             let vec_in = self.quantize(self.bvh_aabb_max, true);
-            let v = self.unquantize(&vec_in);
+            let v = self.unquantize(vec_in);
             self.bvh_aabb_max = self.bvh_aabb_max.max(v + clamp_value);
         }
         aabb_size = self.bvh_aabb_max - self.bvh_aabb_min;
@@ -133,7 +133,7 @@ impl QuantizedBvh {
 
     fn get_aabb_max(&self, node_index: usize) -> Vec3A {
         if self.use_quantization {
-            self.unquantize(&self.quantized_leaf_nodes[node_index].quantized_aabb_max)
+            self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_max)
         } else {
             // self.leaf_nodes[node_index].aabb_max_org
             unimplemented!();
@@ -142,7 +142,7 @@ impl QuantizedBvh {
 
     fn get_aabb_min(&self, node_index: usize) -> Vec3A {
         if self.use_quantization {
-            self.unquantize(&self.quantized_leaf_nodes[node_index].quantized_aabb_min)
+            self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_min)
         } else {
             // self.leaf_nodes[node_index].aabb_min_org
             unimplemented!();

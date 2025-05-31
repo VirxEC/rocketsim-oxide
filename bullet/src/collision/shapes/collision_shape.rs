@@ -51,7 +51,7 @@ impl CollisionShapes {
                 mesh.convex_internal_shape
                     .convex_shape
                     .collision_shape
-                    .aabb_cached = false
+                    .aabb_cached = false;
             }
             Self::StaticPlane(_) | Self::TriangleMesh(_) => {
                 unreachable!();
@@ -59,6 +59,7 @@ impl CollisionShapes {
         }
     }
 
+    #[must_use]
     pub fn get_collision_shape(&self) -> &CollisionShape {
         match self {
             Self::Sphere(shape) => &shape.convex_internal_shape.convex_shape.collision_shape,
@@ -74,6 +75,7 @@ impl CollisionShapes {
         }
     }
 
+    #[must_use]
     pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
         if let Self::Sphere(shape) = self {
             // If we're a sphere, its faster to just re-calculate
@@ -88,7 +90,8 @@ impl CollisionShapes {
         }
     }
 
-    pub fn get_shape_type(&self) -> BroadphaseNativeTypes {
+    #[must_use]
+    pub const fn get_shape_type(&self) -> BroadphaseNativeTypes {
         match self {
             Self::Sphere(_) => BroadphaseNativeTypes::SphereShapeProxytype,
             Self::StaticPlane(_) => BroadphaseNativeTypes::StaticPlaneProxytype,
@@ -97,15 +100,14 @@ impl CollisionShapes {
     }
 
     fn get_bounding_sphere(&self) -> (Vec3A, f32) {
-        match self {
-            Self::Sphere(sphere) => (Vec3A::ZERO, sphere.get_radius() + 0.08),
-            _ => {
-                let (aabb_min, aabb_max) = self.get_aabb(&Affine3A::IDENTITY);
-                let center = (aabb_min + aabb_max) * 0.5;
-                let radius = (aabb_max - aabb_min).length() * 0.5;
+        if let Self::Sphere(sphere) = self {
+            (Vec3A::ZERO, sphere.get_radius() + 0.08)
+        } else {
+            let (aabb_min, aabb_max) = self.get_aabb(&Affine3A::IDENTITY);
+            let center = (aabb_min + aabb_max) * 0.5;
+            let radius = (aabb_max - aabb_min).length() * 0.5;
 
-                (center, radius)
-            }
+            (center, radius)
         }
     }
 
@@ -114,6 +116,7 @@ impl CollisionShapes {
         disc + center.length()
     }
 
+    #[must_use]
     pub fn get_contact_breaking_threshold(&self, default_contact_threshold: f32) -> f32 {
         self.get_angular_motion_disc() * default_contact_threshold
     }

@@ -66,7 +66,7 @@ pub struct CollisionObject {
     pub interpolation_linear_velocity: Vec3A,
     pub interpolation_angular_velocity: Vec3A,
     pub anisotropic_friction: Vec3A,
-    pub has_anisotropic_friction: bool,
+    // pub has_anisotropic_friction: bool,
     pub contact_processing_threshold: f32,
     // btBroadphaseProxy* m_broadphaseHandle;
     broadphase_handle: Option<Rc<RefCell<RsBroadphaseProxy>>>,
@@ -108,7 +108,7 @@ impl Default for CollisionObject {
             interpolation_linear_velocity: Vec3A::ZERO,
             interpolation_angular_velocity: Vec3A::ZERO,
             anisotropic_friction: Vec3A::ONE,
-            has_anisotropic_friction: false,
+            // has_anisotropic_friction: false,
             contact_processing_threshold: f32::MAX,
             broadphase_handle: None,
             collision_shape: None,
@@ -150,11 +150,12 @@ impl CollisionObject {
         }
     }
 
-    pub fn get_mut_world_transform(&mut self) -> &mut Affine3A {
+    pub const fn get_mut_world_transform(&mut self) -> &mut Affine3A {
         &mut self.world_transform
     }
 
-    pub fn get_world_transform(&self) -> &Affine3A {
+    #[must_use]
+    pub const fn get_world_transform(&self) -> &Affine3A {
         &self.world_transform
     }
 
@@ -165,39 +166,46 @@ impl CollisionObject {
         self.root_collision_shape = Some(collision_shape);
     }
 
-    pub fn get_collision_shape(&self) -> Option<&Rc<RefCell<CollisionShapes>>> {
+    #[must_use]
+    pub const fn get_collision_shape(&self) -> Option<&Rc<RefCell<CollisionShapes>>> {
         self.collision_shape.as_ref()
     }
 
-    pub fn is_static_object(&self) -> bool {
+    #[must_use]
+    pub const fn is_static_object(&self) -> bool {
         self.collision_flags & CollisionFlags::StaticObject as i32 != 0
     }
 
-    pub fn is_kinematic_object(&self) -> bool {
+    #[must_use]
+    pub const fn is_kinematic_object(&self) -> bool {
         self.collision_flags & CollisionFlags::KinematicObject as i32 != 0
     }
 
-    pub fn is_static_or_kinematic_object(&self) -> bool {
+    #[must_use]
+    pub const fn is_static_or_kinematic_object(&self) -> bool {
         self.collision_flags
             & (CollisionFlags::KinematicObject as i32 | CollisionFlags::StaticObject as i32)
             != 0
     }
 
-    pub fn is_active(&self) -> bool {
+    #[must_use]
+    pub const fn is_active(&self) -> bool {
         self.activation_state_1 != FIXED_BASE_MULTI_BODY
             && self.activation_state_1 != ISLAND_SLEEPING
             && self.activation_state_1 != DISABLE_SIMULATION
     }
 
-    pub fn has_contact_response(&self) -> bool {
+    #[must_use]
+    pub const fn has_contact_response(&self) -> bool {
         self.collision_flags & CollisionFlags::NoContactResponse as i32 == 0
     }
 
-    pub fn get_activation_state(&self) -> i32 {
+    #[must_use]
+    pub const fn get_activation_state(&self) -> i32 {
         self.activation_state_1
     }
 
-    pub fn set_activation_state(&mut self, new_state: i32) {
+    pub const fn set_activation_state(&mut self, new_state: i32) {
         if self.activation_state_1 != DISABLE_DEACTIVATION
             && self.activation_state_1 != DISABLE_SIMULATION
         {
@@ -205,17 +213,18 @@ impl CollisionObject {
         }
     }
 
-    pub fn activate(&mut self) {
+    pub const fn activate(&mut self) {
         if self.is_static_or_kinematic_object() {
             self.set_activation_state(ACTIVE_TAG);
         }
     }
 
-    pub fn get_world_array_index(&self) -> i32 {
+    #[must_use]
+    pub const fn get_world_array_index(&self) -> i32 {
         self.world_array_index
     }
 
-    pub fn set_world_array_index(&mut self, index: i32) {
+    pub const fn set_world_array_index(&mut self, index: i32) {
         self.world_array_index = index;
     }
 
@@ -223,19 +232,22 @@ impl CollisionObject {
         self.broadphase_handle = Some(handle);
     }
 
-    pub fn get_broadphase_handle(&self) -> Option<&Rc<RefCell<RsBroadphaseProxy>>> {
+    #[must_use]
+    pub const fn get_broadphase_handle(&self) -> Option<&Rc<RefCell<RsBroadphaseProxy>>> {
         self.broadphase_handle.as_ref()
     }
 
+    #[must_use]
     pub fn get_ccd_square_motion_threshold(&self) -> f32 {
         self.ccd_motion_threshold * self.ccd_motion_threshold
     }
 
-    fn check_collide_with_override(&self, co: &CollisionObject) -> bool {
+    fn check_collide_with_override(&self, co: &Self) -> bool {
         todo!()
     }
 
-    pub fn check_collide_with(&self, co: &CollisionObject) -> bool {
+    #[must_use]
+    pub fn check_collide_with(&self, co: &Self) -> bool {
         if self.check_collide_with {
             self.check_collide_with_override(co)
         } else {

@@ -68,7 +68,7 @@ impl ArenaConfig {
 
 pub struct Arena {
     game_mode: GameMode,
-    arena_config: ArenaConfig,
+    config: ArenaConfig,
     mutator_config: MutatorConfig,
     tick_time: f32,
     bullet_world: DiscreteDynamicsWorld,
@@ -77,6 +77,7 @@ pub struct Arena {
 }
 
 impl Arena {
+    #[must_use]
     pub fn new(game_mode: GameMode) -> Self {
         Self::new_with_config(game_mode, ArenaConfig::DEFAULT, 120.)
     }
@@ -171,7 +172,7 @@ impl Arena {
         Self {
             game_mode,
             tick_time: 1. / tick_rate,
-            arena_config: config,
+            config,
             mutator_config,
             bullet_world,
             ball,
@@ -231,8 +232,10 @@ impl Arena {
                 Vec3A::ZERO,
                 mask,
                 mask,
-            )
+            );
         }
+
+        drop(collision_shapes);
 
         let (extent_x, floor, height) = match game_mode {
             GameMode::Hoops => (

@@ -36,7 +36,7 @@ pub struct CollisionDispatcher {
 }
 
 impl CollisionDispatcher {
-    fn needs_collision(&self, body0: &CollisionObject, body1: &CollisionObject) -> bool {
+    fn needs_collision(body0: &CollisionObject, body1: &CollisionObject) -> bool {
         (body0.is_active() || body1.is_active())
             && body0.check_collide_with(body1)
             && body1.check_collide_with(body0)
@@ -77,11 +77,7 @@ impl CollisionDispatcher {
         }
     }
 
-    pub fn near_callback(
-        &mut self,
-        collision_pair: BroadphasePair,
-        dispatch_info: &DispatcherInfo,
-    ) {
+    pub fn near_callback(&mut self, collision_pair: BroadphasePair) {
         let proxy0 = collision_pair.proxy0.borrow();
         let proxy1 = collision_pair.proxy1.borrow();
 
@@ -98,7 +94,7 @@ impl CollisionDispatcher {
             .unwrap()
             .borrow();
 
-        if !self.needs_collision(&col_obj_0, &col_obj_1) {
+        if !Self::needs_collision(&col_obj_0, &col_obj_1) {
             return;
         }
 
@@ -122,11 +118,7 @@ impl CollisionDispatcher {
         self.manifolds.push(algorithm.into_manifold());
     }
 
-    pub fn dispatch_all_collision_pairs(
-        &mut self,
-        pair_cache: &mut dyn OverlappingPairCache,
-        dispatch_info: &DispatcherInfo,
-    ) {
-        pair_cache.process_all_overlapping_pairs(self, dispatch_info);
+    pub fn dispatch_all_collision_pairs(&mut self, pair_cache: &mut dyn OverlappingPairCache) {
+        pair_cache.process_all_overlapping_pairs(self);
     }
 }
