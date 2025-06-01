@@ -3,7 +3,7 @@ use crate::collision::{
     broadphase::quantized_bvh::{
         BvhSubtreeInfo, MAX_NUM_PARTS_IN_BITS, QuantizedBvh, QuantizedBvhNode,
     },
-    shapes::triangle_callback::InternalTriangleIndexCallback,
+    shapes::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape},
 };
 use glam::Vec3A;
 
@@ -26,7 +26,7 @@ impl OptimizedBvh {
         impl InternalTriangleIndexCallback for QuantizedNodeTriangleCallback<'_> {
             fn internal_process_triangle_index(
                 &mut self,
-                _triangle: &[Vec3A],
+                _triangle: &TriangleShape,
                 mut aabb_min: Vec3A,
                 mut aabb_max: Vec3A,
                 part_id: usize,

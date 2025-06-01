@@ -45,7 +45,7 @@ impl Default for TriangleInfoMap {
             internal_map: AHashMap::new(),
             convex_epsilon: 0.0,
             planar_epsilon: 0.0001,
-            equal_vertex_threshold: 0.0001 * 0.0001,
+            equal_vertex_threshold: 0.0001,
             edge_distance_threshold: 0.1,
             zero_area_threshold: 0.0001 * 0.0001,
             max_edge_angle_threshold: PI * 2.0,

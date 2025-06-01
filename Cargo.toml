@@ -8,7 +8,7 @@ byteorder = "1.5.0"
 glam = "0.30.3"
 
 [profile.release]
-debug = true
+lto = true
 
 [workspace.lints.rust]
 dead_code = "allow"

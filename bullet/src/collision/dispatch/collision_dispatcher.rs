@@ -126,7 +126,7 @@ impl CollisionDispatcher {
         }
     }
 
-    pub fn near_callback(&mut self, collision_pair: BroadphasePair) {
+    pub fn near_callback(&mut self, collision_pair: &BroadphasePair) {
         let proxy0 = collision_pair.proxy0.borrow();
         let proxy1 = collision_pair.proxy1.borrow();
 

@@ -1,38 +1,173 @@
-use super::{
-    collision_shape::CollisionShape, convex_internal_shape::ConvexInternalShape,
-    convex_polyhedron::ConvexPolyhedron, convex_shape::ConvexShape,
-    polyhedral_convex_shape::PolyhedralConvexShape,
-};
-use crate::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
 use glam::Vec3A;
 
+pub struct ContactInfo {
+    pub result_normal: Vec3A,
+    pub contact_point: Vec3A,
+    pub depth: f32,
+}
+
+/// A triangle made from 3 points.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct TriangleShape {
-    polyhedral_convex_shape: PolyhedralConvexShape,
-    vertices1: [Vec3A; 3],
+    pub points: [Vec3A; 3],
+    pub edges: [Vec3A; 3],
+    pub normal: Vec3A,
+    pub normal_length: f32,
 }
 
 impl TriangleShape {
-    pub fn new(vertices: [Vec3A; 3]) -> Self {
+    #[inline]
+    /// Create a new triangle from 3 points.
+    pub fn new(points: [Vec3A; 3]) -> Self {
+        let edges = [
+            points[1] - points[0],
+            points[2] - points[1],
+            points[0] - points[2],
+        ];
+
+        let (normal, normal_length) = edges[0].cross(-edges[2]).normalize_and_length();
+
         Self {
-            polyhedral_convex_shape: PolyhedralConvexShape {
-                convex_internal_shape: ConvexInternalShape {
-                    convex_shape: ConvexShape {
-                        collision_shape: CollisionShape {
-                            shape_type: BroadphaseNativeTypes::TriangleShapeProxytype,
-                            ..Default::default()
-                        },
-                    },
-                    ..Default::default()
-                },
-                polyhedron: ConvexPolyhedron::default(),
-            },
-            vertices1: vertices,
+            points,
+            edges,
+            normal,
+            normal_length,
         }
     }
 
-    pub fn calc_normal(&self) -> Vec3A {
-        let normal =
-            (self.vertices1[1] - self.vertices1[0]).cross(self.vertices1[2] - self.vertices1[0]);
-        normal.normalize()
+    #[inline]
+    /// Create a new triangle from an iterator that must be of 3 points
+    pub fn from_points_iter(mut iter: impl Iterator<Item = Vec3A>) -> Self {
+        Self::new([
+            iter.next().unwrap(),
+            iter.next().unwrap(),
+            iter.next().unwrap(),
+        ])
+    }
+
+    /// Check if a point projected onto the same place as the triangle
+    /// is within the bounds of it.
+    pub fn face_contains(&self, n: Vec3A, obj_to_points: &[Vec3A; 3]) -> bool {
+        let edge_normals = [
+            self.edges[0].cross(n),
+            self.edges[1].cross(n),
+            self.edges[2].cross(n),
+        ];
+
+        let r = [
+            edge_normals[0].dot(obj_to_points[0]),
+            edge_normals[1].dot(obj_to_points[1]),
+            edge_normals[2].dot(obj_to_points[2]),
+        ];
+
+        (r[0] > 0. && r[1] > 0. && r[2] > 0.) || (r[0] <= 0. && r[1] <= 0. && r[2] <= 0.)
+    }
+
+    /// Instead of using bullet's method,
+    /// we use the method described here which is much faster:
+    /// <https://stackoverflow.com/a/74395029/10930209>
+    pub fn closest_point(&self, obj_to_points: [Vec3A; 3], ab: Vec3A, ac: Vec3A) -> Vec3A {
+        let d1 = ab.dot(obj_to_points[0]);
+        let d2 = ac.dot(obj_to_points[0]);
+        if d1 <= 0. && d2 <= 0. {
+            return self.points[0];
+        }
+
+        let d3 = ab.dot(obj_to_points[1]);
+        let d4 = ac.dot(obj_to_points[1]);
+        if d3 >= 0. && d4 <= d3 {
+            return self.points[1];
+        }
+
+        let d5 = ab.dot(obj_to_points[2]);
+        let d6 = ac.dot(obj_to_points[2]);
+        if d6 >= 0. && d5 <= d6 {
+            return self.points[2];
+        }
+
+        let vc = d1 * d4 - d3 * d2;
+        if vc <= 0. && d1 >= 0. && d3 <= 0. {
+            let v = d1 / (d1 - d3);
+            return self.points[0] + v * ab;
+        }
+
+        let vb = d5 * d2 - d1 * d6;
+        if vb <= 0. && d2 >= 0. && d6 <= 0. {
+            let v = d2 / (d2 - d6);
+            return self.points[0] + v * ac;
+        }
+
+        let va = d3 * d6 - d5 * d4;
+        if va <= 0. && (d4 - d3) >= 0. && (d5 - d6) >= 0. {
+            let v = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            return self.points[1] + v * self.edges[1];
+        }
+
+        let denom = 1. / (va + vb + vc);
+        let v = vb * denom;
+        let w = vc * denom;
+        self.points[0] + v * ab + w * ac
+    }
+
+    #[must_use]
+    /// Check if a sphere intersects the triangle.
+    pub fn intersect_sphere(
+        &self,
+        obj_center: Vec3A,
+        radius: f32,
+        threshold: f32,
+    ) -> Option<ContactInfo> {
+        let mut triangle_normal = self.normal;
+        let obj_to_center = obj_center - self.points[0];
+        let mut distance_from_plane = obj_to_center.dot(triangle_normal);
+
+        if distance_from_plane < 0. {
+            distance_from_plane *= -1.;
+            triangle_normal *= -1.;
+        }
+
+        let radius_with_threshold = radius + threshold;
+        if distance_from_plane >= radius_with_threshold {
+            return None;
+        }
+
+        let obj_to_points = [
+            obj_to_center,
+            obj_center - self.points[1],
+            obj_center - self.points[2],
+        ];
+
+        let contact_point = if self.face_contains(triangle_normal, &obj_to_points) {
+            obj_center - triangle_normal * distance_from_plane
+        } else {
+            let closest_point = self.closest_point(obj_to_points, self.edges[0], -self.edges[2]);
+            let distance_sqr = (closest_point - obj_center).length_squared();
+
+            if distance_sqr < radius_with_threshold * radius_with_threshold {
+                closest_point
+            } else {
+                return None;
+            }
+        };
+
+        let contact_to_center = obj_center - contact_point;
+        let distance_sqr = contact_to_center.length_squared();
+
+        if distance_sqr >= radius_with_threshold * radius_with_threshold {
+            return None;
+        }
+
+        let (result_normal, depth) = if distance_sqr > f32::EPSILON {
+            let distance = distance_sqr.sqrt();
+            (contact_to_center / distance, -(radius - distance))
+        } else {
+            (triangle_normal, -radius)
+        };
+
+        Some(ContactInfo {
+            result_normal,
+            contact_point,
+            depth,
+        })
     }
 }

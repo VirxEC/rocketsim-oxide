@@ -3,7 +3,10 @@ use crate::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
         narrowphase::persistent_manifold::PersistentManifold,
-        shapes::{collision_shape::CollisionShapes, triangle_callback::TriangleCallback},
+        shapes::{
+            collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
+            triangle_shape::TriangleShape,
+        },
     },
     linear_math::{AffineTranspose, aabb_util_2::test_aabb_against_aabb},
 };
@@ -96,7 +99,7 @@ impl ConvexTriangleCallback {
 impl TriangleCallback for ConvexTriangleCallback {
     fn process_triangle(
         &mut self,
-        triangle: &[glam::Vec3A],
+        triangle: &TriangleShape,
         tri_aabb_min: Vec3A,
         tri_aabb_max: Vec3A,
         part_id: usize,
@@ -106,83 +109,29 @@ impl TriangleCallback for ConvexTriangleCallback {
             return true;
         }
 
-        let sphere_ref = self.manifold.body0.borrow();
+        let (center, radius) = {
+            let sphere_ref = self.manifold.body0.borrow();
+            let sphere_col_shape = sphere_ref.get_collision_shape().unwrap().borrow();
+            let CollisionShapes::Sphere(sphere_shape) = &*sphere_col_shape else {
+                unreachable!()
+            };
 
-        let sphere_col_shape = sphere_ref.get_collision_shape().unwrap().borrow();
-        let CollisionShapes::Sphere(sphere_shape) = &*sphere_col_shape else {
-            unreachable!()
+            (
+                sphere_ref.get_world_transform().translation,
+                sphere_shape.get_radius(),
+            )
         };
 
-        let sphere_center = sphere_ref.get_world_transform().translation;
-        let mut triangle_normal = (triangle[1] - triangle[0])
-            .cross(triangle[2] - triangle[0])
-            .normalize();
-        let obj_to_center = sphere_center - triangle[0];
-        let mut distance_from_plane = obj_to_center.dot(triangle_normal);
-
-        if distance_from_plane < 0. {
-            distance_from_plane *= -1.;
-            triangle_normal *= -1.;
-        }
-
-        let radius = sphere_shape.get_radius();
-        let radius_with_threshold = radius + self.manifold.contact_breaking_threshold;
-        if distance_from_plane >= radius_with_threshold {
+        let Some(contact_info) =
+            triangle.intersect_sphere(center, radius, self.manifold.contact_breaking_threshold)
+        else {
             return true;
-        }
-
-        let obj_to_points = [
-            obj_to_center,
-            sphere_center - triangle[1],
-            sphere_center - triangle[2],
-        ];
-
-        let contact_point = if Self::face_contains(triangle, triangle_normal, &obj_to_points) {
-            sphere_center - triangle_normal * distance_from_plane
-        } else {
-            let closest_point = Self::closest_point(
-                triangle,
-                obj_to_points,
-                triangle[1] - triangle[0],
-                triangle[2] - triangle[0],
-            );
-            let distance_sqr = (closest_point - sphere_center).length_squared();
-
-            if distance_sqr < radius_with_threshold * radius_with_threshold {
-                closest_point
-            } else {
-                return true;
-            }
         };
-
-        let contact_to_center = sphere_center - contact_point;
-        let distance_sqr = contact_to_center.length_squared();
-
-        if distance_sqr >= radius_with_threshold * radius_with_threshold {
-            return true;
-        }
-
-        let contact_to_center = sphere_center - contact_point;
-        let distance_sqr = contact_to_center.length_squared();
-
-        if distance_sqr >= radius_with_threshold * radius_with_threshold {
-            return true;
-        }
-
-        let (result_normal, depth) = if distance_sqr > f32::EPSILON {
-            let distance = distance_sqr.sqrt();
-            (contact_to_center / distance, -(radius - distance))
-        } else {
-            (triangle_normal, -radius)
-        };
-
-        drop(sphere_col_shape);
-        drop(sphere_ref);
 
         self.manifold.add_contact_point(
-            result_normal,
-            contact_point,
-            depth,
+            contact_info.result_normal,
+            contact_info.contact_point,
+            contact_info.depth,
             -1,
             part_id as i32,
             -1,

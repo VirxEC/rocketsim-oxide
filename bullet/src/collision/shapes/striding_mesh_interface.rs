@@ -1,4 +1,4 @@
-use super::triangle_callback::InternalTriangleIndexCallback;
+use super::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape};
 use glam::Vec3A;
 
 pub trait StridingMeshInterface {
@@ -8,20 +8,12 @@ pub trait StridingMeshInterface {
         _aabb_min: &Vec3A,
         _aabb_max: &Vec3A,
     ) {
-        let mut triangle = [Vec3A::ZERO; 3];
-
-        let mesh_scaling = self.get_scaling();
         for part in 0..self.get_num_sub_parts() {
-            let (verts, ids, aabbs) = self.get_verts_ids_aabbs(part);
+            let (tris, aabbs) = self.get_tris_aabbs(part);
 
-            for (i, (inner_ids, (aabb_min, aabb_max))) in ids.chunks_exact(3).zip(aabbs).enumerate()
-            {
-                for (vert, &id) in triangle.iter_mut().zip(inner_ids) {
-                    *vert = verts[id] * mesh_scaling;
-                }
-
+            for (i, (triangle, (aabb_min, aabb_max))) in tris.iter().zip(aabbs).enumerate() {
                 let continue_processing = callback
-                    .internal_process_triangle_index(&triangle, *aabb_min, *aabb_max, part, i);
+                    .internal_process_triangle_index(triangle, *aabb_min, *aabb_max, part, i);
                 if !continue_processing {
                     return;
                 }
@@ -29,21 +21,13 @@ pub trait StridingMeshInterface {
         }
     }
 
-    fn get_triangle(&self, subpart: usize, index: usize) -> [Vec3A; 3] {
-        let (verts, ids, _) = self.get_verts_ids_aabbs(subpart);
-        let mesh_scaling = self.get_scaling();
-
-        let mut triangle = [Vec3A::ZERO; 3];
-        for (vert, &id) in triangle.iter_mut().zip(&ids[index * 3..]) {
-            *vert = verts[id] * mesh_scaling;
-        }
-
-        triangle
+    fn get_triangle(&self, subpart: usize, index: usize) -> TriangleShape {
+        self.get_tris_aabbs(subpart).0[index]
     }
 
     fn get_total_num_faces(&self) -> usize;
 
-    fn get_verts_ids_aabbs(&self, subpart: usize) -> (&[Vec3A], &[usize], &[(Vec3A, Vec3A)]);
+    fn get_tris_aabbs(&self, subpart: usize) -> (&[TriangleShape], &[(Vec3A, Vec3A)]);
 
     fn get_num_sub_parts(&self) -> usize;
 
@@ -52,7 +36,4 @@ pub trait StridingMeshInterface {
     }
     // fn set_premade_aabb(&mut self, aabb_min: Vec3A, aabb_max: Vec3A);
     fn get_premade_aabb(&self, aabb_min: &mut Vec3A, aabb_max: &mut Vec3A);
-
-    fn get_scaling(&self) -> Vec3A;
-    fn set_scaling(&mut self, scaling: Vec3A);
 }

@@ -93,7 +93,7 @@ impl BvhTriangleMeshShape {
     }
 
     #[must_use]
-    pub fn get_collision_shape(&self) -> &CollisionShape {
+    pub const fn get_collision_shape(&self) -> &CollisionShape {
         &self.triangle_mesh_shape.concave_shape.collision_shape
     }
 }

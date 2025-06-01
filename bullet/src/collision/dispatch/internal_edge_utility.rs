@@ -31,35 +31,28 @@ fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {
 struct ConnectivityProcessor<'a> {
     part_id_a: usize,
     triangle_index_a: usize,
-    triangle_vertices_a: &'a [Vec3A; 3],
+    triangle_a: &'a TriangleShape,
     triangle_info_map: &'a mut TriangleInfoMap,
 }
 
 impl TriangleCallback for ConnectivityProcessor<'_> {
     fn process_triangle(
         &mut self,
-        triangle: &[Vec3A],
+        tri: &TriangleShape,
         _tri_aabb_min: Vec3A,
         _tri_aabb_max: Vec3A,
         part_id: usize,
         triangle_index: usize,
     ) -> bool {
-        // todo: see if we can use the triangle aabbs to speed up load times
         if self.part_id_a == part_id && self.triangle_index_a == triangle_index {
             return true;
         }
 
-        let cross_b_sqr = (triangle[1] - triangle[0])
-            .cross(triangle[2] - triangle[0])
-            .length_squared();
-        if cross_b_sqr < self.triangle_info_map.equal_vertex_threshold {
+        if tri.normal_length < self.triangle_info_map.equal_vertex_threshold {
             return true;
         }
 
-        let cross_a_sqr = (self.triangle_vertices_a[1] - self.triangle_vertices_a[0])
-            .cross(self.triangle_vertices_a[2] - self.triangle_vertices_a[0])
-            .length_squared();
-        if cross_a_sqr < self.triangle_info_map.equal_vertex_threshold {
+        if self.triangle_a.normal_length < self.triangle_info_map.equal_vertex_threshold {
             return true;
         }
 
@@ -67,9 +60,9 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
         let mut shared_verts_a = [0; 2];
         let mut shared_verts_b = [0; 2];
 
-        for (i, vert_a) in self.triangle_vertices_a.iter().enumerate() {
-            for (j, vert) in triangle.iter().enumerate() {
-                if vert_a.distance_squared(*vert) < self.triangle_info_map.equal_vertex_threshold {
+        for (i, vert_a) in self.triangle_a.points.into_iter().enumerate() {
+            for (j, vert) in tri.points.into_iter().enumerate() {
+                if vert_a.distance_squared(vert) < self.triangle_info_map.equal_vertex_threshold {
                     debug_assert!(num_shared < 2, "degenerate triangle");
 
                     shared_verts_a[num_shared] = i;
@@ -94,36 +87,24 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
             let sum_verts_a = shared_verts_a[0] + shared_verts_a[1];
             let other_index_a = 3 - sum_verts_a;
 
-            let edge = (self.triangle_vertices_a[shared_verts_a[1]]
-                - self.triangle_vertices_a[shared_verts_a[0]])
+            let edge = (self.triangle_a.points[shared_verts_a[1]]
+                - self.triangle_a.points[shared_verts_a[0]])
                 .normalize();
 
-            let tri_a = TriangleShape::new(*self.triangle_vertices_a);
-
             let other_index_b = 3 - (shared_verts_b[0] + shared_verts_b[1]);
-            let tri_b = TriangleShape::new([
-                triangle[shared_verts_b[1]],
-                triangle[shared_verts_b[0]],
-                triangle[other_index_b],
-            ]);
 
-            let normal_a = tri_a.calc_normal();
-            let normal_b = tri_b.calc_normal();
-
-            let mut edge_cross_a = edge.cross(normal_a).normalize();
-
+            let mut edge_cross_a = edge.cross(self.triangle_a.normal).normalize();
             {
-                let tmp = self.triangle_vertices_a[other_index_a]
-                    - self.triangle_vertices_a[shared_verts_a[0]];
+                let tmp = self.triangle_a.points[other_index_a]
+                    - self.triangle_a.points[shared_verts_a[0]];
                 if edge_cross_a.dot(tmp) < 0.0 {
                     edge_cross_a *= -1.0;
                 }
             }
 
-            let mut edge_cross_b = edge.cross(normal_b).normalize();
-
+            let mut edge_cross_b = edge.cross(tri.normal).normalize();
             {
-                let tmp = triangle[other_index_b] - triangle[shared_verts_b[0]];
+                let tmp = tri.points[other_index_b] - tri.points[shared_verts_b[0]];
                 if edge_cross_b.dot(tmp) < 0.0 {
                     edge_cross_b *= -1.0;
                 }
@@ -141,18 +122,17 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 let angle2 = get_angle(calculated_normal_a, edge_cross_a, edge_cross_b);
                 let ang4 = PI - angle2;
 
-                let dot_a = normal_a.dot(edge_cross_b);
+                let dot_a = self.triangle_a.normal.dot(edge_cross_b);
                 is_convex = dot_a < 0.0;
                 corrected_angle = if is_convex { ang4 } else { -ang4 };
             }
 
             match sum_verts_a {
                 1 => {
-                    let edge =
-                        (self.triangle_vertices_a[0] - self.triangle_vertices_a[1]).normalize();
+                    let edge = (-self.triangle_a.edges[0]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * normal_a;
-                    if computed_normal_b.dot(normal_b) < 0.0 {
+                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V0V1_SWAP_NORMALB;
                     }
@@ -163,11 +143,10 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                     }
                 }
                 2 => {
-                    let edge =
-                        (self.triangle_vertices_a[2] - self.triangle_vertices_a[0]).normalize();
+                    let edge = (-self.triangle_a.edges[2]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * normal_a;
-                    if computed_normal_b.dot(normal_b) < 0.0 {
+                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V2V0_SWAP_NORMALB;
                     }
@@ -178,11 +157,10 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                     }
                 }
                 3 => {
-                    let edge =
-                        (self.triangle_vertices_a[1] - self.triangle_vertices_a[2]).normalize();
+                    let edge = (-self.triangle_a.edges[1]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * normal_a;
-                    if computed_normal_b.dot(normal_b) < 0.0 {
+                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V1V2_SWAP_NORMALB;
                     }
@@ -204,27 +182,19 @@ pub fn generate_internal_edge_info(
     quantized_bvh: &QuantizedBvh,
     mesh_interface: &dyn StridingMeshInterface,
 ) -> TriangleInfoMap {
-    let mesh_scaling = mesh_interface.get_scaling();
-
     let mut triangle_info_map = TriangleInfoMap::default();
     triangle_info_map
         .internal_map
         .reserve(mesh_interface.get_total_num_faces());
 
-    let mut triangle = [Vec3A::ZERO; 3];
-
     for part_id in 0..mesh_interface.get_num_sub_parts() {
-        let (verts, ids, aabbs) = mesh_interface.get_verts_ids_aabbs(part_id);
+        let (tris, aabbs) = mesh_interface.get_tris_aabbs(part_id);
 
-        for (i, (inner_ids, (aabb_min, aabb_max))) in ids.chunks_exact(3).zip(aabbs).enumerate() {
-            for (vert, &id) in triangle.iter_mut().zip(inner_ids).rev() {
-                *vert = verts[id] * mesh_scaling;
-            }
-
+        for (i, (triangle_a, (aabb_min, aabb_max))) in tris.iter().zip(aabbs).enumerate() {
             let mut connectivity_processor = ConnectivityProcessor {
                 part_id_a: part_id,
                 triangle_index_a: i,
-                triangle_vertices_a: &triangle,
+                triangle_a,
                 triangle_info_map: &mut triangle_info_map,
             };
 
@@ -254,10 +224,8 @@ fn clamp_normal(
     local_contact_normal_on_b: Vec3A,
     corrected_edge_angle: f32,
 ) -> Option<Vec3A> {
-    let tri_normal = tri_normal_org;
-
-    let edge_cross = edge.cross(tri_normal).normalize();
-    let cur_angle = get_angle(edge_cross, tri_normal, local_contact_normal_on_b);
+    let edge_cross = edge.cross(tri_normal_org).normalize();
+    let cur_angle = get_angle(edge_cross, tri_normal_org, local_contact_normal_on_b);
 
     if (corrected_edge_angle < 0.0 && cur_angle < corrected_edge_angle)
         || (corrected_edge_angle >= 0.0 && cur_angle > corrected_edge_angle)
@@ -288,9 +256,8 @@ pub fn adjust_internal_edge_contacts(
     let info = info_map.internal_map.get(&hash).unwrap();
 
     let front_facing = 1.0;
-    let verts = tri_mesh.get_mesh_interface().get_triangle(part_id, index);
-    let tri_normal = (verts[1] - verts[0]).cross(verts[2] - verts[0]).normalize();
-    let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[0], verts[1]);
+    let tri = tri_mesh.get_mesh_interface().get_triangle(part_id, index);
+    let nearest = nearst_point_in_line_segment(cp.local_point_b, tri.points[0], tri.points[1]);
     let contact = cp.local_point_b;
 
     let mut is_near_edge = false;
@@ -312,7 +279,7 @@ pub fn adjust_internal_edge_contacts(
     }
 
     if info.edge_v1_v2_angle.abs() < info_map.max_edge_angle_threshold {
-        let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[1], verts[2]);
+        let nearest = nearst_point_in_line_segment(cp.local_point_b, tri.points[1], tri.points[2]);
         let len = (contact - nearest).length();
         if len < dist_to_best_edge {
             best_edge = Some(1);
@@ -321,7 +288,7 @@ pub fn adjust_internal_edge_contacts(
     }
 
     if info.edge_v2_v0_angle.abs() < info_map.max_edge_angle_threshold {
-        let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[2], verts[0]);
+        let nearest = nearst_point_in_line_segment(cp.local_point_b, tri.points[2], tri.points[0]);
         let len = (contact - nearest).length();
         if len < dist_to_best_edge {
             best_edge = Some(2);
@@ -336,7 +303,7 @@ pub fn adjust_internal_edge_contacts(
     if best_edge == 0 && info.edge_v0_v1_angle.abs() < info_map.max_edge_angle_threshold {
         let len = (contact - nearest).length();
         if len < info_map.edge_distance_threshold {
-            let edge = verts[0] - verts[1];
+            let edge = -tri.edges[0];
             is_near_edge = true;
 
             if info.edge_v0_v1_angle == 0.0 {
@@ -345,9 +312,9 @@ pub fn adjust_internal_edge_contacts(
                 let is_edge_convex = info.flags & TRI_INFO_V0V1_CONVEX != 0;
                 let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
 
-                let n_a = swap_factor * tri_normal;
+                let n_a = swap_factor * tri.normal;
                 let orn = Quat::from_axis_angle(edge.into(), info.edge_v0_v1_angle);
-                let mut computed_normal_b = orn * tri_normal;
+                let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V0V1_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
                 }
@@ -362,11 +329,11 @@ pub fn adjust_internal_edge_contacts(
                     num_concave_edge_hits += 1;
                 } else if let Some(clamped_local_normal) = clamp_normal(
                     edge,
-                    swap_factor * tri_normal,
+                    swap_factor * tri.normal,
                     local_contact_normal_on_b,
                     info.edge_v0_v1_angle,
                 ) {
-                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                    if clamped_local_normal.dot(front_facing * tri.normal) > 0.0 {
                         let new_normal =
                             tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
                         cp.normal_world_on_b = new_normal;
@@ -382,11 +349,11 @@ pub fn adjust_internal_edge_contacts(
     }
 
     if best_edge == 1 && info.edge_v1_v2_angle.abs() < info_map.max_edge_angle_threshold {
-        let nearest = nearst_point_in_line_segment(contact, verts[1], verts[2]);
+        let nearest = nearst_point_in_line_segment(contact, tri.points[1], tri.points[2]);
         let len = (contact - nearest).length();
         if len < info_map.edge_distance_threshold {
             is_near_edge = true;
-            let edge = verts[1] - verts[2];
+            let edge = -tri.edges[1];
 
             if info.edge_v1_v2_angle == 0.0 {
                 num_concave_edge_hits += 1;
@@ -394,9 +361,9 @@ pub fn adjust_internal_edge_contacts(
                 let is_edge_convex = info.flags & TRI_INFO_V1V2_CONVEX != 0;
                 let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
 
-                let n_a = swap_factor * tri_normal;
+                let n_a = swap_factor * tri.normal;
                 let orn = Quat::from_axis_angle(edge.into(), info.edge_v1_v2_angle);
-                let mut computed_normal_b = orn * tri_normal;
+                let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V1V2_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
                 }
@@ -411,11 +378,11 @@ pub fn adjust_internal_edge_contacts(
                     num_concave_edge_hits += 1;
                 } else if let Some(clamped_local_normal) = clamp_normal(
                     edge,
-                    swap_factor * tri_normal,
+                    swap_factor * tri.normal,
                     local_contact_normal_on_b,
                     info.edge_v1_v2_angle,
                 ) {
-                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                    if clamped_local_normal.dot(front_facing * tri.normal) > 0.0 {
                         let new_normal =
                             tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
                         cp.normal_world_on_b = new_normal;
@@ -431,11 +398,11 @@ pub fn adjust_internal_edge_contacts(
     }
 
     if best_edge == 2 && info.edge_v2_v0_angle.abs() < info_map.max_edge_angle_threshold {
-        let nearest = nearst_point_in_line_segment(contact, verts[2], verts[0]);
+        let nearest = nearst_point_in_line_segment(contact, tri.points[2], tri.points[0]);
         let len = (contact - nearest).length();
         if len < info_map.edge_distance_threshold {
             is_near_edge = true;
-            let edge = verts[2] - verts[0];
+            let edge = -tri.edges[2];
 
             if info.edge_v2_v0_angle == 0.0 {
                 num_concave_edge_hits += 1;
@@ -443,9 +410,9 @@ pub fn adjust_internal_edge_contacts(
                 let is_edge_convex = info.flags & TRI_INFO_V2V0_CONVEX != 0;
                 let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
 
-                let n_a = swap_factor * tri_normal;
+                let n_a = swap_factor * tri.normal;
                 let orn = Quat::from_axis_angle(edge.into(), info.edge_v2_v0_angle);
-                let mut computed_normal_b = orn * tri_normal;
+                let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V2V0_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
                 }
@@ -460,11 +427,11 @@ pub fn adjust_internal_edge_contacts(
                     num_concave_edge_hits += 1;
                 } else if let Some(clamped_local_normal) = clamp_normal(
                     edge,
-                    swap_factor * tri_normal,
+                    swap_factor * tri.normal,
                     local_contact_normal_on_b,
                     info.edge_v2_v0_angle,
                 ) {
-                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                    if clamped_local_normal.dot(front_facing * tri.normal) > 0.0 {
                         let new_normal =
                             tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
                         cp.normal_world_on_b = new_normal;
@@ -483,7 +450,7 @@ pub fn adjust_internal_edge_contacts(
         return;
     }
 
-    let new_normal = tri_normal * front_facing;
+    let new_normal = tri.normal * front_facing;
     let d = new_normal.dot(local_contact_normal_on_b);
     if d < 0.0 {
         return;

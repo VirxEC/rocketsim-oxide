@@ -128,10 +128,11 @@ impl OverlappingPairCache for HashedOverlappingPairCache {
     }
 
     fn process_all_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher) {
-        for pair in self.overlapping_pair_array.drain(..) {
+        for pair in &self.overlapping_pair_array {
             dispatcher.near_callback(pair);
         }
 
+        self.overlapping_pair_array.clear();
         self.hash_table.clear();
     }
 }

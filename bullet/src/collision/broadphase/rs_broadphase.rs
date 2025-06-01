@@ -6,7 +6,10 @@ use super::{
 use crate::{
     collision::{
         dispatch::collision_object::CollisionObject,
-        shapes::{collision_shape::CollisionShapes, triangle_callback::TriangleCallback},
+        shapes::{
+            collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
+            triangle_shape::TriangleShape,
+        },
     },
     linear_math::aabb_util_2::test_aabb_against_aabb,
 };
@@ -66,7 +69,7 @@ struct BoolHitTriangleCallback {
 impl TriangleCallback for BoolHitTriangleCallback {
     fn process_triangle(
         &mut self,
-        _triangle: &[Vec3A],
+        _triangle: &TriangleShape,
         _tri_aabb_min: Vec3A,
         _tri_aabb_max: Vec3A,
         _part_id: usize,

@@ -1,6 +1,6 @@
 use super::{
     concave_shape::ConcaveShape, striding_mesh_interface::StridingMeshInterface,
-    triangle_callback::TriangleCallback,
+    triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
 };
 use crate::{
     collision::shapes::triangle_callback::InternalTriangleIndexCallback,
@@ -18,7 +18,7 @@ struct FilteredCallback<'a> {
 impl InternalTriangleIndexCallback for FilteredCallback<'_> {
     fn internal_process_triangle_index(
         &mut self,
-        triangle: &[Vec3A],
+        triangle: &TriangleShape,
         tri_aabb_min: Vec3A,
         tri_aabb_max: Vec3A,
         part_id: usize,
@@ -147,15 +147,13 @@ struct SupportVertexCallback {
 impl TriangleCallback for SupportVertexCallback {
     fn process_triangle(
         &mut self,
-        triangle: &[Vec3A],
+        triangle: &TriangleShape,
         _tri_aabb_min: Vec3A,
         _tri_aabb_max: Vec3A,
         _part_id: usize,
         _triangle_index: usize,
     ) -> bool {
-        debug_assert_eq!(triangle.len(), 3);
-
-        for &vert in triangle {
+        for vert in triangle.points {
             let dot = self.support_vec_local.dot(vert);
             if dot > self.max_dot {
                 self.max_dot = dot;

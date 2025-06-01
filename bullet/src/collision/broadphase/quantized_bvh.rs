@@ -17,7 +17,6 @@ pub trait NodeOverlapCallback {
 pub struct MyNodeOverlapCallback<'a> {
     mesh_interface: &'a dyn StridingMeshInterface,
     callback: &'a mut dyn TriangleCallback,
-    triangle: [Vec3A; 3],
     num_overlap: usize,
 }
 
@@ -29,7 +28,6 @@ impl<'a> MyNodeOverlapCallback<'a> {
         Self {
             mesh_interface,
             callback,
-            triangle: [Vec3A::ZERO; 3],
             num_overlap: 0,
         }
     }
@@ -39,20 +37,11 @@ impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
     fn process_node(&mut self, node_subpart: usize, node_triangle_index: usize) {
         self.num_overlap += 1;
 
-        let (verts, ids, aabbs) = self.mesh_interface.get_verts_ids_aabbs(node_subpart);
-
-        let mesh_scaling = self.mesh_interface.get_scaling();
-        for (vert, &id) in self
-            .triangle
-            .iter_mut()
-            .zip(&ids[node_triangle_index * 3..])
-        {
-            *vert = verts[id] * mesh_scaling;
-        }
-
+        let (tris, aabbs) = self.mesh_interface.get_tris_aabbs(node_subpart);
         let (aabb_min, aabb_max) = aabbs[node_triangle_index];
+
         self.callback.process_triangle(
-            &self.triangle,
+            &tris[node_triangle_index],
             aabb_min,
             aabb_max,
             node_subpart,

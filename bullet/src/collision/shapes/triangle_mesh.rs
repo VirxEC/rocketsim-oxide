@@ -1,13 +1,11 @@
-use super::striding_mesh_interface::StridingMeshInterface;
+use super::{striding_mesh_interface::StridingMeshInterface, triangle_shape::TriangleShape};
 use glam::Vec3A;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TriangleMesh {
-    verts: Box<[Vec3A]>,
-    ids: Box<[usize]>,
+    triangles: Box<[TriangleShape]>,
     aabbs: Box<[(Vec3A, Vec3A)]>,
-    scaling: Vec3A,
 }
 
 impl TriangleMesh {
@@ -26,12 +24,12 @@ impl TriangleMesh {
             })
             .collect();
 
-        Self {
-            verts: verts.into_boxed_slice(),
-            ids: ids.into_boxed_slice(),
-            aabbs,
-            scaling: Vec3A::ONE,
-        }
+        let triangles = (0..ids.len() / 3)
+            .map(|i| i * 3)
+            .map(|i| TriangleShape::from_points_iter(ids[i..i + 3].iter().map(|&j| verts[j])))
+            .collect();
+
+        Self { triangles, aabbs }
     }
 
     #[must_use]
@@ -54,18 +52,10 @@ impl StridingMeshInterface for TriangleMesh {
     }
 
     fn get_total_num_faces(&self) -> usize {
-        self.ids.len() / 3
+        self.triangles.len()
     }
 
-    fn get_scaling(&self) -> Vec3A {
-        self.scaling
-    }
-
-    fn set_scaling(&mut self, scaling: Vec3A) {
-        self.scaling = scaling;
-    }
-
-    fn get_verts_ids_aabbs(&self, _subpart: usize) -> (&[Vec3A], &[usize], &[(Vec3A, Vec3A)]) {
-        (&self.verts, &self.ids, &self.aabbs)
+    fn get_tris_aabbs(&self, _subpart: usize) -> (&[TriangleShape], &[(Vec3A, Vec3A)]) {
+        (&self.triangles, &self.aabbs)
     }
 }
