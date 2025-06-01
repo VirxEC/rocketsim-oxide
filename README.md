@@ -1,6 +1,6 @@
 ![A logo saying RocketSim](https://user-images.githubusercontent.com/36944229/219303954-7267bce1-b7c5-4f15-881c-b9545512e65b.png)
 
-*A Rust library for simulating Rocket League games at maximum efficiency*
+**A Rust library for simulating Rocket League games at maximum efficiency**
 
 A port of <https://github.com/ZealanL/RocketSim>. All the credit goes to Zealan for doing the hard work.
 
