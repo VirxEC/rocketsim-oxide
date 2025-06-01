@@ -2,7 +2,6 @@ use glam::{Affine3A, Vec3A};
 use std::f32::consts::FRAC_1_SQRT_2;
 
 pub mod aabb_util_2;
-pub mod motion_state;
 pub mod transform_util;
 
 pub trait AffineTranspose {

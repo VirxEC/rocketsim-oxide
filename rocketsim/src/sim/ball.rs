@@ -131,8 +131,7 @@ impl Ball {
             Self::make_ball_collision_shape(game_mode, mutator_config);
         let shape_type = collision_shape.get_shape_type();
 
-        let mut info =
-            RigidBodyConstructionInfo::new(mutator_config.ball_mass, None, collision_shape);
+        let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
         info.start_world_transform.translation.z = consts::BALL_REST_Z * UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;

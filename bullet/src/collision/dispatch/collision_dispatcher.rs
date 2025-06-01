@@ -8,7 +8,7 @@ use crate::collision::{
         broadphase_proxy::{BroadphaseNativeTypes, BroadphasePair},
         collision_algorithm::CollisionAlgorithm,
         dispatcher::DispatcherInfo,
-        overlapping_pair_cache::OverlappingPairCache,
+        rs_broadphase::{RsBroadphase, RsBroadphaseProxy},
     },
     narrowphase::persistent_manifold::PersistentManifold,
 };
@@ -126,10 +126,7 @@ impl CollisionDispatcher {
         }
     }
 
-    pub fn near_callback(&mut self, collision_pair: &BroadphasePair) {
-        let proxy0 = collision_pair.proxy0.borrow();
-        let proxy1 = collision_pair.proxy1.borrow();
-
+    pub fn near_callback(&mut self, proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) {
         let col_obj_0 = proxy0
             .broadphase_proxy
             .client_object
@@ -167,7 +164,7 @@ impl CollisionDispatcher {
         self.manifolds.push(algorithm.into_manifold());
     }
 
-    pub fn dispatch_all_collision_pairs(&mut self, pair_cache: &mut dyn OverlappingPairCache) {
+    pub fn dispatch_all_collision_pairs(&mut self, pair_cache: &mut RsBroadphase) {
         pair_cache.process_all_overlapping_pairs(self);
     }
 }

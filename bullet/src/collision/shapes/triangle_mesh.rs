@@ -1,6 +1,5 @@
-use super::{striding_mesh_interface::StridingMeshInterface, triangle_shape::TriangleShape};
+use super::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape};
 use glam::Vec3A;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct TriangleMesh {
@@ -32,30 +31,38 @@ impl TriangleMesh {
         Self { triangles, aabbs }
     }
 
-    #[must_use]
-    pub fn into_mesh_interface(self) -> Arc<dyn StridingMeshInterface + Send + Sync> {
-        Arc::new(self)
-    }
-}
+    pub fn internal_process_all_triangles<T: InternalTriangleIndexCallback>(
+        &self,
+        callback: &mut T,
+        _aabb_min: &Vec3A,
+        _aabb_max: &Vec3A,
+    ) {
+        for part in 0..self.get_num_sub_parts() {
+            let (tris, aabbs) = self.get_tris_aabbs(part);
 
-impl StridingMeshInterface for TriangleMesh {
-    fn get_num_sub_parts(&self) -> usize {
+            for (i, (triangle, (aabb_min, aabb_max))) in tris.iter().zip(aabbs).enumerate() {
+                let continue_processing = callback
+                    .internal_process_triangle_index(triangle, *aabb_min, *aabb_max, part, i);
+                if !continue_processing {
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn get_triangle(&self, subpart: usize, index: usize) -> TriangleShape {
+        self.get_tris_aabbs(subpart).0[index]
+    }
+
+    pub fn get_num_sub_parts(&self) -> usize {
         1
     }
 
-    fn get_premade_aabb(&self, _aabb_min: &mut Vec3A, _aabb_max: &mut Vec3A) {
-        unimplemented!()
-    }
-
-    fn has_premade_aabb(&self) -> bool {
-        false
-    }
-
-    fn get_total_num_faces(&self) -> usize {
+    pub fn get_total_num_faces(&self) -> usize {
         self.triangles.len()
     }
 
-    fn get_tris_aabbs(&self, _subpart: usize) -> (&[TriangleShape], &[(Vec3A, Vec3A)]) {
+    pub fn get_tris_aabbs(&self, _subpart: usize) -> (&[TriangleShape], &[(Vec3A, Vec3A)]) {
         (&self.triangles, &self.aabbs)
     }
 }

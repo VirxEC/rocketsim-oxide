@@ -3,7 +3,7 @@ use super::{
     collision_object::{CollisionObject, CollisionObjectTypes},
 };
 use crate::collision::{
-    broadphase::{broadphase_interface::BroadphaseInterface, dispatcher::DispatcherInfo},
+    broadphase::{dispatcher::DispatcherInfo, rs_broadphase::RsBroadphase},
     narrowphase::persistent_manifold::CONTACT_BREAKING_THRESHOLD,
 };
 use glam::Vec3A;
@@ -13,12 +13,12 @@ pub struct CollisionWorld {
     pub collision_objects: Vec<Rc<RefCell<CollisionObject>>>,
     pub dispatcher1: CollisionDispatcher,
     pub dispatcher_info: DispatcherInfo,
-    broadphase_pair_cache: Box<dyn BroadphaseInterface>,
+    broadphase_pair_cache: RsBroadphase,
     force_update_all_aabbs: bool,
 }
 
 impl CollisionWorld {
-    pub fn new(dispatcher: CollisionDispatcher, pair_cache: Box<dyn BroadphaseInterface>) -> Self {
+    pub fn new(dispatcher: CollisionDispatcher, pair_cache: RsBroadphase) -> Self {
         Self {
             collision_objects: Vec::new(),
             dispatcher1: dispatcher,
@@ -92,10 +92,12 @@ impl CollisionWorld {
             max_aabb = max_aabb.max(max_aabb_2);
         }
 
-        let bp = &mut *self.broadphase_pair_cache;
-
         if col_obj.is_static_object() || (max_aabb - min_aabb).length_squared() < 1e12 {
-            bp.set_aabb(col_obj.get_broadphase_handle().unwrap(), min_aabb, max_aabb);
+            self.broadphase_pair_cache.set_aabb(
+                col_obj.get_broadphase_handle().unwrap(),
+                min_aabb,
+                max_aabb,
+            );
         } else {
             unreachable!()
         }
@@ -118,6 +120,6 @@ impl CollisionWorld {
         self.broadphase_pair_cache.calculate_overlapping_pairs();
 
         self.dispatcher1
-            .dispatch_all_collision_pairs(self.broadphase_pair_cache.get_overlapping_pair_cache());
+            .dispatch_all_collision_pairs(&mut self.broadphase_pair_cache);
     }
 }

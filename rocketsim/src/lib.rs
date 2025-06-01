@@ -186,7 +186,7 @@ pub fn init_from_mem(
             *hash_count += 1;
 
             let tri_mesh = mesh_file.make_bullet_mesh();
-            let bvt_mesh = BvhTriangleMeshShape::new(tri_mesh.into_mesh_interface());
+            let bvt_mesh = BvhTriangleMeshShape::new(tri_mesh);
             meshes.push(Arc::new(bvt_mesh));
         }
 

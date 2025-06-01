@@ -1,7 +1,5 @@
 use crate::{
-    collision::shapes::{
-        striding_mesh_interface::StridingMeshInterface, triangle_callback::TriangleCallback,
-    },
+    collision::shapes::{triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh},
     linear_math::aabb_util_2::test_quantized_aabb_against_quantized_aabb,
 };
 use glam::{U16Vec3, Vec3A};
@@ -14,17 +12,14 @@ pub trait NodeOverlapCallback {
     fn process_node(&mut self, subpart: usize, triangle_index: usize);
 }
 
-pub struct MyNodeOverlapCallback<'a> {
-    mesh_interface: &'a dyn StridingMeshInterface,
-    callback: &'a mut dyn TriangleCallback,
+pub struct MyNodeOverlapCallback<'a, T: TriangleCallback> {
+    mesh_interface: &'a TriangleMesh,
+    callback: &'a mut T,
     num_overlap: usize,
 }
 
-impl<'a> MyNodeOverlapCallback<'a> {
-    pub fn new(
-        mesh_interface: &'a dyn StridingMeshInterface,
-        callback: &'a mut dyn TriangleCallback,
-    ) -> Self {
+impl<'a, T: TriangleCallback> MyNodeOverlapCallback<'a, T> {
+    pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
         Self {
             mesh_interface,
             callback,
@@ -33,7 +28,7 @@ impl<'a> MyNodeOverlapCallback<'a> {
     }
 }
 
-impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
+impl<T: TriangleCallback> NodeOverlapCallback for MyNodeOverlapCallback<'_, T> {
     fn process_node(&mut self, node_subpart: usize, node_triangle_index: usize) {
         self.num_overlap += 1;
 
@@ -50,14 +45,12 @@ impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct QuantizedBvh {
     pub bvh_aabb_min: Vec3A,
     pub bvh_aabb_max: Vec3A,
     pub bvh_quantization: Vec3A,
     pub cur_node_index: usize,
-    // pub leaf_nodes: Vec<OptimizedBvhNode>,
-    // pub contiguous_nodes: Vec<OptimizedBvhNode>,
     pub quantized_leaf_nodes: Vec<QuantizedBvhNode>,
     pub quantized_contiguous_nodes: Vec<QuantizedBvhNode>,
     pub subtree_headers: Vec<BvhSubtreeInfo>,
@@ -175,7 +168,6 @@ impl QuantizedBvh {
         means *= 1.0 / num_indices as f32;
 
         let split_value = means[split_axis];
-
         for i in start_index..end_index {
             let center = 0.5 * (self.get_aabb_max(i) + self.get_aabb_min(i));
             if center[split_axis] > split_value {
@@ -245,8 +237,7 @@ impl QuantizedBvh {
     }
 
     fn set_internal_node_escape_index(&mut self, node_index: usize, escape_index: usize) {
-        self.quantized_contiguous_nodes[node_index].escape_index_or_triangle_index =
-            -(escape_index as i32);
+        self.quantized_contiguous_nodes[node_index].node_type = NodeType::Branch { escape_index };
     }
 
     fn update_subtree_headers(
@@ -255,19 +246,11 @@ impl QuantizedBvh {
         right_child_node_index: usize,
     ) {
         let left_child_node = self.quantized_contiguous_nodes[left_child_node_index];
-        let left_subtree_size = if left_child_node.is_leaf_node() {
-            1
-        } else {
-            left_child_node.get_escape_index()
-        };
+        let left_subtree_size = left_child_node.get_subtree_size();
         let left_subtree_size_in_bytes = left_subtree_size * size_of::<QuantizedBvhNode>();
 
         let right_child_node = self.quantized_contiguous_nodes[right_child_node_index];
-        let right_subtree_size = if right_child_node.is_leaf_node() {
-            1
-        } else {
-            right_child_node.get_escape_index()
-        };
+        let right_subtree_size = right_child_node.get_subtree_size();
         let right_subtree_size_in_bytes = right_subtree_size * size_of::<QuantizedBvhNode>();
 
         if left_subtree_size_in_bytes <= MAX_SUBTREE_SIZE_IN_BYTES {
@@ -335,9 +318,9 @@ impl QuantizedBvh {
         self.set_internal_node_escape_index(internal_node_index, escape_index);
     }
 
-    fn walk_stackless_quantized_tree(
+    fn walk_stackless_quantized_tree<T: NodeOverlapCallback>(
         &self,
-        node_callback: &mut dyn NodeOverlapCallback,
+        node_callback: &mut T,
         quantized_query_aabb_min: U16Vec3,
         quantized_query_aabb_max: U16Vec3,
         start_node_index: usize,
@@ -360,22 +343,25 @@ impl QuantizedBvh {
                 root_node.quantized_aabb_max,
             );
 
-            let is_leaf_node = root_node.is_leaf_node();
-            if is_leaf_node && aabb_overlap {
-                node_callback.process_node(root_node.get_part_id(), root_node.get_triangle_index());
+            match root_node.node_type {
+                NodeType::Leaf {
+                    part_id,
+                    triangle_index,
+                } => {
+                    node_callback.process_node(part_id, triangle_index);
+                    cur_index += 1;
+                }
+                NodeType::Branch { escape_index } if !aabb_overlap => {
+                    cur_index += escape_index;
+                }
+                _ => cur_index += 1,
             }
-
-            cur_index += if aabb_overlap || is_leaf_node {
-                1
-            } else {
-                root_node.get_escape_index()
-            };
         }
     }
 
-    fn walk_stackless_quantized_tree_cache_friendly(
+    fn walk_stackless_quantized_tree_cache_friendly<T: NodeOverlapCallback>(
         &self,
-        node_callback: &mut dyn NodeOverlapCallback,
+        node_callback: &mut T,
         quantized_query_aabb_min: U16Vec3,
         quantized_query_aabb_max: U16Vec3,
     ) {
@@ -398,9 +384,9 @@ impl QuantizedBvh {
         }
     }
 
-    pub fn report_aabb_overlapping_node(
+    pub fn report_aabb_overlapping_node<T: NodeOverlapCallback>(
         &self,
-        node_callback: &mut dyn NodeOverlapCallback,
+        node_callback: &mut T,
         aabb_min: Vec3A,
         aabb_max: Vec3A,
     ) {
@@ -415,41 +401,52 @@ impl QuantizedBvh {
     }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Clone, Copy)]
+pub enum NodeType {
+    Leaf {
+        part_id: usize,
+        triangle_index: usize,
+    },
+    Branch {
+        escape_index: usize,
+    },
+}
+
+#[derive(Clone, Copy)]
 pub struct QuantizedBvhNode {
     pub quantized_aabb_min: U16Vec3,
     pub quantized_aabb_max: U16Vec3,
-    pub escape_index_or_triangle_index: i32,
+    pub node_type: NodeType,
 }
 
 impl QuantizedBvhNode {
     pub const DEFAULT: Self = Self {
         quantized_aabb_min: U16Vec3::ZERO,
         quantized_aabb_max: U16Vec3::ZERO,
-        escape_index_or_triangle_index: 0,
+        node_type: NodeType::Leaf {
+            triangle_index: 0,
+            part_id: 0,
+        },
     };
 
     pub const fn is_leaf_node(&self) -> bool {
-        self.escape_index_or_triangle_index >= 0
+        matches!(
+            self.node_type,
+            NodeType::Leaf {
+                part_id: _,
+                triangle_index: _
+            }
+        )
     }
 
-    pub fn get_escape_index(&self) -> usize {
-        debug_assert!(!self.is_leaf_node());
-
-        (-self.escape_index_or_triangle_index) as usize
-    }
-
-    pub fn get_triangle_index(&self) -> usize {
-        debug_assert!(self.is_leaf_node());
-
-        let y = !0 << (31 - MAX_NUM_PARTS_IN_BITS as u32);
-        (self.escape_index_or_triangle_index as u32 & !y) as usize
-    }
-
-    pub fn get_part_id(&self) -> usize {
-        debug_assert!(self.is_leaf_node());
-
-        (self.escape_index_or_triangle_index >> (31 - MAX_NUM_PARTS_IN_BITS)) as usize
+    pub fn get_subtree_size(&self) -> usize {
+        match self.node_type {
+            NodeType::Leaf {
+                part_id: _,
+                triangle_index: _,
+            } => 1,
+            NodeType::Branch { escape_index } => escape_index,
+        }
     }
 }
 

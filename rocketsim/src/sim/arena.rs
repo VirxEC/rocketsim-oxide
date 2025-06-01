@@ -93,7 +93,7 @@ impl Arena {
 
         let collision_dispatcher = CollisionDispatcher::default();
         let constraint_solver = SequentialImpulseConstraintSolver::default();
-        let overlapping_pair_cache = Box::new(HashedOverlappingPairCache::default());
+        let overlapping_pair_cache = HashedOverlappingPairCache::default();
 
         let broadphase = if config.use_custom_broadphase {
             let cell_size_multiplier = match config.mem_weight_mode {
@@ -101,13 +101,13 @@ impl Arena {
                 ArenaMemWeightMode::Heavy => 1.0,
             };
 
-            Box::new(RsBroadphase::new(
+            RsBroadphase::new(
                 config.min_pos * UU_TO_BT,
                 config.max_pos * UU_TO_BT,
                 config.max_aabb_len * UU_TO_BT * cell_size_multiplier,
                 overlapping_pair_cache,
                 config.max_objects,
-            ))
+            )
         } else {
             unimplemented!();
         };
@@ -187,7 +187,7 @@ impl Arena {
         group: i32,
         mask: i32,
     ) {
-        let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, None, shape);
+        let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
         rb_constrution_info.restitution = consts::ARENA_COLLISION_BASE_RESTITUTION;
         rb_constrution_info.friction = consts::ARENA_COLLISION_BASE_FRICTION;
         rb_constrution_info.start_world_transform.translation = pos_bt;

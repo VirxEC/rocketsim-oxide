@@ -9,7 +9,6 @@ pub(crate) mod optimized_bvh;
 pub(crate) mod polyhedral_convex_shape;
 pub mod sphere_shape;
 pub mod static_plane_shape;
-pub mod striding_mesh_interface;
 pub(crate) mod triangle_callback;
 pub mod triangle_info_map;
 pub mod triangle_mesh;

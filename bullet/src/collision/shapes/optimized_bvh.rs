@@ -1,24 +1,20 @@
-use super::striding_mesh_interface::StridingMeshInterface;
+use super::triangle_mesh::TriangleMesh;
 use crate::collision::{
     broadphase::quantized_bvh::{
-        BvhSubtreeInfo, MAX_NUM_PARTS_IN_BITS, QuantizedBvh, QuantizedBvhNode,
+        BvhSubtreeInfo, MAX_NUM_PARTS_IN_BITS, NodeType, QuantizedBvh, QuantizedBvhNode,
     },
     shapes::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape},
 };
 use glam::Vec3A;
 
-#[derive(Clone, Default)]
 pub struct OptimizedBvh {
     pub quantized_bvh: QuantizedBvh,
 }
 
 impl OptimizedBvh {
-    pub fn build(
-        &mut self,
-        triangles: &dyn StridingMeshInterface,
-        local_aabb_min: Vec3A,
-        local_aabb_max: Vec3A,
-    ) {
+    pub fn new(triangles: &TriangleMesh, local_aabb_min: Vec3A, local_aabb_max: Vec3A) -> Self {
+        let mut quantized_bvh = QuantizedBvh::default();
+
         struct QuantizedNodeTriangleCallback<'a> {
             pub optimized_tree: &'a mut QuantizedBvh,
         }
@@ -62,9 +58,10 @@ impl OptimizedBvh {
                 let node = QuantizedBvhNode {
                     quantized_aabb_min: self.optimized_tree.quantize(aabb_min, false),
                     quantized_aabb_max: self.optimized_tree.quantize(aabb_max, true),
-                    escape_index_or_triangle_index: ((part_id << (31 - MAX_NUM_PARTS_IN_BITS))
-                        | triangle_index)
-                        as i32,
+                    node_type: NodeType::Leaf {
+                        part_id,
+                        triangle_index,
+                    },
                 };
 
                 self.optimized_tree.quantized_leaf_nodes.push(node);
@@ -72,44 +69,39 @@ impl OptimizedBvh {
             }
         }
 
-        self.quantized_bvh
-            .set_quantization_values(local_aabb_min, local_aabb_max);
-        self.quantized_bvh
+        quantized_bvh.set_quantization_values(local_aabb_min, local_aabb_max);
+        quantized_bvh
             .quantized_leaf_nodes
             .reserve(triangles.get_total_num_faces());
 
-        let min_aabb = self.quantized_bvh.bvh_aabb_min;
-        let max_aabb = self.quantized_bvh.bvh_aabb_max;
+        let min_aabb = quantized_bvh.bvh_aabb_min;
+        let max_aabb = quantized_bvh.bvh_aabb_max;
 
         let mut callback = QuantizedNodeTriangleCallback {
-            optimized_tree: &mut self.quantized_bvh,
+            optimized_tree: &mut quantized_bvh,
         };
 
         triangles.internal_process_all_triangles(&mut callback, &min_aabb, &max_aabb);
 
-        let num_leaf_nodes = self.quantized_bvh.quantized_leaf_nodes.len();
-        self.quantized_bvh
+        let num_leaf_nodes = quantized_bvh.quantized_leaf_nodes.len();
+        quantized_bvh
             .quantized_contiguous_nodes
             .resize(2 * num_leaf_nodes, QuantizedBvhNode::DEFAULT);
 
-        self.quantized_bvh.cur_node_index = 0;
-        self.quantized_bvh.build_tree(0, num_leaf_nodes);
+        quantized_bvh.cur_node_index = 0;
+        quantized_bvh.build_tree(0, num_leaf_nodes);
 
-        if self.quantized_bvh.subtree_headers.is_empty() {
-            self.quantized_bvh.subtree_headers.push(BvhSubtreeInfo {
-                quantized_aabb_min: self.quantized_bvh.quantized_contiguous_nodes[0]
-                    .quantized_aabb_min,
-                quantized_aabb_max: self.quantized_bvh.quantized_contiguous_nodes[0]
-                    .quantized_aabb_max,
+        if quantized_bvh.subtree_headers.is_empty() {
+            quantized_bvh.subtree_headers.push(BvhSubtreeInfo {
+                quantized_aabb_min: quantized_bvh.quantized_contiguous_nodes[0].quantized_aabb_min,
+                quantized_aabb_max: quantized_bvh.quantized_contiguous_nodes[0].quantized_aabb_max,
                 root_node_index: 0,
-                subtree_size: if self.quantized_bvh.quantized_contiguous_nodes[0].is_leaf_node() {
-                    1
-                } else {
-                    self.quantized_bvh.quantized_contiguous_nodes[0].get_escape_index()
-                },
+                subtree_size: quantized_bvh.quantized_contiguous_nodes[0].get_subtree_size(),
             });
         }
 
-        self.quantized_bvh.quantized_leaf_nodes.clear();
+        quantized_bvh.quantized_leaf_nodes.clear();
+
+        Self { quantized_bvh }
     }
 }

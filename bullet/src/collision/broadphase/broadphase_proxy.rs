@@ -1,4 +1,3 @@
-use super::rs_broadphase::RsBroadphaseProxy;
 use crate::collision::dispatch::collision_object::CollisionObject;
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
@@ -92,8 +91,6 @@ pub struct BroadphaseProxy {
 }
 
 pub struct BroadphasePair {
-    pub proxy0: Rc<RefCell<RsBroadphaseProxy>>,
-    pub proxy1: Rc<RefCell<RsBroadphaseProxy>>,
-    // mutable btCollisionAlgorithm* m_algorithm;
-    // pub algorithm: Option<Box<dyn CollisionAlgorithm>>,
+    pub proxy0: usize,
+    pub proxy1: usize,
 }

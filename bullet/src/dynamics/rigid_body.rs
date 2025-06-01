@@ -6,25 +6,17 @@ use crate::{
         },
         shapes::collision_shape::CollisionShapes,
     },
-    linear_math::{
-        motion_state::MotionState,
-        transform_util::{integrate_transform, integrate_transform_no_rot},
-    },
+    linear_math::transform_util::{integrate_transform, integrate_transform_no_rot},
 };
 use glam::{Affine3A, Mat3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
 pub enum RigidBodyFlags {
     DisableWorldGravity = 1,
-    EnableGyroscopicForceExplicit = 2,
-    EnableGyroscopicForceImplicitWorld = 4,
-    EnableGyroscopicForceImplicitBody = 8,
-    // EnableGyropscopicForce = EnableGyroscopicForceImplicitBody,
 }
 
 pub struct RigidBodyConstructionInfo {
     pub mass: f32,
-    pub motion_state: Option<Box<dyn MotionState>>,
     pub start_world_transform: Affine3A,
     pub collision_shape: CollisionShapes,
     pub local_inertia: Vec3A,
@@ -45,14 +37,9 @@ pub struct RigidBodyConstructionInfo {
 
 impl RigidBodyConstructionInfo {
     #[must_use]
-    pub fn new(
-        mass: f32,
-        motion_state: Option<Box<dyn MotionState>>,
-        collision_shape: CollisionShapes,
-    ) -> Self {
+    pub fn new(mass: f32, collision_shape: CollisionShapes) -> Self {
         Self {
             mass,
-            motion_state,
             collision_shape,
             local_inertia: Vec3A::ZERO,
             linear_damping: 0.0,
@@ -94,7 +81,7 @@ pub struct RigidBody {
     pub additional_angular_damping_factor: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    pub motion_state: Option<Box<dyn MotionState>>,
+    // pub motion_state: Option<Box<dyn MotionState>>,
     // pub constraint_refs: Vec<TypedConstraint>,
     pub rigidbody_flags: i32,
     pub delta_linear_velocity: Vec3A,
@@ -110,11 +97,7 @@ impl RigidBody {
     pub fn new(info: RigidBodyConstructionInfo) -> Self {
         let mut collision_object = CollisionObject::default();
         collision_object.internal_type = CollisionObjectTypes::RigidBody as i32;
-        if let Some(motion_state) = info.motion_state.as_ref() {
-            motion_state.get_world_transform(collision_object.get_mut_world_transform());
-        } else {
-            collision_object.set_world_transform(info.start_world_transform);
-        }
+        collision_object.set_world_transform(info.start_world_transform);
 
         collision_object.interpolation_world_transform = *collision_object.get_world_transform();
         collision_object.friction = info.friction;
@@ -158,8 +141,6 @@ impl RigidBody {
             world_mat.z_axis * inv_inertia_local,
         ) * world_mat.transpose();
 
-        let rigidbody_flags = RigidBodyFlags::EnableGyroscopicForceImplicitBody as i32;
-
         Self {
             collision_object: Rc::new(RefCell::new(collision_object)),
             inv_inertia_tensor_world,
@@ -181,9 +162,9 @@ impl RigidBody {
             additional_angular_damping_factor: info.additional_angular_damping_factor,
             linear_sleeping_threshold: info.linear_sleeping_threshold,
             angular_sleeping_threshold: info.angular_sleeping_threshold,
-            motion_state: info.motion_state,
+            // motion_state: info.motion_state,
             // constraint_refs: Vec::new(),
-            rigidbody_flags,
+            rigidbody_flags: 0,
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
             angular_factor: Vec3A::ONE,

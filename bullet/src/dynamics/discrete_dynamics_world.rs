@@ -1,15 +1,10 @@
 use super::{
-    constraint_solver::{
-        contact_solver_info::ContactSolverInfo,
-        sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
-    },
+    constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
     rigid_body::{RigidBody, RigidBodyFlags},
     world::DynamicsWorld,
 };
 use crate::collision::{
-    broadphase::{
-        broadphase_interface::BroadphaseInterface, broadphase_proxy::CollisionFilterGroups,
-    },
+    broadphase::{broadphase_proxy::CollisionFilterGroups, rs_broadphase::RsBroadphase},
     dispatch::{
         collision_dispatcher::CollisionDispatcher,
         collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING, WANTS_DEACTIVATION},
@@ -18,33 +13,10 @@ use crate::collision::{
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
 
-struct InplaceSolverIslandCallback {
-    solver_info: Option<ContactSolverInfo>,
-    solver: SequentialImpulseConstraintSolver,
-    // btTypedConstraint **m_sortedConstraints;
-    // num_constraints: usize,
-    // bodies: Vec<CollisionObject>,
-    // manifolds: Vec<PersistentManifold>,
-    // constraints: Vec<TypedConstraint>,
-}
-
-impl InplaceSolverIslandCallback {
-    const fn new(solver: SequentialImpulseConstraintSolver) -> Self {
-        Self {
-            solver,
-            solver_info: None,
-            // num_constraints: 0,
-            // bodies: Vec::new(),
-            // manifolds: Vec::new(),
-            // constraints: Vec::new(),
-        }
-    }
-}
-
 pub struct DiscreteDynamicsWorld {
     pub dynamics_world: DynamicsWorld,
     // sorted_constraints: Vec<TypedConstraint>,
-    solver_island_callback: InplaceSolverIslandCallback,
+    solver: SequentialImpulseConstraintSolver,
     // island_manager: SimulationIslandManager,
     // constraints: Vec<TypedConstraint>,
     non_static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
@@ -67,13 +39,13 @@ impl DiscreteDynamicsWorld {
     #[must_use]
     pub fn new(
         dispatcher: CollisionDispatcher,
-        pair_cache: Box<dyn BroadphaseInterface>,
+        pair_cache: RsBroadphase,
         constraint_solver: SequentialImpulseConstraintSolver,
     ) -> Self {
         Self {
             dynamics_world: DynamicsWorld::new(dispatcher, pair_cache),
             // sorted_constraints: Vec::new(),
-            solver_island_callback: InplaceSolverIslandCallback::new(constraint_solver),
+            solver: constraint_solver,
             gravity: Vec3A::new(0.0, -10.0, 0.0),
             local_time: 0.0,
             fixed_time_step: 0.0,
@@ -229,7 +201,7 @@ impl DiscreteDynamicsWorld {
     }
 
     fn solve_constraints(&mut self) {
-        self.solver_island_callback.solver.solve_group(
+        self.solver.solve_group(
             &self.non_static_rigid_bodies,
             &mut self.dynamics_world.collision_world.dispatcher1.manifolds,
             &self.dynamics_world.solver_info,

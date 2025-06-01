@@ -1,6 +1,4 @@
-use crate::collision::{
-    broadphase::rs_broadphase::RsBroadphaseProxy, shapes::collision_shape::CollisionShapes,
-};
+use crate::collision::shapes::collision_shape::CollisionShapes;
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
@@ -68,8 +66,7 @@ pub struct CollisionObject {
     pub anisotropic_friction: Vec3A,
     // pub has_anisotropic_friction: bool,
     pub contact_processing_threshold: f32,
-    // btBroadphaseProxy* m_broadphaseHandle;
-    broadphase_handle: Option<Rc<RefCell<RsBroadphaseProxy>>>,
+    broadphase_handle: Option<usize>,
     collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
     // void* m_extensionPointer;
     pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
@@ -228,13 +225,13 @@ impl CollisionObject {
         self.world_array_index = index;
     }
 
-    pub fn set_broadphase_handle(&mut self, handle: Rc<RefCell<RsBroadphaseProxy>>) {
+    pub fn set_broadphase_handle(&mut self, handle: usize) {
         self.broadphase_handle = Some(handle);
     }
 
     #[must_use]
-    pub const fn get_broadphase_handle(&self) -> Option<&Rc<RefCell<RsBroadphaseProxy>>> {
-        self.broadphase_handle.as_ref()
+    pub const fn get_broadphase_handle(&self) -> Option<usize> {
+        self.broadphase_handle
     }
 
     #[must_use]

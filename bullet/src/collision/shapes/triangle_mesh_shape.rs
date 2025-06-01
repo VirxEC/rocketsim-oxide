@@ -1,21 +1,20 @@
 use super::{
-    concave_shape::ConcaveShape, striding_mesh_interface::StridingMeshInterface,
-    triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
+    concave_shape::ConcaveShape, triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
+    triangle_shape::TriangleShape,
 };
 use crate::{
     collision::shapes::triangle_callback::InternalTriangleIndexCallback,
     linear_math::aabb_util_2::test_aabb_against_aabb,
 };
 use glam::{Affine3A, Vec3A};
-use std::sync::Arc;
 
-struct FilteredCallback<'a> {
-    callback: &'a mut dyn TriangleCallback,
+struct FilteredCallback<'a, T: TriangleCallback> {
+    callback: &'a mut T,
     aabb_min: Vec3A,
     aabb_max: Vec3A,
 }
 
-impl InternalTriangleIndexCallback for FilteredCallback<'_> {
+impl<T: TriangleCallback> InternalTriangleIndexCallback for FilteredCallback<'_, T> {
     fn internal_process_triangle_index(
         &mut self,
         triangle: &TriangleShape,
@@ -38,8 +37,8 @@ impl InternalTriangleIndexCallback for FilteredCallback<'_> {
     }
 }
 
-impl<'a> FilteredCallback<'a> {
-    fn new(callback: &'a mut dyn TriangleCallback, aabb_min: Vec3A, aabb_max: Vec3A) -> Self {
+impl<'a, T: TriangleCallback> FilteredCallback<'a, T> {
+    fn new(callback: &'a mut T, aabb_min: Vec3A, aabb_max: Vec3A) -> Self {
         Self {
             callback,
             aabb_min,
@@ -48,36 +47,29 @@ impl<'a> FilteredCallback<'a> {
     }
 }
 
-#[derive(Clone)]
 pub struct TriangleMeshShape {
     pub concave_shape: ConcaveShape,
     pub local_aabb_min: Vec3A,
     pub local_aabb_max: Vec3A,
-    pub mesh_interface: Arc<dyn StridingMeshInterface + Send + Sync>,
 }
 
 impl TriangleMeshShape {
-    pub fn new(mesh_interface: Arc<dyn StridingMeshInterface + Send + Sync>) -> Self {
+    pub fn new(mesh_interface: &TriangleMesh) -> Self {
         let mut local_aabb_min = Vec3A::ZERO;
         let mut local_aabb_max = Vec3A::ZERO;
         let concave_shape = ConcaveShape::default();
 
-        if mesh_interface.has_premade_aabb() {
-            mesh_interface.get_premade_aabb(&mut local_aabb_min, &mut local_aabb_max);
-        } else {
-            Self::calc_local_aabb(
-                &*mesh_interface,
-                &mut local_aabb_min,
-                &mut local_aabb_max,
-                concave_shape.collision_margin,
-            );
-        }
+        Self::calc_local_aabb(
+            mesh_interface,
+            &mut local_aabb_min,
+            &mut local_aabb_max,
+            concave_shape.collision_margin,
+        );
 
         Self {
             concave_shape,
             local_aabb_min,
             local_aabb_max,
-            mesh_interface,
         }
     }
 
@@ -94,9 +86,9 @@ impl TriangleMeshShape {
         (center - extent, center + extent)
     }
 
-    pub fn process_all_triangles(
-        mesh_interface: &dyn StridingMeshInterface,
-        callback: &mut dyn TriangleCallback,
+    pub fn process_all_triangles<T: TriangleCallback>(
+        mesh_interface: &TriangleMesh,
+        callback: &mut T,
         aabb_min: Vec3A,
         aabb_max: Vec3A,
     ) {
@@ -104,7 +96,7 @@ impl TriangleMeshShape {
         mesh_interface.internal_process_all_triangles(&mut filter_callback, &aabb_min, &aabb_max);
     }
 
-    fn local_get_support_vertex(mesh_interface: &dyn StridingMeshInterface, vec: Vec3A) -> Vec3A {
+    fn local_get_support_vertex(mesh_interface: &TriangleMesh, vec: Vec3A) -> Vec3A {
         let mut support_callback = SupportVertexCallback::new(vec, Affine3A::IDENTITY);
 
         Self::process_all_triangles(
@@ -118,7 +110,7 @@ impl TriangleMeshShape {
     }
 
     fn calc_local_aabb(
-        mesh_interface: &dyn StridingMeshInterface,
+        mesh_interface: &TriangleMesh,
         local_aabb_min: &mut Vec3A,
         local_aabb_max: &mut Vec3A,
         collision_margin: f32,
