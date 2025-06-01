@@ -45,20 +45,6 @@ fn fast_compare_transforms(a: &Affine3A, b: &Affine3A) -> bool {
 }
 
 impl CollisionShapes {
-    pub fn reset_aabb_cache(&mut self) {
-        match self {
-            Self::Sphere(mesh) => {
-                mesh.convex_internal_shape
-                    .convex_shape
-                    .collision_shape
-                    .aabb_cached = false;
-            }
-            Self::StaticPlane(_) | Self::TriangleMesh(_) => {
-                unreachable!();
-            }
-        }
-    }
-
     #[must_use]
     pub fn get_collision_shape(&self) -> &CollisionShape {
         match self {
@@ -76,11 +62,10 @@ impl CollisionShapes {
         }
 
         let cs = self.get_collision_shape();
-        if !cs.aabb_cached || !fast_compare_transforms(t, &cs.aabb_cache_trans) {
-            todo!("no aabb found for {t} in {cs:?}");
-        } else {
-            (cs.aabb_min_cache, cs.aabb_max_cache)
-        }
+        debug_assert!(cs.aabb_cached);
+        debug_assert!(fast_compare_transforms(t, &cs.aabb_cache_trans));
+
+        (cs.aabb_min_cache, cs.aabb_max_cache)
     }
 
     #[must_use]

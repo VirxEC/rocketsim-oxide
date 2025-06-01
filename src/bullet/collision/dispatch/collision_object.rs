@@ -140,11 +140,7 @@ impl Default for CollisionObject {
 impl CollisionObject {
     pub fn set_world_transform(&mut self, world_trans: Affine3A) {
         self.update_revision += 1;
-
         self.world_transform = world_trans;
-        if let Some(shape) = self.collision_shape.as_mut() {
-            shape.borrow_mut().reset_aabb_cache();
-        }
     }
 
     #[must_use]
