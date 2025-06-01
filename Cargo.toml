@@ -1,9 +1,11 @@
-[workspace]
-resolver = "3"
-members = ["bullet", "rocketsim"]
+[package]
+name = "rocketsim"
+version = "0.1.0"
+edition = "2024"
 
-[workspace.dependencies]
+[dependencies]
 ahash = "0.8.12"
+arrayvec = "0.7.6"
 byteorder = "1.5.0"
 glam = "0.30.3"
 
@@ -13,10 +15,10 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-[workspace.lints.rust]
+[lints.rust]
 dead_code = "allow"
 
-[workspace.lints.clippy]
+[lints.clippy]
 all = "warn"
 # pedantic = "warn"
 # nursery = "warn"
