@@ -1,5 +1,6 @@
 use super::{
     collision_object::CollisionObject,
+    convex_concave_collision_algorithm::ConvexConcaveCollisionAlgorithm,
     convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
 };
 use crate::collision::{
@@ -22,6 +23,51 @@ pub type NearCallback = fn(
 const MAX_BROADPHASE_COLLISION_TYPES: usize =
     BroadphaseNativeTypes::MaxBroadphaseCollisionTypes as usize;
 
+enum Algorithms {
+    ConvexPlane(ConvexPlaneCollisionAlgorithm),
+    ConvexConcave(ConvexConcaveCollisionAlgorithm),
+}
+
+impl Algorithms {
+    fn new_convex_plane(
+        convex_obj: Rc<RefCell<CollisionObject>>,
+        plane_obj: Rc<RefCell<CollisionObject>>,
+        is_swapped: bool,
+    ) -> Self {
+        Self::ConvexPlane(ConvexPlaneCollisionAlgorithm::new(
+            convex_obj, plane_obj, is_swapped,
+        ))
+    }
+
+    fn new_convex_concave(
+        convex_obj: Rc<RefCell<CollisionObject>>,
+        concave_obj: Rc<RefCell<CollisionObject>>,
+        is_swapped: bool,
+    ) -> Self {
+        Self::ConvexConcave(ConvexConcaveCollisionAlgorithm::new(
+            convex_obj,
+            concave_obj,
+            is_swapped,
+        ))
+    }
+}
+
+impl CollisionAlgorithm for Algorithms {
+    fn into_manifold(self) -> PersistentManifold {
+        match self {
+            Self::ConvexPlane(alg) => alg.into_manifold(),
+            Self::ConvexConcave(alg) => alg.into_manifold(),
+        }
+    }
+
+    fn process_collision(&mut self, body0: &CollisionObject, body1: &CollisionObject) {
+        match self {
+            Self::ConvexPlane(alg) => alg.process_collision(body0, body1),
+            Self::ConvexConcave(alg) => alg.process_collision(body0, body1),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct CollisionDispatcher {
     dispatcher_flags: i32,
@@ -36,17 +82,11 @@ pub struct CollisionDispatcher {
 }
 
 impl CollisionDispatcher {
-    fn needs_collision(body0: &CollisionObject, body1: &CollisionObject) -> bool {
-        (body0.is_active() || body1.is_active())
-            && body0.check_collide_with(body1)
-            && body1.check_collide_with(body0)
-    }
-
     fn find_algorithm(
         &self,
         col_obj_0: Rc<RefCell<CollisionObject>>,
         col_obj_1: Rc<RefCell<CollisionObject>>,
-    ) -> impl CollisionAlgorithm + Sized {
+    ) -> Algorithms {
         let shape0 = col_obj_0
             .borrow()
             .get_collision_shape()
@@ -63,13 +103,22 @@ impl CollisionDispatcher {
         match shape0 {
             BroadphaseNativeTypes::StaticPlaneProxytype => match shape1 {
                 BroadphaseNativeTypes::SphereShapeProxytype => {
-                    ConvexPlaneCollisionAlgorithm::new(col_obj_1, col_obj_0, true)
+                    Algorithms::new_convex_plane(col_obj_1, col_obj_0, true)
                 }
                 shape1 => todo!("shape1: {shape1:?}"),
             },
             BroadphaseNativeTypes::SphereShapeProxytype => match shape1 {
                 BroadphaseNativeTypes::StaticPlaneProxytype => {
-                    ConvexPlaneCollisionAlgorithm::new(col_obj_0, col_obj_1, false)
+                    Algorithms::new_convex_plane(col_obj_0, col_obj_1, false)
+                }
+                BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
+                    Algorithms::new_convex_concave(col_obj_0, col_obj_1, false)
+                }
+                shape1 => todo!("shape1: {shape1:?}"),
+            },
+            BroadphaseNativeTypes::TriangleMeshShapeProxytype => match shape1 {
+                BroadphaseNativeTypes::SphereShapeProxytype => {
+                    Algorithms::new_convex_concave(col_obj_1, col_obj_0, true)
                 }
                 shape1 => todo!("shape1: {shape1:?}"),
             },
@@ -94,7 +143,7 @@ impl CollisionDispatcher {
             .unwrap()
             .borrow();
 
-        if !Self::needs_collision(&col_obj_0, &col_obj_1) {
+        if !col_obj_0.is_active() && !col_obj_1.is_active() {
             return;
         }
 

@@ -20,9 +20,9 @@ pub enum CollisionFlags {
     CharacterObject = 16,
     DisableVisualizeObject = 32,
     DisableSpuCollisionProcessing = 64,
-    HasContactStiffnessDamping = 128,
-    HasCustomDebugRenderingColor = 256,
-    HasFrictionAnchor = 512,
+    // HasContactStiffnessDamping = 128,
+    // HasCustomDebugRenderingColor = 256,
+    // HasFrictionAnchor = 512,
     HasCollisionSoundTrigger = 1024,
 }
 
@@ -94,7 +94,7 @@ pub struct CollisionObject {
     pub hit_fraction: f32,
     pub ccd_swept_sphere_radius: f32,
     pub ccd_motion_threshold: f32,
-    pub check_collide_with: bool,
+    // pub check_collide_with: bool,
     // btAlignedObjectArray<const btCollisionObject*> m_objectsWithoutCollisionCheck;
     pub update_revision: u32,
     pub special_resolve_info: SpecialResolveInfo,
@@ -133,7 +133,7 @@ impl Default for CollisionObject {
             hit_fraction: 1.0,
             ccd_swept_sphere_radius: 0.0,
             ccd_motion_threshold: 0.0,
-            check_collide_with: false,
+            // check_collide_with: false,
             update_revision: 0,
             special_resolve_info: SpecialResolveInfo::default(),
         }
@@ -240,18 +240,5 @@ impl CollisionObject {
     #[must_use]
     pub fn get_ccd_square_motion_threshold(&self) -> f32 {
         self.ccd_motion_threshold * self.ccd_motion_threshold
-    }
-
-    fn check_collide_with_override(&self, co: &Self) -> bool {
-        todo!()
-    }
-
-    #[must_use]
-    pub fn check_collide_with(&self, co: &Self) -> bool {
-        if self.check_collide_with {
-            self.check_collide_with_override(co)
-        } else {
-            true
-        }
     }
 }

@@ -9,6 +9,7 @@ pub const TRI_INFO_V0V1_SWAP_NORMALB: i32 = 8;
 pub const TRI_INFO_V1V2_SWAP_NORMALB: i32 = 16;
 pub const TRI_INFO_V2V0_SWAP_NORMALB: i32 = 32;
 
+#[derive(Clone, Copy)]
 pub(crate) struct TriangleInfo {
     pub flags: i32,
     pub edge_v0_v1_angle: f32,
@@ -27,6 +28,7 @@ impl Default for TriangleInfo {
     }
 }
 
+#[derive(Clone)]
 pub struct TriangleInfoMap {
     pub(crate) internal_map: AHashMap<i32, TriangleInfo>,
     pub(crate) convex_epsilon: f32,

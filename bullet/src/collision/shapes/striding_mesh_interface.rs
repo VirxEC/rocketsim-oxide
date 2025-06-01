@@ -29,6 +29,18 @@ pub trait StridingMeshInterface {
         }
     }
 
+    fn get_triangle(&self, subpart: usize, index: usize) -> [Vec3A; 3] {
+        let (verts, ids, _) = self.get_verts_ids_aabbs(subpart);
+        let mesh_scaling = self.get_scaling();
+
+        let mut triangle = [Vec3A::ZERO; 3];
+        for (vert, &id) in triangle.iter_mut().zip(&ids[index * 3..]) {
+            *vert = verts[id] * mesh_scaling;
+        }
+
+        triangle
+    }
+
     fn get_total_num_faces(&self) -> usize;
 
     fn get_verts_ids_aabbs(&self, subpart: usize) -> (&[Vec3A], &[usize], &[(Vec3A, Vec3A)]);

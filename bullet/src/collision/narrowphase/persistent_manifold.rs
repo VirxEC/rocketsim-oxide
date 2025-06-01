@@ -2,8 +2,7 @@ use super::manifold_point::ManifoldPoint;
 use crate::{
     UserInfoTypes,
     collision::dispatch::{
-        collision_object::{CollisionFlags, CollisionObject},
-        internal_edge_utility::adjust_internal_edge_contacts,
+        collision_object::CollisionObject, internal_edge_utility::adjust_internal_edge_contacts,
     },
     linear_math::{AffineTranspose, plane_space},
 };
@@ -80,28 +79,6 @@ impl PersistentManifold {
             body0.restitution * body1.restitution
         }
     }
-
-    // fn calculate_combined_rolling_friction(
-    //     body0: &CollisionObject,
-    //     body1: &CollisionObject,
-    // ) -> f32 {
-    //     const MAX_FRICTION: f32 = 10.0;
-
-    //     let friction =
-    //         body0.rolling_friction * body1.friction + body0.friction * body1.rolling_friction;
-    //     friction.clamp(-MAX_FRICTION, MAX_FRICTION)
-    // }
-
-    // fn calculate_combined_spinning_friction(
-    //     body0: &CollisionObject,
-    //     body1: &CollisionObject,
-    // ) -> f32 {
-    //     const MAX_FRICTION: f32 = 10.0;
-
-    //     let friction =
-    //         body0.spinning_friction * body1.friction + body0.friction * body1.spinning_friction;
-    //     friction.clamp(-MAX_FRICTION, MAX_FRICTION)
-    // }
 
     #[inline]
     fn get_res(new_contact_local: Vec3A, point1: Vec3A, point2: Vec3A, point3: Vec3A) -> f32 {
@@ -208,6 +185,7 @@ impl PersistentManifold {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn add_contact_point(
         &mut self,
         normal_on_b_in_world: Vec3A,
@@ -237,34 +215,6 @@ impl PersistentManifold {
 
         new_pt.combined_friction = Self::calculate_combined_friction(&body0, &body1);
         new_pt.combined_restitution = Self::calculate_combined_restitution(&body0, &body1);
-
-        // debug_assert_eq!(body0.rolling_friction, 0.0);
-        // debug_assert_eq!(body1.rolling_friction, 0.0);
-        // new_pt.combined_rolling_friction =
-        //     Self::calculate_combined_rolling_friction(&body0, &body1);
-
-        // debug_assert_eq!(body0.spinning_friction, 0.0);
-        // debug_assert_eq!(body1.spinning_friction, 0.0);
-        // new_pt.combined_spinning_friction =
-        //     Self::calculate_combined_spinning_friction(&body0, &body1);
-
-        debug_assert_eq!(
-            body0.collision_flags & CollisionFlags::HasContactStiffnessDamping as i32,
-            0
-        );
-        debug_assert_eq!(
-            body1.collision_flags & CollisionFlags::HasContactStiffnessDamping as i32,
-            0
-        );
-
-        debug_assert_eq!(
-            body0.collision_flags & CollisionFlags::HasFrictionAnchor as i32,
-            0
-        );
-        debug_assert_eq!(
-            body1.collision_flags & CollisionFlags::HasFrictionAnchor as i32,
-            0
-        );
 
         (new_pt.lateral_friction_dir_1, new_pt.lateral_friction_dir_2) =
             plane_space(new_pt.normal_world_on_b);
@@ -325,7 +275,23 @@ impl PersistentManifold {
             }
         }
 
-        adjust_internal_edge_contacts(contact_point, body_a, body_b);
+        if should_swap {
+            mem::swap(&mut body_a, &mut body_b);
+        }
+
+        let (part_id, index) = if should_swap {
+            (contact_point.part_id_0, contact_point.index_0)
+        } else {
+            (contact_point.part_id_1, contact_point.index_1)
+        };
+
+        adjust_internal_edge_contacts(
+            contact_point,
+            body_a,
+            body_b,
+            part_id as usize,
+            index as usize,
+        );
     }
 
     fn remove_contact_point(&mut self, _idx: usize) {

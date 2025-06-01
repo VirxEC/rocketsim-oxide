@@ -7,7 +7,7 @@ use crate::collision::{
 };
 use glam::Vec3A;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct OptimizedBvh {
     pub quantized_bvh: QuantizedBvh,
 }
@@ -18,7 +18,6 @@ impl OptimizedBvh {
         triangles: &dyn StridingMeshInterface,
         local_aabb_min: Vec3A,
         local_aabb_max: Vec3A,
-        use_quantized_aabb_compression: bool,
     ) {
         struct QuantizedNodeTriangleCallback<'a> {
             pub optimized_tree: &'a mut QuantizedBvh,
@@ -73,36 +72,30 @@ impl OptimizedBvh {
             }
         }
 
-        let num_leaf_nodes;
+        self.quantized_bvh
+            .set_quantization_values(local_aabb_min, local_aabb_max);
+        self.quantized_bvh
+            .quantized_leaf_nodes
+            .reserve(triangles.get_total_num_faces());
 
-        if use_quantized_aabb_compression {
-            self.quantized_bvh
-                .set_quantization_values(local_aabb_min, local_aabb_max);
-            self.quantized_bvh
-                .quantized_leaf_nodes
-                .reserve(triangles.get_total_num_faces());
+        let min_aabb = self.quantized_bvh.bvh_aabb_min;
+        let max_aabb = self.quantized_bvh.bvh_aabb_max;
 
-            let min_aabb = self.quantized_bvh.bvh_aabb_min;
-            let max_aabb = self.quantized_bvh.bvh_aabb_max;
+        let mut callback = QuantizedNodeTriangleCallback {
+            optimized_tree: &mut self.quantized_bvh,
+        };
 
-            let mut callback = QuantizedNodeTriangleCallback {
-                optimized_tree: &mut self.quantized_bvh,
-            };
+        triangles.internal_process_all_triangles(&mut callback, &min_aabb, &max_aabb);
 
-            triangles.internal_process_all_triangles(&mut callback, &min_aabb, &max_aabb);
-
-            num_leaf_nodes = self.quantized_bvh.quantized_leaf_nodes.len();
-            self.quantized_bvh
-                .quantized_contiguous_nodes
-                .resize(2 * num_leaf_nodes, QuantizedBvhNode::DEFAULT);
-        } else {
-            unimplemented!();
-        }
+        let num_leaf_nodes = self.quantized_bvh.quantized_leaf_nodes.len();
+        self.quantized_bvh
+            .quantized_contiguous_nodes
+            .resize(2 * num_leaf_nodes, QuantizedBvhNode::DEFAULT);
 
         self.quantized_bvh.cur_node_index = 0;
         self.quantized_bvh.build_tree(0, num_leaf_nodes);
 
-        if use_quantized_aabb_compression && self.quantized_bvh.subtree_headers.is_empty() {
+        if self.quantized_bvh.subtree_headers.is_empty() {
             self.quantized_bvh.subtree_headers.push(BvhSubtreeInfo {
                 quantized_aabb_min: self.quantized_bvh.quantized_contiguous_nodes[0]
                     .quantized_aabb_min,
@@ -118,6 +111,5 @@ impl OptimizedBvh {
         }
 
         self.quantized_bvh.quantized_leaf_nodes.clear();
-        self.quantized_bvh.leaf_nodes.clear();
     }
 }

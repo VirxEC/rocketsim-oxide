@@ -3,23 +3,22 @@ use super::{
     striding_mesh_interface::StridingMeshInterface, triangle_callback::TriangleCallback,
     triangle_info_map::TriangleInfoMap, triangle_mesh_shape::TriangleMeshShape,
 };
-use crate::collision::broadphase::{
-    broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MyNodeOverlapCallback,
+use crate::collision::{
+    broadphase::{broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MyNodeOverlapCallback},
+    dispatch::internal_edge_utility::generate_internal_edge_info,
 };
 use glam::{Affine3A, Vec3A};
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct BvhTriangleMeshShape {
-    pub triangle_mesh_shape: Arc<TriangleMeshShape>,
+    pub triangle_mesh_shape: TriangleMeshShape,
     bvh: OptimizedBvh,
-    triangle_info_map: Option<TriangleInfoMap>,
+    triangle_info_map: TriangleInfoMap,
 }
 
 impl BvhTriangleMeshShape {
-    pub fn new(
-        mesh_interface: Arc<dyn StridingMeshInterface + Send + Sync>,
-        use_quantized_aabb_compression: bool,
-    ) -> Self {
+    pub fn new(mesh_interface: Arc<dyn StridingMeshInterface + Send + Sync>) -> Self {
         let mut triangle_mesh_shape = TriangleMeshShape::new(mesh_interface.clone());
         triangle_mesh_shape.concave_shape.collision_shape.shape_type =
             BroadphaseNativeTypes::TriangleMeshShapeProxytype;
@@ -44,15 +43,18 @@ impl BvhTriangleMeshShape {
             .collision_shape
             .aabb_cache_trans = trans;
 
+        let bvh = Self::build_optimized_bvh(
+            &*mesh_interface,
+            triangle_mesh_shape.local_aabb_min,
+            triangle_mesh_shape.local_aabb_max,
+        );
+
+        let triangle_info_map = generate_internal_edge_info(&bvh.quantized_bvh, &*mesh_interface);
+
         Self {
-            bvh: Self::build_optimized_bvh(
-                &*mesh_interface,
-                triangle_mesh_shape.local_aabb_min,
-                triangle_mesh_shape.local_aabb_max,
-                use_quantized_aabb_compression,
-            ),
-            triangle_mesh_shape: Arc::new(triangle_mesh_shape),
-            triangle_info_map: None,
+            bvh,
+            triangle_mesh_shape,
+            triangle_info_map,
         }
     }
 
@@ -60,26 +62,15 @@ impl BvhTriangleMeshShape {
         mesh_interface: &dyn StridingMeshInterface,
         local_aabb_min: Vec3A,
         local_aabb_max: Vec3A,
-        use_quantized_aabb_compression: bool,
     ) -> OptimizedBvh {
         let mut bvh = OptimizedBvh::default();
-        bvh.build(
-            mesh_interface,
-            local_aabb_min,
-            local_aabb_max,
-            use_quantized_aabb_compression,
-        );
-
+        bvh.build(mesh_interface, local_aabb_min, local_aabb_max);
         bvh
     }
 
     #[must_use]
-    pub const fn get_triangle_info_map(&self) -> Option<&TriangleInfoMap> {
-        self.triangle_info_map.as_ref()
-    }
-
-    pub fn set_triangle_info_map(&mut self, triangle_info_map: TriangleInfoMap) {
-        self.triangle_info_map = Some(triangle_info_map);
+    pub const fn get_triangle_info_map(&self) -> &TriangleInfoMap {
+        &self.triangle_info_map
     }
 
     #[must_use]

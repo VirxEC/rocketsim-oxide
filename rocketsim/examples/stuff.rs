@@ -12,14 +12,14 @@ fn main() {
     );
 
     let mut ball = arena.ball.get_state();
-    ball.physics.vel.x = 500.0;
-    ball.physics.vel.y = 500.0;
-    ball.physics.vel.z = 500.0;
+    ball.physics.vel.x = 600.0;
+    ball.physics.vel.y = 1550.0;
+    ball.physics.vel.z = 0.0;
 
     arena.ball.set_state(ball);
 
     let start = Instant::now();
-    arena.step(440);
+    arena.step(720);
     println!(
         "Stepped Arena in {}s!",
         Instant::now().duration_since(start).as_secs_f32()

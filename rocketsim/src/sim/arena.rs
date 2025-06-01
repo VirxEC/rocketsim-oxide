@@ -228,7 +228,7 @@ impl Arena {
 
             Self::add_static_collision_shape(
                 bullet_world,
-                CollisionShapes::TriangleMesh(mesh.triangle_mesh_shape.clone()),
+                CollisionShapes::TriangleMesh(mesh.clone()),
                 Vec3A::ZERO,
                 mask,
                 mask,

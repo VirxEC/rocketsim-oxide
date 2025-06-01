@@ -10,8 +10,6 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexPlaneCollisionAlgorithm {
-    // bool m_ownManifold;
-    // btPersistentManifold* m_manifoldPtr;
     manifold: PersistentManifold,
     num_perturbation_iterations: i32,
     minimum_pointers_perturbation_threshold: i32,

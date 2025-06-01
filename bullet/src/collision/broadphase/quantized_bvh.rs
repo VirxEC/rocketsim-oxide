@@ -39,7 +39,7 @@ impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
     fn process_node(&mut self, node_subpart: usize, node_triangle_index: usize) {
         self.num_overlap += 1;
 
-        let (verts, ids, _aabbs) = self.mesh_interface.get_verts_ids_aabbs(node_subpart);
+        let (verts, ids, aabbs) = self.mesh_interface.get_verts_ids_aabbs(node_subpart);
 
         let mesh_scaling = self.mesh_interface.get_scaling();
         for (vert, &id) in self
@@ -50,19 +50,24 @@ impl NodeOverlapCallback for MyNodeOverlapCallback<'_> {
             *vert = verts[id] * mesh_scaling;
         }
 
-        self.callback
-            .process_triangle(&self.triangle, node_subpart, node_triangle_index);
+        let (aabb_min, aabb_max) = aabbs[node_triangle_index];
+        self.callback.process_triangle(
+            &self.triangle,
+            aabb_min,
+            aabb_max,
+            node_subpart,
+            node_triangle_index,
+        );
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct QuantizedBvh {
     pub bvh_aabb_min: Vec3A,
     pub bvh_aabb_max: Vec3A,
     pub bvh_quantization: Vec3A,
     pub cur_node_index: usize,
-    pub use_quantization: bool,
-    pub leaf_nodes: Vec<OptimizedBvhNode>,
+    // pub leaf_nodes: Vec<OptimizedBvhNode>,
     // pub contiguous_nodes: Vec<OptimizedBvhNode>,
     pub quantized_leaf_nodes: Vec<QuantizedBvhNode>,
     pub quantized_contiguous_nodes: Vec<QuantizedBvhNode>,
@@ -71,8 +76,6 @@ pub struct QuantizedBvh {
 
 impl QuantizedBvh {
     pub fn quantize(&self, point: Vec3A, is_max: bool) -> U16Vec3 {
-        debug_assert!(self.use_quantization);
-
         // dbg!(point, self.bvh_aabb_max, self.bvh_aabb_min);
         debug_assert!(point.x <= self.bvh_aabb_max.x);
         debug_assert!(point.y <= self.bvh_aabb_max.y);
@@ -92,8 +95,6 @@ impl QuantizedBvh {
     }
 
     pub fn quantize_with_clamp(&self, point: Vec3A, is_max: bool) -> U16Vec3 {
-        debug_assert!(self.use_quantization);
-
         let clamped_point = point.clamp(self.bvh_aabb_min, self.bvh_aabb_max);
         self.quantize(clamped_point, is_max)
     }
@@ -111,8 +112,6 @@ impl QuantizedBvh {
 
         let mut aabb_size = self.bvh_aabb_max - self.bvh_aabb_min;
         self.bvh_quantization = Vec3A::splat(65533.0) / aabb_size;
-
-        self.use_quantization = true;
 
         {
             let vec_in = self.quantize(self.bvh_aabb_min, false);
@@ -132,21 +131,11 @@ impl QuantizedBvh {
     }
 
     fn get_aabb_max(&self, node_index: usize) -> Vec3A {
-        if self.use_quantization {
-            self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_max)
-        } else {
-            // self.leaf_nodes[node_index].aabb_max_org
-            unimplemented!();
-        }
+        self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_max)
     }
 
     fn get_aabb_min(&self, node_index: usize) -> Vec3A {
-        if self.use_quantization {
-            self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_min)
-        } else {
-            // self.leaf_nodes[node_index].aabb_min_org
-            unimplemented!();
-        }
+        self.unquantize(self.quantized_leaf_nodes[node_index].quantized_aabb_min)
     }
 
     fn calc_splitting_axis(&self, start_index: usize, end_index: usize) -> usize {
@@ -172,16 +161,12 @@ impl QuantizedBvh {
 
     fn swap_leaf_nodes(&mut self, i: usize, split_index: usize) {
         debug_assert_ne!(i, split_index);
-        if self.use_quantization {
-            let [a, b] = unsafe {
-                self.quantized_leaf_nodes
-                    .get_disjoint_unchecked_mut([split_index, i])
-            };
+        let [a, b] = unsafe {
+            self.quantized_leaf_nodes
+                .get_disjoint_unchecked_mut([split_index, i])
+        };
 
-            mem::swap(a, b);
-        } else {
-            unimplemented!();
-        }
+        mem::swap(a, b);
     }
 
     fn sort_and_calc_splitting_index(
@@ -227,23 +212,13 @@ impl QuantizedBvh {
     }
 
     fn set_internal_node_aabb_min(&mut self, node_index: usize, aabb_min: Vec3A) {
-        if self.use_quantization {
-            self.quantized_contiguous_nodes[node_index].quantized_aabb_min =
-                self.quantize(aabb_min, false);
-        } else {
-            // self.contiguous_nodes[node_index].aabb_min_org = aabb_min;
-            unimplemented!();
-        }
+        self.quantized_contiguous_nodes[node_index].quantized_aabb_min =
+            self.quantize(aabb_min, false);
     }
 
     fn set_internal_node_aabb_max(&mut self, node_index: usize, aabb_max: Vec3A) {
-        if self.use_quantization {
-            self.quantized_contiguous_nodes[node_index].quantized_aabb_max =
-                self.quantize(aabb_max, true);
-        } else {
-            // self.contiguous_nodes[node_index].aabb_max_org = aabb_max;
-            unimplemented!();
-        }
+        self.quantized_contiguous_nodes[node_index].quantized_aabb_max =
+            self.quantize(aabb_max, true);
     }
 
     fn merge_internal_node_aabb(
@@ -252,33 +227,23 @@ impl QuantizedBvh {
         new_aabb_min: Vec3A,
         new_aabb_max: Vec3A,
     ) {
-        if self.use_quantization {
-            let quantized_aabb_min = self.quantize(new_aabb_min, false);
-            let quantized_aabb_max = self.quantize(new_aabb_max, true);
+        let quantized_aabb_min = self.quantize(new_aabb_min, false);
+        let quantized_aabb_max = self.quantize(new_aabb_max, true);
 
-            for i in 0..3 {
-                if self.quantized_contiguous_nodes[node_index].quantized_aabb_min[i]
-                    > quantized_aabb_min[i]
-                {
-                    self.quantized_contiguous_nodes[node_index].quantized_aabb_min[i] =
-                        quantized_aabb_min[i];
-                }
-
-                if self.quantized_contiguous_nodes[node_index].quantized_aabb_max[i]
-                    < quantized_aabb_max[i]
-                {
-                    self.quantized_contiguous_nodes[node_index].quantized_aabb_max[i] =
-                        quantized_aabb_max[i];
-                }
+        for i in 0..3 {
+            if self.quantized_contiguous_nodes[node_index].quantized_aabb_min[i]
+                > quantized_aabb_min[i]
+            {
+                self.quantized_contiguous_nodes[node_index].quantized_aabb_min[i] =
+                    quantized_aabb_min[i];
             }
-        } else {
-            // self.contiguous_nodes[node_index].aabb_min_org = self.contiguous_nodes[node_index]
-            //     .aabb_min_org
-            //     .min(new_aabb_min);
-            // self.contiguous_nodes[node_index].aabb_max_org = self.contiguous_nodes[node_index]
-            //     .aabb_max_org
-            //     .min(new_aabb_max);
-            unimplemented!();
+
+            if self.quantized_contiguous_nodes[node_index].quantized_aabb_max[i]
+                < quantized_aabb_max[i]
+            {
+                self.quantized_contiguous_nodes[node_index].quantized_aabb_max[i] =
+                    quantized_aabb_max[i];
+            }
         }
     }
 
@@ -287,23 +252,12 @@ impl QuantizedBvh {
         internal_node: usize,
         leaf_node_index: usize,
     ) {
-        if self.use_quantization {
-            self.quantized_contiguous_nodes[internal_node] =
-                self.quantized_leaf_nodes[leaf_node_index];
-        } else {
-            // self.contiguous_nodes[internal_node] = self.leaf_nodes[leaf_node_index];
-            unimplemented!();
-        }
+        self.quantized_contiguous_nodes[internal_node] = self.quantized_leaf_nodes[leaf_node_index];
     }
 
     fn set_internal_node_escape_index(&mut self, node_index: usize, escape_index: usize) {
-        if self.use_quantization {
-            self.quantized_contiguous_nodes[node_index].escape_index_or_triangle_index =
-                -(escape_index as i32);
-        } else {
-            // self.contiguous_nodes[node_index].escape_index = escape_index as i32;
-            unimplemented!();
-        }
+        self.quantized_contiguous_nodes[node_index].escape_index_or_triangle_index =
+            -(escape_index as i32);
     }
 
     fn update_subtree_headers(
@@ -311,8 +265,6 @@ impl QuantizedBvh {
         left_child_node_index: usize,
         right_child_node_index: usize,
     ) {
-        debug_assert!(self.use_quantization);
-
         let left_child_node = self.quantized_contiguous_nodes[left_child_node_index];
         let left_subtree_size = if left_child_node.is_leaf_node() {
             1
@@ -386,11 +338,9 @@ impl QuantizedBvh {
 
         let escape_index = self.cur_node_index - cur_index;
 
-        if self.use_quantization {
-            let tree_size_in_bytes = escape_index * size_of::<QuantizedBvhNode>();
-            if tree_size_in_bytes > MAX_SUBTREE_SIZE_IN_BYTES {
-                self.update_subtree_headers(left_child_node_index, right_child_node_index);
-            }
+        let tree_size_in_bytes = escape_index * size_of::<QuantizedBvhNode>();
+        if tree_size_in_bytes > MAX_SUBTREE_SIZE_IN_BYTES {
+            self.update_subtree_headers(left_child_node_index, right_child_node_index);
         }
 
         self.set_internal_node_escape_index(internal_node_index, escape_index);
@@ -404,8 +354,6 @@ impl QuantizedBvh {
         start_node_index: usize,
         end_node_index: usize,
     ) {
-        debug_assert!(self.use_quantization);
-
         let mut cur_index = start_node_index;
         let mut walk_iterations = 0;
         let sub_tree_size = end_node_index - start_node_index;
@@ -442,8 +390,6 @@ impl QuantizedBvh {
         quantized_query_aabb_min: U16Vec3,
         quantized_query_aabb_max: U16Vec3,
     ) {
-        debug_assert!(self.use_quantization);
-
         for subtree in &self.subtree_headers {
             let overlap = test_quantized_aabb_against_quantized_aabb(
                 quantized_query_aabb_min,
@@ -469,18 +415,14 @@ impl QuantizedBvh {
         aabb_min: Vec3A,
         aabb_max: Vec3A,
     ) {
-        if self.use_quantization {
-            let quantized_query_aabb_min = self.quantize_with_clamp(aabb_min, false);
-            let quantized_query_aabb_max = self.quantize_with_clamp(aabb_max, true);
+        let quantized_query_aabb_min = self.quantize_with_clamp(aabb_min, false);
+        let quantized_query_aabb_max = self.quantize_with_clamp(aabb_max, true);
 
-            self.walk_stackless_quantized_tree_cache_friendly(
-                node_callback,
-                quantized_query_aabb_min,
-                quantized_query_aabb_max,
-            );
-        } else {
-            unimplemented!();
-        }
+        self.walk_stackless_quantized_tree_cache_friendly(
+            node_callback,
+            quantized_query_aabb_min,
+            quantized_query_aabb_max,
+        );
     }
 }
 
@@ -522,15 +464,7 @@ impl QuantizedBvhNode {
     }
 }
 
-#[derive(Default, Clone, Copy)]
-pub struct OptimizedBvhNode {
-    // aabb_min_org: Vec3A,
-    // aabb_max_org: Vec3A,
-    // escape_index: i32,
-    // sub_part: i32,
-    // triangle_index: i32,
-}
-
+#[derive(Clone, Copy)]
 pub struct BvhSubtreeInfo {
     pub quantized_aabb_min: U16Vec3,
     pub quantized_aabb_max: U16Vec3,

@@ -25,8 +25,13 @@ impl InternalTriangleIndexCallback for FilteredCallback<'_> {
         triangle_index: usize,
     ) -> bool {
         if test_aabb_against_aabb(tri_aabb_min, tri_aabb_max, self.aabb_min, self.aabb_max) {
-            self.callback
-                .process_triangle(triangle, part_id, triangle_index)
+            self.callback.process_triangle(
+                triangle,
+                tri_aabb_min,
+                tri_aabb_max,
+                part_id,
+                triangle_index,
+            )
         } else {
             true
         }
@@ -143,16 +148,18 @@ impl TriangleCallback for SupportVertexCallback {
     fn process_triangle(
         &mut self,
         triangle: &[Vec3A],
+        _tri_aabb_min: Vec3A,
+        _tri_aabb_max: Vec3A,
         _part_id: usize,
         _triangle_index: usize,
     ) -> bool {
         debug_assert_eq!(triangle.len(), 3);
 
-        for vert in triangle {
-            let dot = self.support_vec_local.dot(*vert);
+        for &vert in triangle {
+            let dot = self.support_vec_local.dot(vert);
             if dot > self.max_dot {
                 self.max_dot = dot;
-                self.support_vertex_local = *vert;
+                self.support_vertex_local = vert;
             }
         }
 

@@ -1,6 +1,6 @@
 use super::{
-    sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
-    triangle_mesh_shape::TriangleMeshShape,
+    bvh_triangle_mesh_shape::BvhTriangleMeshShape, sphere_shape::SphereShape,
+    static_plane_shape::StaticPlaneShape,
 };
 use crate::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
 use glam::{Affine3A, Vec3A};
@@ -35,7 +35,7 @@ impl Default for CollisionShape {
 pub enum CollisionShapes {
     Sphere(SphereShape),
     StaticPlane(StaticPlaneShape),
-    TriangleMesh(Arc<TriangleMeshShape>),
+    TriangleMesh(Arc<BvhTriangleMeshShape>),
 }
 
 fn fast_compare_transforms(a: &Affine3A, b: &Affine3A) -> bool {
@@ -64,7 +64,7 @@ impl CollisionShapes {
         match self {
             Self::Sphere(shape) => &shape.convex_internal_shape.convex_shape.collision_shape,
             Self::StaticPlane(shape) => &shape.concave_shape.collision_shape,
-            Self::TriangleMesh(shape) => &shape.concave_shape.collision_shape,
+            Self::TriangleMesh(shape) => shape.get_collision_shape(),
         }
     }
 

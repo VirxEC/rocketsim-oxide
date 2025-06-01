@@ -1,27 +1,24 @@
 use super::collision_object::CollisionObject;
-use crate::collision::{
-    broadphase::{broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MAX_NUM_PARTS_IN_BITS},
-    narrowphase::manifold_point::ManifoldPoint,
-    shapes::{
-        bvh_triangle_mesh_shape::BvhTriangleMeshShape,
-        striding_mesh_interface::StridingMeshInterface,
-        triangle_callback::TriangleCallback,
-        triangle_info_map::{
-            TRI_INFO_V0V1_CONVEX, TRI_INFO_V0V1_SWAP_NORMALB, TRI_INFO_V1V2_CONVEX,
-            TRI_INFO_V1V2_SWAP_NORMALB, TRI_INFO_V2V0_CONVEX, TRI_INFO_V2V0_SWAP_NORMALB,
-            TriangleInfoMap,
+use crate::{
+    collision::{
+        broadphase::quantized_bvh::{MAX_NUM_PARTS_IN_BITS, MyNodeOverlapCallback, QuantizedBvh},
+        narrowphase::manifold_point::ManifoldPoint,
+        shapes::{
+            collision_shape::CollisionShapes,
+            striding_mesh_interface::StridingMeshInterface,
+            triangle_callback::TriangleCallback,
+            triangle_info_map::{
+                TRI_INFO_V0V1_CONVEX, TRI_INFO_V0V1_SWAP_NORMALB, TRI_INFO_V1V2_CONVEX,
+                TRI_INFO_V1V2_SWAP_NORMALB, TRI_INFO_V2V0_CONVEX, TRI_INFO_V2V0_SWAP_NORMALB,
+                TriangleInfoMap,
+            },
+            triangle_shape::TriangleShape,
         },
-        triangle_shape::TriangleShape,
     },
+    linear_math::AffineTranspose,
 };
 use glam::{Quat, Vec3A};
 use std::{f32::consts::PI, mem};
-
-// pub(crate) enum InternalEdgeAdjustFlags {
-//     TriangleConvexBackfaceMode = 1,
-//     TriangleConcaveDoubleSided = 2,
-//     TriangleConvexDoubleSided = 4,
-// }
 
 const fn get_hash(part_id: usize, triangle_index: usize) -> i32 {
     ((part_id as i32) << (31 - MAX_NUM_PARTS_IN_BITS as i32)) | triangle_index as i32
@@ -42,9 +39,12 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
     fn process_triangle(
         &mut self,
         triangle: &[Vec3A],
+        _tri_aabb_min: Vec3A,
+        _tri_aabb_max: Vec3A,
         part_id: usize,
         triangle_index: usize,
     ) -> bool {
+        // todo: see if we can use the triangle aabbs to speed up load times
         if self.part_id_a == part_id && self.triangle_index_a == triangle_index {
             return true;
         }
@@ -201,16 +201,12 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
 }
 
 pub fn generate_internal_edge_info(
-    tri_mesh_shape: &mut BvhTriangleMeshShape,
-    triangle_info_map: &mut TriangleInfoMap,
-) {
-    if tri_mesh_shape.get_triangle_info_map().is_some() {
-        return;
-    }
-
-    let mesh_interface: &dyn StridingMeshInterface = tri_mesh_shape.get_mesh_interface();
+    quantized_bvh: &QuantizedBvh,
+    mesh_interface: &dyn StridingMeshInterface,
+) -> TriangleInfoMap {
     let mesh_scaling = mesh_interface.get_scaling();
 
+    let mut triangle_info_map = TriangleInfoMap::default();
     triangle_info_map
         .internal_map
         .reserve(mesh_interface.get_total_num_faces());
@@ -229,31 +225,273 @@ pub fn generate_internal_edge_info(
                 part_id_a: part_id,
                 triangle_index_a: i,
                 triangle_vertices_a: &triangle,
-                triangle_info_map,
+                triangle_info_map: &mut triangle_info_map,
             };
 
-            tri_mesh_shape.process_all_triangles(&mut connectivity_processor, *aabb_min, *aabb_max);
+            let mut my_node_callback =
+                MyNodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
+            quantized_bvh.report_aabb_overlapping_node(&mut my_node_callback, *aabb_min, *aabb_max);
         }
+    }
+
+    triangle_info_map
+}
+
+fn nearst_point_in_line_segment(point: Vec3A, line0: Vec3A, line1: Vec3A) -> Vec3A {
+    let line_delta = line1 - line0;
+
+    if line_delta.length_squared() < f32::EPSILON * f32::EPSILON {
+        line0
+    } else {
+        let delta = (point - line0).dot(line_delta) / line_delta.dot(line_delta);
+        line0 + line_delta * delta.clamp(0.0, 1.0)
+    }
+}
+
+fn clamp_normal(
+    edge: Vec3A,
+    tri_normal_org: Vec3A,
+    local_contact_normal_on_b: Vec3A,
+    corrected_edge_angle: f32,
+) -> Option<Vec3A> {
+    let tri_normal = tri_normal_org;
+
+    let edge_cross = edge.cross(tri_normal).normalize();
+    let cur_angle = get_angle(edge_cross, tri_normal, local_contact_normal_on_b);
+
+    if (corrected_edge_angle < 0.0 && cur_angle < corrected_edge_angle)
+        || (corrected_edge_angle >= 0.0 && cur_angle > corrected_edge_angle)
+    {
+        let diff_angle = corrected_edge_angle - cur_angle;
+        let rotation = Quat::from_axis_angle(edge.into(), diff_angle);
+        Some(rotation * local_contact_normal_on_b)
+    } else {
+        None
     }
 }
 
 pub fn adjust_internal_edge_contacts(
-    cp: &ManifoldPoint,
-    col_obj_0: &CollisionObject,
-    col_obj_1: &CollisionObject,
+    cp: &mut ManifoldPoint,
+    tri_mesh_col_obj: &CollisionObject,
+    _other_col_obj: &CollisionObject,
+    part_id: usize,
+    index: usize,
 ) {
-    let normal_adjust_flags = 0;
+    let tri_col_shape = tri_mesh_col_obj.get_collision_shape().unwrap().borrow();
+    let CollisionShapes::TriangleMesh(tri_mesh) = &*tri_col_shape else {
+        return;
+    };
 
-    if col_obj_0
-        .get_collision_shape()
-        .as_ref()
-        .unwrap()
-        .borrow()
-        .get_shape_type()
-        != BroadphaseNativeTypes::TriangleShapeProxytype
-    {
+    let info_map = tri_mesh.get_triangle_info_map();
+
+    let hash = get_hash(part_id, index);
+    let info = info_map.internal_map.get(&hash).unwrap();
+
+    let front_facing = 1.0;
+    let verts = tri_mesh.get_mesh_interface().get_triangle(part_id, index);
+    let tri_normal = (verts[1] - verts[0]).cross(verts[2] - verts[0]).normalize();
+    let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[0], verts[1]);
+    let contact = cp.local_point_b;
+
+    let mut is_near_edge = false;
+    let mut num_concave_edge_hits = 0;
+
+    let local_contact_normal_on_b =
+        tri_mesh_col_obj.get_world_transform().matrix3.transpose() * cp.normal_world_on_b;
+    debug_assert!(local_contact_normal_on_b.is_normalized());
+
+    let mut best_edge = None;
+    let mut dist_to_best_edge = f32::MAX;
+
+    if info.edge_v0_v1_angle.abs() < info_map.max_edge_angle_threshold {
+        let len = (contact - nearest).length();
+        if len < dist_to_best_edge {
+            best_edge = Some(0);
+            dist_to_best_edge = len;
+        }
+    }
+
+    if info.edge_v1_v2_angle.abs() < info_map.max_edge_angle_threshold {
+        let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[1], verts[2]);
+        let len = (contact - nearest).length();
+        if len < dist_to_best_edge {
+            best_edge = Some(1);
+            dist_to_best_edge = len;
+        }
+    }
+
+    if info.edge_v2_v0_angle.abs() < info_map.max_edge_angle_threshold {
+        let nearest = nearst_point_in_line_segment(cp.local_point_b, verts[2], verts[0]);
+        let len = (contact - nearest).length();
+        if len < dist_to_best_edge {
+            best_edge = Some(2);
+            // dist_to_best_edge = len;
+        }
+    }
+
+    let Some(best_edge) = best_edge else {
+        return;
+    };
+
+    if best_edge == 0 && info.edge_v0_v1_angle.abs() < info_map.max_edge_angle_threshold {
+        let len = (contact - nearest).length();
+        if len < info_map.edge_distance_threshold {
+            let edge = verts[0] - verts[1];
+            is_near_edge = true;
+
+            if info.edge_v0_v1_angle == 0.0 {
+                num_concave_edge_hits += 1;
+            } else {
+                let is_edge_convex = info.flags & TRI_INFO_V0V1_CONVEX != 0;
+                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+
+                let n_a = swap_factor * tri_normal;
+                let orn = Quat::from_axis_angle(edge.into(), info.edge_v0_v1_angle);
+                let mut computed_normal_b = orn * tri_normal;
+                if info.flags & TRI_INFO_V0V1_SWAP_NORMALB != 0 {
+                    computed_normal_b *= -1.0;
+                }
+                let n_b = swap_factor * computed_normal_b;
+
+                let n_dot_a = local_contact_normal_on_b.dot(n_a);
+                let n_dot_b = local_contact_normal_on_b.dot(n_b);
+                let back_facing_normal =
+                    n_dot_a < info_map.convex_epsilon && n_dot_b < info_map.convex_epsilon;
+
+                if back_facing_normal {
+                    num_concave_edge_hits += 1;
+                } else if let Some(clamped_local_normal) = clamp_normal(
+                    edge,
+                    swap_factor * tri_normal,
+                    local_contact_normal_on_b,
+                    info.edge_v0_v1_angle,
+                ) {
+                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                        let new_normal =
+                            tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
+                        cp.normal_world_on_b = new_normal;
+                        cp.position_world_on_b =
+                            cp.position_world_on_a - new_normal * cp.distance_1;
+                        cp.local_point_b = tri_mesh_col_obj
+                            .get_world_transform()
+                            .inv_x_form(cp.position_world_on_b);
+                    }
+                }
+            }
+        }
+    }
+
+    if best_edge == 1 && info.edge_v1_v2_angle.abs() < info_map.max_edge_angle_threshold {
+        let nearest = nearst_point_in_line_segment(contact, verts[1], verts[2]);
+        let len = (contact - nearest).length();
+        if len < info_map.edge_distance_threshold {
+            is_near_edge = true;
+            let edge = verts[1] - verts[2];
+
+            if info.edge_v1_v2_angle == 0.0 {
+                num_concave_edge_hits += 1;
+            } else {
+                let is_edge_convex = info.flags & TRI_INFO_V1V2_CONVEX != 0;
+                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+
+                let n_a = swap_factor * tri_normal;
+                let orn = Quat::from_axis_angle(edge.into(), info.edge_v1_v2_angle);
+                let mut computed_normal_b = orn * tri_normal;
+                if info.flags & TRI_INFO_V1V2_SWAP_NORMALB != 0 {
+                    computed_normal_b *= -1.0;
+                }
+                let n_b = swap_factor * computed_normal_b;
+
+                let n_dot_a = local_contact_normal_on_b.dot(n_a);
+                let n_dot_b = local_contact_normal_on_b.dot(n_b);
+                let back_facing_normal =
+                    n_dot_a < info_map.convex_epsilon && n_dot_b < info_map.convex_epsilon;
+
+                if back_facing_normal {
+                    num_concave_edge_hits += 1;
+                } else if let Some(clamped_local_normal) = clamp_normal(
+                    edge,
+                    swap_factor * tri_normal,
+                    local_contact_normal_on_b,
+                    info.edge_v1_v2_angle,
+                ) {
+                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                        let new_normal =
+                            tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
+                        cp.normal_world_on_b = new_normal;
+                        cp.position_world_on_b =
+                            cp.position_world_on_a - new_normal * cp.distance_1;
+                        cp.local_point_b = tri_mesh_col_obj
+                            .get_world_transform()
+                            .inv_x_form(cp.position_world_on_b);
+                    }
+                }
+            }
+        }
+    }
+
+    if best_edge == 2 && info.edge_v2_v0_angle.abs() < info_map.max_edge_angle_threshold {
+        let nearest = nearst_point_in_line_segment(contact, verts[2], verts[0]);
+        let len = (contact - nearest).length();
+        if len < info_map.edge_distance_threshold {
+            is_near_edge = true;
+            let edge = verts[2] - verts[0];
+
+            if info.edge_v2_v0_angle == 0.0 {
+                num_concave_edge_hits += 1;
+            } else {
+                let is_edge_convex = info.flags & TRI_INFO_V2V0_CONVEX != 0;
+                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+
+                let n_a = swap_factor * tri_normal;
+                let orn = Quat::from_axis_angle(edge.into(), info.edge_v2_v0_angle);
+                let mut computed_normal_b = orn * tri_normal;
+                if info.flags & TRI_INFO_V2V0_SWAP_NORMALB != 0 {
+                    computed_normal_b *= -1.0;
+                }
+                let n_b = swap_factor * computed_normal_b;
+
+                let n_dot_a = local_contact_normal_on_b.dot(n_a);
+                let n_dot_b = local_contact_normal_on_b.dot(n_b);
+                let back_facing_normal =
+                    n_dot_a < info_map.convex_epsilon && n_dot_b < info_map.convex_epsilon;
+
+                if back_facing_normal {
+                    num_concave_edge_hits += 1;
+                } else if let Some(clamped_local_normal) = clamp_normal(
+                    edge,
+                    swap_factor * tri_normal,
+                    local_contact_normal_on_b,
+                    info.edge_v2_v0_angle,
+                ) {
+                    if clamped_local_normal.dot(front_facing * tri_normal) > 0.0 {
+                        let new_normal =
+                            tri_mesh_col_obj.get_world_transform().matrix3 * clamped_local_normal;
+                        cp.normal_world_on_b = new_normal;
+                        cp.position_world_on_b =
+                            cp.position_world_on_a - new_normal * cp.distance_1;
+                        cp.local_point_b = tri_mesh_col_obj
+                            .get_world_transform()
+                            .inv_x_form(cp.position_world_on_b);
+                    }
+                }
+            }
+        }
+    }
+
+    if !is_near_edge || num_concave_edge_hits == 0 {
         return;
     }
 
-    todo!()
+    let new_normal = tri_normal * front_facing;
+    let d = new_normal.dot(local_contact_normal_on_b);
+    if d < 0.0 {
+        return;
+    }
+
+    cp.normal_world_on_b = tri_mesh_col_obj.get_world_transform().matrix3 * new_normal;
+    cp.position_world_on_b = cp.position_world_on_a - cp.normal_world_on_b * cp.distance_1;
+    cp.local_point_b = tri_mesh_col_obj
+        .get_world_transform()
+        .inv_x_form(cp.position_world_on_b);
 }

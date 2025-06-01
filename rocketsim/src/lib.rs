@@ -4,10 +4,7 @@ pub mod sim;
 mod collision_meshes;
 
 use ahash::AHashMap;
-use bullet::collision::{
-    dispatch::internal_edge_utility::generate_internal_edge_info,
-    shapes::{bvh_triangle_mesh_shape::BvhTriangleMeshShape, triangle_info_map::TriangleInfoMap},
-};
+use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
 use collision_meshes::{
     COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
@@ -15,12 +12,12 @@ use std::{
     fs,
     io::{Error as IoError, ErrorKind, Result as IoResult},
     path::Path,
-    sync::RwLock,
+    sync::{Arc, RwLock},
     time::Instant,
 };
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
-    Option<AHashMap<GameMode, Vec<BvhTriangleMeshShape>>>,
+    Option<AHashMap<GameMode, Vec<Arc<BvhTriangleMeshShape>>>>,
 > = RwLock::new(None);
 
 /// `BulletPhysics` Units (1m) to Unreal Units (2cm) conversion scale
@@ -189,11 +186,8 @@ pub fn init_from_mem(
             *hash_count += 1;
 
             let tri_mesh = mesh_file.make_bullet_mesh();
-            let mut bvt_mesh = BvhTriangleMeshShape::new(tri_mesh.into_mesh_interface(), true);
-            let mut info_map = TriangleInfoMap::default();
-            generate_internal_edge_info(&mut bvt_mesh, &mut info_map);
-            bvt_mesh.set_triangle_info_map(info_map);
-            meshes.push(bvt_mesh);
+            let bvt_mesh = BvhTriangleMeshShape::new(tri_mesh.into_mesh_interface());
+            meshes.push(Arc::new(bvt_mesh));
         }
 
         arena_collision_shapes.insert(game_mode, meshes);

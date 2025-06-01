@@ -6,10 +6,7 @@ use super::{
 use crate::{
     collision::{
         dispatch::collision_object::CollisionObject,
-        shapes::{
-            collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
-            triangle_mesh_shape::TriangleMeshShape,
-        },
+        shapes::{collision_shape::CollisionShapes, triangle_callback::TriangleCallback},
     },
     linear_math::aabb_util_2::test_aabb_against_aabb,
 };
@@ -70,6 +67,8 @@ impl TriangleCallback for BoolHitTriangleCallback {
     fn process_triangle(
         &mut self,
         _triangle: &[Vec3A],
+        _tri_aabb_min: Vec3A,
+        _tri_aabb_max: Vec3A,
         _part_id: usize,
         _triangle_index: usize,
     ) -> bool {
@@ -214,7 +213,7 @@ impl RsBroadphase {
             .borrow();
         let obj = col_obj.get_collision_shape().as_ref().unwrap().borrow();
         let tri_mesh_shape = match &*obj {
-            CollisionShapes::TriangleMesh(mesh) => Some(&*mesh.mesh_interface),
+            CollisionShapes::TriangleMesh(mesh) => Some(mesh),
             _ => None,
         };
 
@@ -233,8 +232,7 @@ impl RsBroadphase {
                             let cell_max = cell_min + Vec3A::splat(self.cell_size);
 
                             callback_inst.hit = false;
-                            TriangleMeshShape::process_all_triangles(
-                                mesh_interface,
+                            mesh_interface.process_all_triangles(
                                 &mut callback_inst,
                                 cell_min,
                                 cell_max,

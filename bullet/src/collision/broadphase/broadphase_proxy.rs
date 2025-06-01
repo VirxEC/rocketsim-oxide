@@ -64,6 +64,11 @@ impl BroadphaseNativeTypes {
     pub fn is_convex(self) -> bool {
         self < Self::ConcaveShapesStartHere
     }
+
+    #[must_use]
+    pub fn is_concave(self) -> bool {
+        self > Self::ConcaveShapesStartHere && self < Self::ConcaveShapesEndHere
+    }
 }
 
 pub enum CollisionFilterGroups {
