@@ -140,11 +140,9 @@ impl Ball {
         info.friction = mutator_config.ball_world_friction;
         info.restitution = mutator_config.ball_world_restitution;
 
-        let mut body = RigidBody::new(info);
-        body.rigidbody_flags = 0;
-
+        let body = RigidBody::new(info);
         let mut co = body.collision_object.borrow_mut();
-        co.user_index = UserInfoTypes::Ball as i32;
+        co.user_index = UserInfoTypes::Ball;
         co.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
         co.no_rot = no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 

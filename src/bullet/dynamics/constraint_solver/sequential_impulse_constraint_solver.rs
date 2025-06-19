@@ -417,7 +417,9 @@ impl SequentialImpulseConstraintSolver {
                     rb.borrow().inverse_mass + normal_axis.dot(vec)
                 });
 
+                dbg!(relaxation, denom0, denom1);
                 let jac_diag_ab_inv = relaxation / (denom0 + denom1);
+                dbg!(jac_diag_ab_inv);
 
                 let vel_1_dot_n = contact_normal_1
                     .dot(solver_body_a.linear_velocity + external_force_impulse_a)
@@ -756,12 +758,14 @@ impl SequentialImpulseConstraintSolver {
                 continue;
             };
 
+            dbg!(solver.delta_linear_velocity);
             solver.linear_velocity += solver.delta_linear_velocity;
             solver.angular_velocity += solver.delta_angular_velocity;
 
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
+                dbg!(solver.world_transform.translation);
                 solver.world_transform = if body.collision_object.borrow().no_rot {
                     integrate_transform_no_rot(
                         &solver.world_transform,
@@ -776,6 +780,7 @@ impl SequentialImpulseConstraintSolver {
                         info.time_step,
                     )
                 };
+                dbg!(solver.world_transform.translation);
             }
 
             body.set_linear_velocity(solver.linear_velocity + solver.external_force_impulse);

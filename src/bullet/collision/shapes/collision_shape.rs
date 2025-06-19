@@ -1,6 +1,6 @@
 use super::{
-    bvh_triangle_mesh_shape::BvhTriangleMeshShape, sphere_shape::SphereShape,
-    static_plane_shape::StaticPlaneShape,
+    bvh_triangle_mesh_shape::BvhTriangleMeshShape, compound_shape::CompoundShape,
+    sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
 };
 use crate::bullet::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
 use glam::{Affine3A, Vec3A};
@@ -33,6 +33,7 @@ impl Default for CollisionShape {
 }
 
 pub enum CollisionShapes {
+    Compound(CompoundShape),
     Sphere(SphereShape),
     StaticPlane(StaticPlaneShape),
     TriangleMesh(Arc<BvhTriangleMeshShape>),
@@ -48,6 +49,7 @@ impl CollisionShapes {
     #[must_use]
     pub fn get_collision_shape(&self) -> &CollisionShape {
         match self {
+            Self::Compound(shape) => &shape.collision_shape,
             Self::Sphere(shape) => &shape.convex_internal_shape.convex_shape.collision_shape,
             Self::StaticPlane(shape) => &shape.concave_shape.collision_shape,
             Self::TriangleMesh(shape) => shape.get_collision_shape(),
@@ -56,21 +58,23 @@ impl CollisionShapes {
 
     #[must_use]
     pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
-        if let Self::Sphere(shape) = self {
-            // If we're a sphere, its faster to just re-calculate
-            return shape.get_aabb(t);
+        match self {
+            Self::Sphere(shape) => shape.get_aabb(t),
+            Self::Compound(shape) => shape.get_aabb(t),
+            _ => {
+                let cs = self.get_collision_shape();
+                debug_assert!(cs.aabb_cached);
+                debug_assert!(fast_compare_transforms(t, &cs.aabb_cache_trans));
+
+                (cs.aabb_min_cache, cs.aabb_max_cache)
+            }
         }
-
-        let cs = self.get_collision_shape();
-        debug_assert!(cs.aabb_cached);
-        debug_assert!(fast_compare_transforms(t, &cs.aabb_cache_trans));
-
-        (cs.aabb_min_cache, cs.aabb_max_cache)
     }
 
     #[must_use]
     pub const fn get_shape_type(&self) -> BroadphaseNativeTypes {
         match self {
+            Self::Compound(_) => BroadphaseNativeTypes::CompoundShapeProxytype,
             Self::Sphere(_) => BroadphaseNativeTypes::SphereShapeProxytype,
             Self::StaticPlane(_) => BroadphaseNativeTypes::StaticPlaneProxytype,
             Self::TriangleMesh(_) => BroadphaseNativeTypes::TriangleMeshShapeProxytype,
@@ -97,5 +101,19 @@ impl CollisionShapes {
     #[must_use]
     pub fn get_contact_breaking_threshold(&self, default_contact_threshold: f32) -> f32 {
         self.get_angular_motion_disc() * default_contact_threshold
+    }
+
+    #[must_use]
+    pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
+        match self {
+            CollisionShapes::Sphere(shape) => shape.local_get_supporting_vertex(vec),
+            CollisionShapes::Compound(shape) => shape
+                .child
+                .as_ref()
+                .unwrap()
+                .child_shape
+                .local_get_supporting_vertex(vec),
+            _ => todo!(),
+        }
     }
 }

@@ -2,7 +2,7 @@ use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
-        narrowphase::persistent_manifold::PersistentManifold,
+        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{
             collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
             triangle_shape::TriangleShape,
@@ -13,29 +13,32 @@ use crate::bullet::{
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
-struct ConvexTriangleCallback {
-    manifold: PersistentManifold,
-    aabb_min: Vec3A,
-    aabb_max: Vec3A,
+struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
+    pub manifold: PersistentManifold,
+    pub aabb_min: Vec3A,
+    pub aabb_max: Vec3A,
     is_swapped: bool,
+    contact_added_callback: &'a mut T,
 }
 
-impl ConvexTriangleCallback {
-    fn new(
+impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
+    pub fn new(
         convex_obj: Rc<RefCell<CollisionObject>>,
         tri_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
+        contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             manifold: PersistentManifold::new(convex_obj, tri_obj, is_swapped),
             is_swapped,
+            contact_added_callback,
             aabb_max: Vec3A::ZERO,
             aabb_min: Vec3A::ZERO,
         }
     }
 }
 
-impl TriangleCallback for ConvexTriangleCallback {
+impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T> {
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,
@@ -75,39 +78,43 @@ impl TriangleCallback for ConvexTriangleCallback {
             part_id as i32,
             -1,
             triangle_index as i32,
+            self.contact_added_callback,
         );
 
         true
     }
 }
 
-pub struct ConvexConcaveCollisionAlgorithm {
-    convex_triangle_callback: ConvexTriangleCallback,
+pub struct ConvexConcaveCollisionAlgorithm<'a, T: ContactAddedCallback> {
+    convex_obj: Rc<RefCell<CollisionObject>>,
+    concave_obj: Rc<RefCell<CollisionObject>>,
+    is_swapped: bool,
+    contact_added_callback: &'a mut T,
 }
 
-impl ConvexConcaveCollisionAlgorithm {
+impl<'a, T: ContactAddedCallback> ConvexConcaveCollisionAlgorithm<'a, T> {
     pub fn new(
         convex_obj: Rc<RefCell<CollisionObject>>,
         concave_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
+        contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
-            convex_triangle_callback: ConvexTriangleCallback::new(
-                convex_obj,
-                concave_obj,
-                is_swapped,
-            ),
+            convex_obj,
+            concave_obj,
+            is_swapped,
+            contact_added_callback,
         }
     }
 }
 
-impl CollisionAlgorithm for ConvexConcaveCollisionAlgorithm {
-    fn into_manifold(self) -> PersistentManifold {
-        self.convex_triangle_callback.manifold
-    }
-
-    fn process_collision(&mut self, body0: &CollisionObject, body1: &CollisionObject) {
-        let (sphere_obj, tris_obj) = if self.convex_triangle_callback.is_swapped {
+impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgorithm<'_, T> {
+    fn process_collision(
+        self,
+        body0: &CollisionObject,
+        body1: &CollisionObject,
+    ) -> Option<PersistentManifold> {
+        let (sphere_obj, tris_obj) = if self.is_swapped {
             (body1, body0)
         } else {
             (body0, body1)
@@ -132,13 +139,24 @@ impl CollisionAlgorithm for ConvexConcaveCollisionAlgorithm {
 
         let (aabb_min, aabb_max) = sphere_shape.get_aabb(&convex_in_triangle_space);
 
-        self.convex_triangle_callback.aabb_min = aabb_min;
-        self.convex_triangle_callback.aabb_max = aabb_max;
+        let mut convex_triangle_callback = ConvexTriangleCallback::new(
+            self.convex_obj,
+            self.concave_obj,
+            self.is_swapped,
+            self.contact_added_callback,
+        );
 
-        tri_mesh.process_all_triangles(&mut self.convex_triangle_callback, aabb_min, aabb_max);
+        convex_triangle_callback.aabb_min = aabb_min;
+        convex_triangle_callback.aabb_max = aabb_max;
 
-        self.convex_triangle_callback
-            .manifold
-            .refresh_contact_points();
+        tri_mesh.process_all_triangles(&mut convex_triangle_callback, aabb_min, aabb_max);
+
+        convex_triangle_callback.manifold.refresh_contact_points();
+
+        if convex_triangle_callback.manifold.point_cache.is_empty() {
+            None
+        } else {
+            Some(convex_triangle_callback.manifold)
+        }
     }
 }

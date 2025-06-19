@@ -1,4 +1,4 @@
-use crate::bullet::collision::shapes::collision_shape::CollisionShapes;
+use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
@@ -85,7 +85,8 @@ pub struct CollisionObject {
     pub no_rot: bool,
     pub internal_type: i32,
     // void* m_userObjectPointer;
-    pub user_index: i32,
+    pub user_pointer: u64,
+    pub user_index: UserInfoTypes,
     // pub user_index_2: i32,
     // pub user_index_3: i32,
     pub hit_fraction: f32,
@@ -124,7 +125,8 @@ impl Default for CollisionObject {
             contact_stiffness: f32::MAX,
             no_rot: false,
             internal_type: CollisionObjectTypes::CollisionObject as i32,
-            user_index: -1,
+            user_pointer: 0,
+            user_index: UserInfoTypes::default(),
             // user_index_2: -1,
             // user_index_3: -1,
             hit_fraction: 1.0,

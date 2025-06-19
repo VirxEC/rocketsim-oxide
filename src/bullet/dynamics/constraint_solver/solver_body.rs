@@ -68,6 +68,7 @@ impl SolverBody {
         impulse_magnitude: f32,
     ) {
         debug_assert!(self.original_body.is_some());
+        dbg!(linear_component, impulse_magnitude);
         self.delta_linear_velocity += linear_component * impulse_magnitude * self.linear_factor;
         self.delta_angular_velocity += angular_component * impulse_magnitude * self.angular_factor;
     }

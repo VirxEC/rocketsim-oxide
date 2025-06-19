@@ -20,6 +20,7 @@ pub fn integrate_transform(
     ang_vel: Vec3A,
     time_step: f32,
 ) -> Affine3A {
+    dbg!(lin_vel);
     let translation = cur_trans.translation + lin_vel * time_step;
 
     let mut angle = ang_vel.length();

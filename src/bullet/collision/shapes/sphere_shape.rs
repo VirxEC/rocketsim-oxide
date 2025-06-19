@@ -51,7 +51,7 @@ impl SphereShape {
     }
 
     #[must_use]
-    pub fn local_get_support_vertex(&self, vec: Vec3A) -> Vec3A {
+    pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
         self.get_margin() * vec.try_normalize().unwrap()
     }
 }

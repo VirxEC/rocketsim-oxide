@@ -1,5 +1,8 @@
 use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
-use crate::bullet::collision::dispatch::collision_dispatcher::CollisionDispatcher;
+use crate::bullet::collision::{
+    dispatch::collision_dispatcher::CollisionDispatcher,
+    narrowphase::persistent_manifold::ContactAddedCallback,
+};
 use ahash::AHashMap;
 use std::mem;
 
@@ -92,13 +95,18 @@ impl HashedOverlappingPairCache {
                 != 0
     }
 
-    pub fn process_all_overlapping_pairs(
+    pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
         dispatcher: &mut CollisionDispatcher,
         handles: &[RsBroadphaseProxy],
+        contact_added_callback: &mut T,
     ) {
         for pair in &self.overlapping_pair_array {
-            dispatcher.near_callback(&handles[pair.proxy0], &handles[pair.proxy1]);
+            dispatcher.near_callback(
+                &handles[pair.proxy0],
+                &handles[pair.proxy1],
+                contact_added_callback,
+            );
         }
 
         self.overlapping_pair_array.clear();

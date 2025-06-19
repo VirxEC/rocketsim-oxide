@@ -4,6 +4,9 @@ use crate::bullet::collision::{
 };
 
 pub trait CollisionAlgorithm {
-    fn into_manifold(self) -> PersistentManifold;
-    fn process_collision(&mut self, body0: &CollisionObject, body1: &CollisionObject);
+    fn process_collision(
+        self,
+        body0: &CollisionObject,
+        body1: &CollisionObject,
+    ) -> Option<PersistentManifold>;
 }

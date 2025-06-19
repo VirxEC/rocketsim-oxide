@@ -29,6 +29,7 @@ impl SolverConstraint {
         body_a: &mut SolverBody,
         body_b: &mut SolverBody,
     ) -> f32 {
+        dbg!(self.jac_diag_ab_inv);
         let mut delta_impulse = self.rhs;
 
         let delta_vel_1_dot_n = self.contact_normal_1.dot(body_a.delta_linear_velocity)
@@ -40,10 +41,12 @@ impl SolverConstraint {
                 .rel_pos2_cross_normal
                 .dot(body_b.delta_angular_velocity);
 
+        dbg!(delta_vel_1_dot_n, delta_vel_2_dot_n);
         delta_impulse -= delta_vel_1_dot_n * self.jac_diag_ab_inv;
         delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
 
         let sum = self.applied_impulse + delta_impulse;
+        dbg!(sum, delta_impulse, self.upper_limit);
         if sum < self.lower_limit {
             delta_impulse = self.lower_limit - self.applied_impulse;
             self.applied_impulse = self.lower_limit;
@@ -54,6 +57,7 @@ impl SolverConstraint {
             self.applied_impulse = sum;
         }
 
+        dbg!(delta_impulse);
         body_a.delta_linear_velocity +=
             self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
         body_a.delta_angular_velocity +=

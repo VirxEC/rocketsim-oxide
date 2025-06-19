@@ -9,23 +9,29 @@ use crate::bullet::collision::{
         collision_algorithm::CollisionAlgorithm,
         rs_broadphase::{RsBroadphase, RsBroadphaseProxy},
     },
-    narrowphase::persistent_manifold::PersistentManifold,
+    dispatch::compound_collision_algorithm::CompoundCollisionAlgorithm,
+    narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
 };
 use std::{cell::RefCell, rc::Rc};
 
-enum Algorithms {
-    ConvexPlane(ConvexPlaneCollisionAlgorithm),
-    ConvexConcave(ConvexConcaveCollisionAlgorithm),
+enum Algorithms<'a, T: ContactAddedCallback> {
+    ConvexPlane(ConvexPlaneCollisionAlgorithm<'a, T>),
+    ConvexConcave(ConvexConcaveCollisionAlgorithm<'a, T>),
+    Compound(CompoundCollisionAlgorithm<'a, T>),
 }
 
-impl Algorithms {
+impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
     fn new_convex_plane(
         convex_obj: Rc<RefCell<CollisionObject>>,
         plane_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
+        contact_added_callback: &'a mut T,
     ) -> Self {
         Self::ConvexPlane(ConvexPlaneCollisionAlgorithm::new(
-            convex_obj, plane_obj, is_swapped,
+            convex_obj,
+            plane_obj,
+            is_swapped,
+            contact_added_callback,
         ))
     }
 
@@ -33,27 +39,41 @@ impl Algorithms {
         convex_obj: Rc<RefCell<CollisionObject>>,
         concave_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
+        contact_added_callback: &'a mut T,
     ) -> Self {
         Self::ConvexConcave(ConvexConcaveCollisionAlgorithm::new(
             convex_obj,
             concave_obj,
             is_swapped,
+            contact_added_callback,
+        ))
+    }
+
+    fn new_compound(
+        compound_obj: Rc<RefCell<CollisionObject>>,
+        other_obj: Rc<RefCell<CollisionObject>>,
+        is_swapped: bool,
+        contact_added_callback: &'a mut T,
+    ) -> Self {
+        Self::Compound(CompoundCollisionAlgorithm::new(
+            compound_obj,
+            other_obj,
+            is_swapped,
+            contact_added_callback,
         ))
     }
 }
 
-impl CollisionAlgorithm for Algorithms {
-    fn into_manifold(self) -> PersistentManifold {
-        match self {
-            Self::ConvexPlane(alg) => alg.into_manifold(),
-            Self::ConvexConcave(alg) => alg.into_manifold(),
-        }
-    }
-
-    fn process_collision(&mut self, body0: &CollisionObject, body1: &CollisionObject) {
+impl<T: ContactAddedCallback> CollisionAlgorithm for Algorithms<'_, T> {
+    fn process_collision(
+        self,
+        body0: &CollisionObject,
+        body1: &CollisionObject,
+    ) -> Option<PersistentManifold> {
         match self {
             Self::ConvexPlane(alg) => alg.process_collision(body0, body1),
             Self::ConvexConcave(alg) => alg.process_collision(body0, body1),
+            Self::Compound(alg) => alg.process_collision(body0, body1),
         }
     }
 }
@@ -61,22 +81,16 @@ impl CollisionAlgorithm for Algorithms {
 #[derive(Default)]
 pub struct CollisionDispatcher {
     // dispatcher_flags: i32,
-    // btAlignedObjectArray<btPersistentManifold*> m_manifoldsPtr;
     pub manifolds: Vec<PersistentManifold>,
-    // near_callback: NearCallback,
-    // btPoolAllocator* m_collisionAlgorithmPoolAllocator;
-    // btPoolAllocator* m_persistentManifoldPoolAllocator;
-    // btCollisionAlgorithmCreateFunc* m_doubleDispatchContactPoints[MAX_BROADPHASE_COLLISION_TYPES][MAX_BROADPHASE_COLLISION_TYPES];
-    // btCollisionAlgorithmCreateFunc* m_doubleDispatchClosestPoints[MAX_BROADPHASE_COLLISION_TYPES][MAX_BROADPHASE_COLLISION_TYPES];
-    // btCollisionConfiguration* m_collisionConfiguration;
 }
 
 impl CollisionDispatcher {
-    fn find_algorithm(
+    fn find_algorithm<'a, T: ContactAddedCallback>(
         &self,
         col_obj_0: Rc<RefCell<CollisionObject>>,
         col_obj_1: Rc<RefCell<CollisionObject>>,
-    ) -> Algorithms {
+        contact_added_callback: &'a mut T,
+    ) -> Algorithms<'a, T> {
         let shape0 = col_obj_0
             .borrow()
             .get_collision_shape()
@@ -93,30 +107,52 @@ impl CollisionDispatcher {
         match shape0 {
             BroadphaseNativeTypes::StaticPlaneProxytype => match shape1 {
                 BroadphaseNativeTypes::SphereShapeProxytype => {
-                    Algorithms::new_convex_plane(col_obj_1, col_obj_0, true)
+                    Algorithms::new_convex_plane(col_obj_1, col_obj_0, true, contact_added_callback)
                 }
-                shape1 => todo!("shape1: {shape1:?}"),
+                BroadphaseNativeTypes::CompoundShapeProxytype => {
+                    Algorithms::new_compound(col_obj_1, col_obj_0, true, contact_added_callback)
+                }
+                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },
             BroadphaseNativeTypes::SphereShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::StaticPlaneProxytype => {
-                    Algorithms::new_convex_plane(col_obj_0, col_obj_1, false)
-                }
+                BroadphaseNativeTypes::StaticPlaneProxytype => Algorithms::new_convex_plane(
+                    col_obj_0,
+                    col_obj_1,
+                    false,
+                    contact_added_callback,
+                ),
                 BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
-                    Algorithms::new_convex_concave(col_obj_0, col_obj_1, false)
+                    Algorithms::new_convex_concave(
+                        col_obj_0,
+                        col_obj_1,
+                        false,
+                        contact_added_callback,
+                    )
                 }
-                shape1 => todo!("shape1: {shape1:?}"),
+                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },
             BroadphaseNativeTypes::TriangleMeshShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::SphereShapeProxytype => {
-                    Algorithms::new_convex_concave(col_obj_1, col_obj_0, true)
+                BroadphaseNativeTypes::SphereShapeProxytype => Algorithms::new_convex_concave(
+                    col_obj_1,
+                    col_obj_0,
+                    true,
+                    contact_added_callback,
+                ),
+                BroadphaseNativeTypes::CompoundShapeProxytype => {
+                    Algorithms::new_compound(col_obj_1, col_obj_0, true, contact_added_callback)
                 }
-                shape1 => todo!("shape1: {shape1:?}"),
+                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },
-            shape0 => todo!("shape0: {shape0:?}"),
+            _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
         }
     }
 
-    pub fn near_callback(&mut self, proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) {
+    pub fn near_callback<T: ContactAddedCallback>(
+        &mut self,
+        proxy0: &RsBroadphaseProxy,
+        proxy1: &RsBroadphaseProxy,
+        contact_added_callback: &mut T,
+    ) {
         let col_obj_0 = proxy0
             .broadphase_proxy
             .client_object
@@ -134,7 +170,7 @@ impl CollisionDispatcher {
             return;
         }
 
-        let mut algorithm = self.find_algorithm(
+        let algorithm = self.find_algorithm(
             proxy0
                 .broadphase_proxy
                 .client_object
@@ -147,14 +183,19 @@ impl CollisionDispatcher {
                 .as_ref()
                 .unwrap()
                 .clone(),
+            contact_added_callback,
         );
 
-        algorithm.process_collision(&col_obj_0, &col_obj_1);
-
-        self.manifolds.push(algorithm.into_manifold());
+        if let Some(manifold) = algorithm.process_collision(&col_obj_0, &col_obj_1) {
+            self.manifolds.push(manifold);
+        }
     }
 
-    pub fn dispatch_all_collision_pairs(&mut self, pair_cache: &mut RsBroadphase) {
-        pair_cache.process_all_overlapping_pairs(self);
+    pub fn dispatch_all_collision_pairs<T: ContactAddedCallback>(
+        &mut self,
+        pair_cache: &mut RsBroadphase,
+        contact_added_callback: &mut T,
+    ) {
+        pair_cache.process_all_overlapping_pairs(self, contact_added_callback);
     }
 }

@@ -4,6 +4,7 @@ use super::{
 use crate::bullet::{
     collision::{
         dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
+        narrowphase::persistent_manifold::ContactAddedCallback,
         shapes::{
             collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
             triangle_shape::TriangleShape,
@@ -95,10 +96,6 @@ pub struct RsBroadphase {
     num_cells: USizeVec3,
     total_cells: usize,
     num_dyn_proxies: u32,
-    total_static_pairs: u32,
-    total_dyn_pairs: u32,
-    total_real_pairs: u32,
-    total_iters: u32,
     cells: Vec<Cell>,
     handles: Vec<RsBroadphaseProxy>,
     first_free_handle: usize,
@@ -149,10 +146,6 @@ impl RsBroadphase {
             num_cells,
             total_cells,
             num_dyn_proxies: 0,
-            total_static_pairs: 0,
-            total_dyn_pairs: 0,
-            total_real_pairs: 0,
-            total_iters: 0,
             cells,
             handles,
             first_free_handle: 0,
@@ -226,8 +219,6 @@ impl RsBroadphase {
             for j in min.y..=max.y {
                 for k in min.z..=max.z {
                     debug_assert!(cells.is_empty());
-                    let idx = i * self.num_cells.y * self.num_cells.z + j * self.num_cells.z + k;
-
                     if ADD {
                         if let Some(mesh_interface) = tri_mesh_shape {
                             let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
@@ -239,10 +230,6 @@ impl RsBroadphase {
                                 cell_min,
                                 cell_max,
                             );
-
-                            if idx == 2862 {
-                                dbg!(idx);
-                            }
 
                             if !callback_inst.hit {
                                 continue;
@@ -398,8 +385,6 @@ impl RsBroadphase {
     }
 
     pub fn calculate_overlapping_pairs(&mut self) {
-        // let last_real_pairs = self.total_real_pairs;
-
         debug_assert!(self.pair_cache.is_empty());
         if self.num_handles == 0 {
             return;
@@ -411,35 +396,59 @@ impl RsBroadphase {
                 continue; // todo: use separate list
             }
 
-            self.total_iters += 1;
             new_largest_index = i;
 
             let cell = &self.cells[proxy.cell_idx];
 
             for &other_proxy_idx in &cell.static_handles {
-                let other_proxy = &self.handles[other_proxy_idx];
+                if i == other_proxy_idx {
+                    continue;
+                }
 
-                self.total_static_pairs += 1;
+                let other_proxy = &self.handles[other_proxy_idx];
 
                 if Self::aabb_overlap(proxy, other_proxy)
                     && !self.pair_cache.contains_pair(proxy, other_proxy)
                 {
                     self.pair_cache
                         .add_overlapping_pair(proxy, i, other_proxy, other_proxy_idx);
-                    self.total_real_pairs += 1;
                 }
             }
 
-            if self.num_dyn_proxies > 1 {
-                todo!()
+            if self.num_dyn_proxies > 1 && !cell.dyn_handles.is_empty() {
+                for &other_proxy_idx in &cell.dyn_handles {
+                    if i == other_proxy_idx {
+                        continue;
+                    }
+
+                    let other_proxy = &self.handles[other_proxy_idx];
+
+                    if Self::aabb_overlap(proxy, other_proxy)
+                        && !self.pair_cache.contains_pair(proxy, other_proxy)
+                    {
+                        self.pair_cache.add_overlapping_pair(
+                            proxy,
+                            i,
+                            other_proxy,
+                            other_proxy_idx,
+                        );
+                    }
+                }
             }
         }
 
         self.last_handle_index = new_largest_index;
     }
 
-    pub fn process_all_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher) {
-        self.pair_cache
-            .process_all_overlapping_pairs(dispatcher, &self.handles);
+    pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
+        &mut self,
+        dispatcher: &mut CollisionDispatcher,
+        contact_added_callback: &mut T,
+    ) {
+        self.pair_cache.process_all_overlapping_pairs(
+            dispatcher,
+            &self.handles,
+            contact_added_callback,
+        );
     }
 }

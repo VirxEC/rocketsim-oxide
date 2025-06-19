@@ -1,4 +1,7 @@
-use rocketsim::{GameMode, init_from_default, sim::Arena};
+use rocketsim::{
+    GameMode, init_from_default,
+    sim::{Arena, CarConfig, Team},
+};
 use std::time::Instant;
 
 fn main() {
@@ -11,12 +14,14 @@ fn main() {
         Instant::now().duration_since(start).as_secs_f32()
     );
 
-    let mut ball = arena.ball.get_state();
-    ball.physics.vel.x = 600.0;
-    ball.physics.vel.y = 1550.0;
-    ball.physics.vel.z = 0.0;
+    fastrand::seed(0);
+    let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    arena.reset_to_random_kickoff();
 
-    arena.ball.set_state(ball);
+    let car = arena.objects.cars.get_mut(&id).unwrap();
+    println!("pos: {}", car.get_state().physics.pos);
+    car.controls.throttle = 1.0;
+    car.controls.boost = true;
 
     let start = Instant::now();
     arena.step(720);
@@ -25,7 +30,12 @@ fn main() {
         Instant::now().duration_since(start).as_secs_f32()
     );
 
-    let ball = arena.ball.get_state();
+    let state = arena.objects.cars.get(&id).unwrap().get_state();
+    println!("pos: {}", state.physics.pos);
+    println!("vel: {}", state.physics.vel);
+    println!("ang_vel: {}", state.physics.ang_vel);
+
+    let ball = arena.objects.ball.get_state();
     println!("pos: {}", ball.physics.pos);
     println!("vel: {}", ball.physics.vel);
     println!("ang_vel: {}", ball.physics.ang_vel);

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::bullet::collision::{
     broadphase::{dispatcher::DispatcherInfo, rs_broadphase::RsBroadphase},
-    narrowphase::persistent_manifold::CONTACT_BREAKING_THRESHOLD,
+    narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
 };
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
@@ -111,12 +111,14 @@ impl CollisionWorld {
         }
     }
 
-    pub fn perform_discrete_collision_detection(&mut self) {
+    pub fn perform_discrete_collision_detection<T: ContactAddedCallback>(
+        &mut self,
+        contact_added_callback: &mut T,
+    ) {
         self.update_aabbs();
 
         self.broadphase_pair_cache.calculate_overlapping_pairs();
-
         self.dispatcher1
-            .dispatch_all_collision_pairs(&mut self.broadphase_pair_cache);
+            .dispatch_all_collision_pairs(&mut self.broadphase_pair_cache, contact_added_callback);
     }
 }

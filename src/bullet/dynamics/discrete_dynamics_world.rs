@@ -9,6 +9,7 @@ use crate::bullet::collision::{
         collision_dispatcher::CollisionDispatcher,
         collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING, WANTS_DEACTIVATION},
     },
+    narrowphase::persistent_manifold::ContactAddedCallback,
 };
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
@@ -175,6 +176,7 @@ impl DiscreteDynamicsWorld {
             let mut body0_ref = body0.borrow_mut();
             let mut body1_ref = body1.borrow_mut();
 
+            dbg!(body0_ref.get_world_transform().translation, body1_ref.get_world_transform().translation);
             if body0_ref.get_activation_state() != ISLAND_SLEEPING
                 || body1_ref.get_activation_state() != ISLAND_SLEEPING
             {
@@ -212,13 +214,16 @@ impl DiscreteDynamicsWorld {
             let mut co = body.collision_object.borrow_mut();
             co.hit_fraction = 1.0;
 
-            if !co.is_active() || co.is_static_or_kinematic_object() {
+            debug_assert!(!co.is_static_or_kinematic_object());
+            if !co.is_active() {
                 continue;
             }
 
+            dbg!(co.get_world_transform().translation);
             drop(co);
 
             let predicted_trans = body.predict_integration_transform(time_step);
+            dbg!(predicted_trans.translation);
             body.set_center_of_mass_transform(predicted_trans);
         }
     }
@@ -267,7 +272,11 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn internal_single_step_simulation(&mut self, time_step: f32) {
+    fn internal_single_step_simulation<T: ContactAddedCallback>(
+        &mut self,
+        time_step: f32,
+        contact_added_callback: &mut T,
+    ) {
         self.predict_unconstraint_motion(time_step);
 
         let dispatcher_info = &mut self.dynamics_world.collision_world.dispatcher_info;
@@ -276,7 +285,7 @@ impl DiscreteDynamicsWorld {
 
         self.dynamics_world
             .collision_world
-            .perform_discrete_collision_detection();
+            .perform_discrete_collision_detection(contact_added_callback);
 
         self.calculation_simulation_islands();
 
@@ -288,9 +297,13 @@ impl DiscreteDynamicsWorld {
         self.update_activation_state(time_step);
     }
 
-    pub fn step_simulation(&mut self, time_step: f32) {
+    pub fn step_simulation<T: ContactAddedCallback>(
+        &mut self,
+        time_step: f32,
+        contact_added_callback: &mut T,
+    ) {
         self.apply_gravity();
-        self.internal_single_step_simulation(time_step);
+        self.internal_single_step_simulation(time_step, contact_added_callback);
 
         self.clear_forces();
     }

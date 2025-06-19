@@ -1,16 +1,20 @@
 use super::manifold_point::ManifoldPoint;
-use crate::{
-    UserInfoTypes,
-    bullet::{
-        collision::dispatch::{
-            collision_object::CollisionObject, internal_edge_utility::adjust_internal_edge_contacts,
-        },
-        linear_math::{AffineTranspose, plane_space},
-    },
+use crate::bullet::{
+    collision::dispatch::collision_object::CollisionObject,
+    linear_math::{AffineTranspose, plane_space},
 };
 use arrayvec::ArrayVec;
 use glam::{Vec3A, Vec4};
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+pub trait ContactAddedCallback {
+    fn callback(
+        &mut self,
+        contact_point: &mut ManifoldPoint,
+        body_a: &CollisionObject,
+        body_b: &CollisionObject,
+    );
+}
 
 pub const CONTACT_BREAKING_THRESHOLD: f32 = 0.02;
 pub const MANIFOLD_CACHE_SIZE: usize = 4;
@@ -188,7 +192,7 @@ impl PersistentManifold {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn add_contact_point(
+    pub fn add_contact_point<T: ContactAddedCallback>(
         &mut self,
         normal_on_b_in_world: Vec3A,
         point_in_world: Vec3A,
@@ -197,6 +201,7 @@ impl PersistentManifold {
         part_id_1: i32,
         index_0: i32,
         index_1: i32,
+        contact_added_callback: &mut T,
     ) {
         if depth > self.contact_breaking_threshold {
             return;
@@ -244,56 +249,7 @@ impl PersistentManifold {
             (self.body0.borrow(), self.body1.borrow())
         };
 
-        Self::bullet_contact_added_callback(&mut self.point_cache[insert_index], &body0, &body1);
-    }
-
-    fn bullet_contact_added_callback<'a>(
-        contact_point: &mut ManifoldPoint,
-        mut body_a: &'a CollisionObject,
-        mut body_b: &'a CollisionObject,
-    ) {
-        debug_assert!(body_a.has_contact_response() || body_b.has_contact_response());
-
-        let should_swap = if body_a.user_index != -1 && body_b.user_index != -1 {
-            body_a.user_index > body_b.user_index
-        } else {
-            body_b.user_index != -1
-        };
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
-
-        let user_index_a = body_a.user_index;
-        let user_index_b = body_b.user_index;
-
-        if user_index_a == UserInfoTypes::Car as i32 {
-            todo!()
-        } else if user_index_a == UserInfoTypes::Ball as i32 {
-            if user_index_b == UserInfoTypes::DropshotTile as i32 {
-                todo!()
-            } else if user_index_b == -1 {
-                contact_point.is_special = true;
-            }
-        }
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
-
-        let (part_id, index) = if should_swap {
-            (contact_point.part_id_0, contact_point.index_0)
-        } else {
-            (contact_point.part_id_1, contact_point.index_1)
-        };
-
-        adjust_internal_edge_contacts(
-            contact_point,
-            body_a,
-            body_b,
-            part_id as usize,
-            index as usize,
-        );
+        contact_added_callback.callback(&mut self.point_cache[insert_index], &body0, &body1);
     }
 
     fn remove_contact_point(&mut self, _idx: usize) {
