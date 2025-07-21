@@ -1,6 +1,10 @@
 use super::concave_shape::ConcaveShape;
-use crate::bullet::collision::{
-    broadphase::broadphase_proxy::BroadphaseNativeTypes, shapes::collision_shape::CollisionShape,
+use crate::bullet::{
+    collision::{
+        broadphase::broadphase_proxy::BroadphaseNativeTypes,
+        shapes::collision_shape::CollisionShape,
+    },
+    linear_math::LARGE_FLOAT,
 };
 use glam::{Affine3A, Vec3A};
 
@@ -51,8 +55,8 @@ impl StaticPlaneShape {
 
     #[must_use]
     pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
-        let mut aabb_min = Vec3A::MIN;
-        let mut aabb_max = Vec3A::MAX;
+        let mut aabb_min = Vec3A::splat(-LARGE_FLOAT);
+        let mut aabb_max = Vec3A::splat(LARGE_FLOAT);
 
         if self.is_single_axis {
             const PLANE_CONSTANT_OFFSET: f32 = 0.2;
@@ -63,13 +67,13 @@ impl StaticPlaneShape {
                 t.translation[self.single_axis_idx] + self.plane_constant + PLANE_CONSTANT_OFFSET;
 
             (if self.single_axis_backwards {
-                aabb_max
+                &mut aabb_max
             } else {
-                aabb_min
+                &mut aabb_min
             })[self.single_axis_idx] = if self.single_axis_backwards {
-                f32::MAX
+                LARGE_FLOAT
             } else {
-                f32::MIN
+                -LARGE_FLOAT
             };
         }
 

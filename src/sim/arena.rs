@@ -359,7 +359,7 @@ impl Arena {
         add_plane(Vec3A::new(0.0, 0.0, floor), Vec3A::Z, floor_mask);
 
         // Ceiling
-        add_plane(Vec3A::new(0.0, 0.0, height), Vec3A::Z, 0);
+        add_plane(Vec3A::new(0.0, 0.0, height), Vec3A::NEG_Z, 0);
 
         match game_mode {
             GameMode::Hoops => {

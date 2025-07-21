@@ -55,7 +55,6 @@ impl CompoundShape {
         let local_half_extents =
             0.5 * (self.local_aabb_max - self.local_aabb_min) + Vec3A::splat(self.collision_margin);
         let local_center = 0.5 * (self.local_aabb_max + self.local_aabb_min);
-        dbg!(trans.translation);
 
         let abs_b = trans.matrix3.abs();
         let center = trans.transform_point3a(local_center);

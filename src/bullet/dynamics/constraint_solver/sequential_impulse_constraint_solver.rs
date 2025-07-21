@@ -758,7 +758,6 @@ impl SequentialImpulseConstraintSolver {
                 continue;
             };
 
-            dbg!(solver.delta_linear_velocity);
             solver.linear_velocity += solver.delta_linear_velocity;
             solver.angular_velocity += solver.delta_angular_velocity;
 

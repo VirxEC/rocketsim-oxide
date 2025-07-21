@@ -4,6 +4,8 @@ use std::f32::consts::FRAC_1_SQRT_2;
 pub mod aabb_util_2;
 pub mod transform_util;
 
+pub const LARGE_FLOAT: f32 = 1e18;
+
 pub trait AffineExt {
     fn transpose(&self) -> Self;
     fn inv_x_form(&self, in_vec: Vec3A) -> Vec3A;
