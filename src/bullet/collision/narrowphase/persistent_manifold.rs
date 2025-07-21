@@ -1,7 +1,7 @@
 use super::manifold_point::ManifoldPoint;
 use crate::bullet::{
     collision::dispatch::collision_object::CollisionObject,
-    linear_math::{AffineTranspose, plane_space},
+    linear_math::{AffineExt, plane_space},
 };
 use arrayvec::ArrayVec;
 use glam::{Vec3A, Vec4};

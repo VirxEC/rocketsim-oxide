@@ -1,4 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use glam::{Affine3A, Vec3A};
+
+use crate::bullet::collision::dispatch::collision_object::CollisionObject;
 
 pub struct WheelInfoConstructionInfo {
     pub chassis_connection_cs: Vec3A,
@@ -24,7 +28,7 @@ pub struct RaycastInfo {
     pub wheel_direction_ws: Vec3A,
     pub wheel_axle_ws: Vec3A,
     pub is_in_contact: bool,
-    // void* m_groundObject;
+    pub ground_object: Option<Rc<RefCell<CollisionObject>>>,
 }
 
 pub struct WheelInfo {
@@ -49,6 +53,10 @@ pub struct WheelInfo {
     pub brake: f32,
     pub is_front_wheel: bool,
     // void* m_clientInfo;
+    pub clipped_inv_contact_dot_suspension: f32,
+    pub suspension_relative_velcity: f32,
+    pub wheels_suspension_force: f32,
+    pub skid_info: f32,
 }
 
 impl WheelInfo {
@@ -74,6 +82,10 @@ impl WheelInfo {
             max_suspension_force: ci.max_suspension_force,
             raycast_info: RaycastInfo::default(),
             world_transform: Affine3A::IDENTITY,
+            clipped_inv_contact_dot_suspension: 0.0,
+            suspension_relative_velcity: 0.0,
+            wheels_suspension_force: 0.0,
+            skid_info: 0.0,
         }
     }
 }

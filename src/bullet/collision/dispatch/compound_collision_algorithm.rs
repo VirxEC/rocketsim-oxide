@@ -11,7 +11,7 @@ use crate::bullet::{
             triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineTranspose, aabb_util_2::test_aabb_against_aabb},
+    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
@@ -145,7 +145,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                 };
 
                 let (aabb_min, aabb_max) = box_shape.get_aabb(&convex_in_triangle_space);
- 
+
                 let mut convex_triangle_callback = ConvexTriangleCallback::new(
                     self.compound_obj.clone(),
                     self.other_obj.clone(),

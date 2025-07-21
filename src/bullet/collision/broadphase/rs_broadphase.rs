@@ -97,7 +97,7 @@ pub struct RsBroadphase {
     total_cells: usize,
     num_dyn_proxies: u32,
     cells: Vec<Cell>,
-    handles: Vec<RsBroadphaseProxy>,
+    pub handles: Vec<RsBroadphaseProxy>,
     first_free_handle: usize,
     pair_cache: HashedOverlappingPairCache,
 }

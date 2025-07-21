@@ -12,8 +12,7 @@ use crate::{
                 internal_edge_utility::adjust_internal_edge_contacts,
             },
             narrowphase::{
-                manifold_point::{self, ManifoldPoint},
-                persistent_manifold::ContactAddedCallback,
+                manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
             },
             shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
         },
@@ -24,12 +23,8 @@ use crate::{
         },
     },
     consts::{
-        self, CAR_RESPAWN_LOCATION_AMOUNT, CAR_RESPAWN_LOCATIONS_DROPSHOT,
-        CAR_RESPAWN_LOCATIONS_HOOPS, CAR_RESPAWN_LOCATIONS_SOCCAR, CAR_SPAWN_LOCATION_AMOUNT,
-        CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER, CAR_SPAWN_LOCATIONS_DROPSHOT,
-        CAR_SPAWN_LOCATIONS_HEATSEEKER, CAR_SPAWN_LOCATIONS_HOOPS, CAR_SPAWN_LOCATIONS_SOCCAR,
-        CAR_SPAWN_REST_Z,
         heatseeker::{BALL_START_POS, BALL_START_VEL},
+        *,
     },
     sim::{BallState, BoostPad, CollisionMasks},
 };
@@ -222,27 +217,26 @@ impl Arena {
                 boost_pads.extend(config.custom_boost_pads.iter().copied().map(BoostPad::new));
             } else {
                 let amount_small = if game_mode == GameMode::Hoops {
-                    consts::boostpads::LOCS_AMOUNT_SMALL_HOOPS
+                    boostpads::LOCS_AMOUNT_SMALL_HOOPS
                 } else {
-                    consts::boostpads::LOCS_AMOUNT_SMALL_SOCCAR
+                    boostpads::LOCS_AMOUNT_SMALL_SOCCAR
                 };
 
-                let num_pads = consts::boostpads::LOCS_AMOUNT_BIG + amount_small;
+                let num_pads = boostpads::LOCS_AMOUNT_BIG + amount_small;
                 boost_pads.reserve(num_pads);
                 for i in 0..num_pads {
-                    let is_big = i < consts::boostpads::LOCS_AMOUNT_BIG;
+                    let is_big = i < boostpads::LOCS_AMOUNT_BIG;
 
                     let pos = if game_mode == GameMode::Hoops {
                         if is_big {
-                            consts::boostpads::LOCS_BIG_HOOPS[i]
+                            boostpads::LOCS_BIG_HOOPS[i]
                         } else {
-                            consts::boostpads::LOCS_SMALL_HOOPS
-                                [i - consts::boostpads::LOCS_AMOUNT_BIG]
+                            boostpads::LOCS_SMALL_HOOPS[i - boostpads::LOCS_AMOUNT_BIG]
                         }
                     } else if is_big {
-                        consts::boostpads::LOCS_BIG_SOCCAR[i]
+                        boostpads::LOCS_BIG_SOCCAR[i]
                     } else {
-                        consts::boostpads::LOCS_SMALL_SOCCAR[i - consts::boostpads::LOCS_AMOUNT_BIG]
+                        boostpads::LOCS_SMALL_SOCCAR[i - boostpads::LOCS_AMOUNT_BIG]
                     };
 
                     let pad_config = BoostPadConfig { pos, is_big };
@@ -276,8 +270,8 @@ impl Arena {
         mask: i32,
     ) {
         let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
-        rb_constrution_info.restitution = consts::ARENA_COLLISION_BASE_RESTITUTION;
-        rb_constrution_info.friction = consts::ARENA_COLLISION_BASE_FRICTION;
+        rb_constrution_info.restitution = ARENA_COLLISION_BASE_RESTITUTION;
+        rb_constrution_info.friction = ARENA_COLLISION_BASE_FRICTION;
         rb_constrution_info.start_world_transform.translation = pos_bt;
 
         let shape_rb = Rc::new(RefCell::new(RigidBody::new(rb_constrution_info)));
@@ -326,17 +320,9 @@ impl Arena {
         drop(collision_shapes);
 
         let (extent_x, floor, height) = match game_mode {
-            GameMode::Hoops => (
-                consts::ARENA_EXTENT_X_HOOPS,
-                0.0,
-                consts::ARENA_HEIGHT_HOOPS,
-            ),
-            GameMode::Dropshot => (
-                consts::ARENA_EXTENT_X,
-                consts::FLOOR_HEIGHT_DROPSHOT,
-                consts::ARENA_HEIGHT_DROPSHOT,
-            ),
-            _ => (consts::ARENA_EXTENT_X, 0.0, consts::ARENA_HEIGHT),
+            GameMode::Hoops => (ARENA_EXTENT_X_HOOPS, 0.0, ARENA_HEIGHT_HOOPS),
+            GameMode::Dropshot => (ARENA_EXTENT_X, FLOOR_HEIGHT_DROPSHOT, ARENA_HEIGHT_DROPSHOT),
+            _ => (ARENA_EXTENT_X, 0.0, ARENA_HEIGHT),
         };
 
         let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: i32| {
@@ -379,13 +365,13 @@ impl Arena {
             GameMode::Hoops => {
                 // Y walls
                 add_plane(
-                    Vec3A::new(0.0, -consts::ARENA_EXTENT_Y_HOOPS, height / 2.),
+                    Vec3A::new(0.0, -ARENA_EXTENT_Y_HOOPS, height / 2.),
                     Vec3A::Y,
                     0,
                 );
 
                 add_plane(
-                    Vec3A::new(0.0, consts::ARENA_EXTENT_Y_HOOPS, height / 2.),
+                    Vec3A::new(0.0, ARENA_EXTENT_Y_HOOPS, height / 2.),
                     Vec3A::NEG_Y,
                     0,
                 );
@@ -431,7 +417,7 @@ impl Arena {
                         + self.objects.mutator_config.ball_radius
             }
             GameMode::Hoops => {
-                if ball_pos.z < consts::HOOPS_GOAL_SCORE_THRESHOLD_Z {
+                if ball_pos.z < HOOPS_GOAL_SCORE_THRESHOLD_Z {
                     Self::ball_within_hoops_goal_xy_margin_eq(ball_pos.x, ball_pos.y) < 0.0
                 } else {
                     false
@@ -591,17 +577,27 @@ impl Arena {
     }
 
     fn internal_step(&mut self) {
-        let ball_rb = self.objects.ball.rigid_body.borrow();
-        ball_rb.collision_object.borrow_mut().set_activation_state(
-            if ball_rb.linear_velocity.length_squared() == 0.0
-                && ball_rb.angular_velocity.length_squared() == 0.0
-            {
-                ISLAND_SLEEPING
-            } else {
-                ACTIVE_TAG
-            },
-        );
-        drop(ball_rb);
+        {
+            let ball_rb = self.objects.ball.rigid_body.borrow();
+            ball_rb.collision_object.borrow_mut().set_activation_state(
+                if ball_rb.linear_velocity.length_squared() == 0.0
+                    && ball_rb.angular_velocity.length_squared() == 0.0
+                {
+                    ISLAND_SLEEPING
+                } else {
+                    ACTIVE_TAG
+                },
+            );
+        }
+
+        for car in self.objects.cars.values_mut() {
+            car.pre_tick_update(
+                &self.bullet_world.dynamics_world.collision_world,
+                self.game_mode,
+                self.tick_time,
+                &self.objects.mutator_config,
+            );
+        }
 
         let ball_only = true;
         let has_arena_stuff = self.game_mode != GameMode::TheVoid;

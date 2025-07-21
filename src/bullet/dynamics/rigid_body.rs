@@ -210,6 +210,27 @@ impl RigidBody {
         ) * world_mat.transpose();
     }
 
+    pub fn apply_torque_impulse(&mut self, torque: Vec3A) {
+        debug_assert!(!torque.is_nan());
+        self.angular_velocity += self.inv_inertia_tensor_world * torque * self.angular_factor;
+    }
+
+    pub fn apply_impulse(&mut self, impulse: Vec3A, rel_pos: Vec3A) {
+        debug_assert_ne!(self.inverse_mass, 0.0);
+        self.apply_central_impulse(impulse);
+        self.apply_torque_impulse(rel_pos.cross(impulse * self.linear_factor));
+    }
+
+    pub fn apply_torque(&mut self, torque: Vec3A) {
+        debug_assert!(!torque.is_nan());
+        self.total_torque += torque * self.angular_factor;
+    }
+
+    pub fn apply_central_impulse(&mut self, impulse: Vec3A) {
+        debug_assert!(!impulse.is_nan());
+        self.linear_velocity += impulse * self.linear_factor * self.inverse_mass;
+    }
+
     pub fn apply_central_force(&mut self, force: Vec3A) {
         debug_assert!(!force.is_nan());
         self.total_force += force * self.linear_factor;
@@ -303,5 +324,13 @@ impl RigidBody {
     pub const fn clear_forces(&mut self) {
         self.total_force = Vec3A::ZERO;
         self.total_torque = Vec3A::ZERO;
+    }
+
+    pub fn get_mass(&self) -> f32 {
+        if self.inverse_mass == 0.0 {
+            0.0
+        } else {
+            1.0 / self.inverse_mass
+        }
     }
 }

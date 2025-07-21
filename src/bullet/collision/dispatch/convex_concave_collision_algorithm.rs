@@ -8,7 +8,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineTranspose, aabb_util_2::test_aabb_against_aabb},
+    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};

@@ -4,12 +4,12 @@ use std::f32::consts::FRAC_1_SQRT_2;
 pub mod aabb_util_2;
 pub mod transform_util;
 
-pub trait AffineTranspose {
+pub trait AffineExt {
     fn transpose(&self) -> Self;
     fn inv_x_form(&self, in_vec: Vec3A) -> Vec3A;
 }
 
-impl AffineTranspose for Affine3A {
+impl AffineExt for Affine3A {
     fn transpose(&self) -> Self {
         let matrix3 = self.matrix3.transpose();
 
@@ -22,6 +22,11 @@ impl AffineTranspose for Affine3A {
     fn inv_x_form(&self, in_vec: Vec3A) -> Vec3A {
         self.matrix3.transpose() * (in_vec - self.translation)
     }
+}
+
+pub fn interpolate_3(v0: Vec3A, v1: Vec3A, rt: f32) -> Vec3A {
+    let s = 1.0 - rt;
+    s * v0 + rt * v1
 }
 
 pub fn plane_space(n: Vec3A) -> (Vec3A, Vec3A) {

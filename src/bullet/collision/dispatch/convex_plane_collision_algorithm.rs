@@ -5,7 +5,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,
     },
-    linear_math::AffineTranspose,
+    linear_math::AffineExt,
 };
 use std::{cell::RefCell, rc::Rc};
 

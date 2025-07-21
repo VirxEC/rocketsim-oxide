@@ -15,7 +15,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::AffineTranspose,
+    linear_math::AffineExt,
 };
 use glam::{Quat, Vec3, Vec3A};
 use std::{f32::consts::PI, mem};

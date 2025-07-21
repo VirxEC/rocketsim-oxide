@@ -176,7 +176,10 @@ impl DiscreteDynamicsWorld {
             let mut body0_ref = body0.borrow_mut();
             let mut body1_ref = body1.borrow_mut();
 
-            dbg!(body0_ref.get_world_transform().translation, body1_ref.get_world_transform().translation);
+            dbg!(
+                body0_ref.get_world_transform().translation,
+                body1_ref.get_world_transform().translation
+            );
             if body0_ref.get_activation_state() != ISLAND_SLEEPING
                 || body1_ref.get_activation_state() != ISLAND_SLEEPING
             {

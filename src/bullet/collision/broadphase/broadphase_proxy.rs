@@ -94,3 +94,7 @@ pub struct BroadphasePair {
     pub proxy0: usize,
     pub proxy1: usize,
 }
+
+pub trait BroadphaseAabbCallback {
+    fn process(&mut self, proxy: &BroadphaseProxy) -> bool;
+}

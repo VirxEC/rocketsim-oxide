@@ -2,9 +2,11 @@ use super::{
     raycaster::VehicleRaycaster,
     wheel_info::{WheelInfo, WheelInfoConstructionInfo},
 };
-use crate::bullet::{
-    collision::dispatch::collision_world::CollisionWorld,
-    dynamics::{action_interface::ActionInterface, rigid_body::RigidBody},
+use crate::{
+    bullet::{
+        collision::dispatch::collision_world::CollisionWorld, dynamics::rigid_body::RigidBody,
+    },
+    consts::btvehicle::SUSPENSION_SUBTRACTION,
 };
 use arrayvec::ArrayVec;
 use glam::{Affine3A, Mat3A, Quat, Vec3A};
@@ -86,12 +88,6 @@ pub struct VehicleRL {
     pub wheel_info: ArrayVec<WheelInfoRL, 4>,
 }
 
-impl ActionInterface for VehicleRL {
-    fn update_action(&mut self, collision_world: &mut CollisionWorld, delta_time_step: f32) {
-        todo!()
-    }
-}
-
 impl VehicleRL {
     pub fn new(chassis_body: Rc<RefCell<RigidBody>>, raycaster: VehicleRaycaster) -> Self {
         Self {
@@ -110,7 +106,59 @@ impl VehicleRL {
         }
     }
 
-    fn update_wheel_transform(&mut self, wheel: &mut WheelInfoRL) {
+    pub fn get_chassis_world_transform(&self) -> Affine3A {
+        *self
+            .chassis_body
+            .borrow()
+            .collision_object
+            .borrow()
+            .get_world_transform()
+    }
+
+    pub fn get_up_vector(&self) -> Vec3A {
+        self.chassis_body
+            .borrow()
+            .collision_object
+            .borrow()
+            .get_world_transform()
+            .matrix3
+            .col(self.index_up_axis)
+    }
+
+    pub fn get_forward_vector(&self) -> Vec3A {
+        self.chassis_body
+            .borrow()
+            .collision_object
+            .borrow()
+            .get_world_transform()
+            .matrix3
+            .col(self.index_forward_axis)
+    }
+
+    pub fn get_forward_speed(&self) -> f32 {
+        self.chassis_body
+            .borrow()
+            .linear_velocity
+            .dot(self.get_forward_vector())
+    }
+
+    pub fn get_upwards_dir_from_wheel_contacts(&self) -> Vec3A {
+        let mut sum_contact_dir = Vec3A::ZERO;
+        for wheel in &self.wheel_info {
+            if wheel.wheel_info.raycast_info.is_in_contact {
+                sum_contact_dir += wheel.wheel_info.raycast_info.contact_normal_ws;
+            }
+        }
+
+        if sum_contact_dir == Vec3A::ZERO {
+            self.get_up_vector()
+        } else {
+            sum_contact_dir.normalize_or_zero()
+        }
+    }
+
+    fn update_wheel_transform(&mut self, wheel_idx: usize) {
+        let wheel = &mut self.wheel_info[wheel_idx];
         wheel.update_wheel_transform_ws(
             self.chassis_body
                 .borrow()
@@ -164,8 +212,149 @@ impl VehicleRL {
             max_suspension_force: tuning.max_suspension_force,
         };
 
-        let mut wheel = WheelInfoRL::new(ci);
-        self.update_wheel_transform(&mut wheel);
-        self.wheel_info.push(wheel);
+        let wheel_idx = self.wheel_info.len();
+        self.wheel_info.push(WheelInfoRL::new(ci));
+        self.update_wheel_transform(wheel_idx);
+    }
+
+    pub fn get_num_wheels(&self) -> usize {
+        self.wheel_info.len()
+    }
+
+    fn ray_cast(&mut self, collision_world: &CollisionWorld, wheel_idx: usize) -> f32 {
+        let wheel = &mut self.wheel_info[wheel_idx];
+        wheel.update_wheel_transform_ws(
+            self.chassis_body
+                .borrow()
+                .collision_object
+                .borrow()
+                .get_world_transform(),
+        );
+
+        let mut depth = -1.0;
+
+        let suspension_travel = wheel.wheel_info.max_suspension_travel_cm / 100.0;
+        let real_ray_length = wheel.wheel_info.suspension_rest_length_1
+            + suspension_travel
+            + wheel.wheel_info.wheels_radius
+            - SUSPENSION_SUBTRACTION;
+
+        let source = wheel.wheel_info.raycast_info.hard_point_ws;
+        let target = source + (wheel.wheel_info.raycast_info.wheel_direction_ws * real_ray_length);
+        wheel.wheel_info.raycast_info.contact_point_ws = target;
+        wheel.wheel_info.raycast_info.ground_object = None;
+
+        let ray_results = self.raycaster.cast_ray(
+            collision_world,
+            source,
+            target,
+            &self.chassis_body.borrow().collision_object,
+        );
+
+        if let Some(ray_results) = ray_results {
+            wheel.wheel_info.raycast_info.contact_point_ws = ray_results.hit_point_in_world;
+            depth = real_ray_length * ray_results.dist_fraction;
+            wheel.wheel_info.raycast_info.contact_normal_ws = ray_results.hit_normal_in_world;
+            todo!("wheel raycast hit");
+        } else {
+            wheel.wheel_info.raycast_info.suspension_length =
+                wheel.wheel_info.suspension_rest_length_1 + suspension_travel;
+            wheel.wheel_info.suspension_relative_velcity = 0.0;
+            wheel.wheel_info.raycast_info.contact_normal_ws =
+                -wheel.wheel_info.raycast_info.wheel_direction_ws;
+            wheel.wheel_info.clipped_inv_contact_dot_suspension = 1.0;
+            wheel.extra_pushback = 0.0;
+        }
+
+        depth
+    }
+
+    fn calc_friction_impulses(&mut self, time_step: f32) {
+        let friction_scale = self.chassis_body.borrow().get_mass() / 3.0;
+
+        for wheel in &mut self.wheel_info {
+            if let Some(ground_obj) = wheel.wheel_info.raycast_info.ground_object.as_ref() {
+                todo!("wheel ground contact");
+            } else {
+                wheel.impulse = Vec3A::ZERO;
+            }
+        }
+    }
+
+    pub fn update_vehicle_first(&mut self, collision_world: &CollisionWorld, step: f32) {
+        for i in 0..self.wheel_info.len() {
+            self.update_wheel_transform(i);
+        }
+
+        // simulate suspension
+        for i in 0..self.wheel_info.len() {
+            self.ray_cast(collision_world, i);
+        }
+
+        self.calc_friction_impulses(step);
+    }
+
+    fn update_suspension(&mut self, delta_time: f32) {
+        for wheel in &mut self.wheel_info {
+            if !wheel.wheel_info.raycast_info.is_in_contact {
+                wheel.wheel_info.wheels_suspension_force = 0.0;
+                continue;
+            }
+
+            let force = (wheel.wheel_info.suspension_rest_length_1
+                - wheel.wheel_info.raycast_info.suspension_length)
+                * wheel.wheel_info.suspension_stiffness
+                * wheel.wheel_info.clipped_inv_contact_dot_suspension;
+            let damping_vel_scale = if wheel.wheel_info.suspension_relative_velcity < 0.0 {
+                wheel.wheel_info.wheels_damping_compression
+            } else {
+                wheel.wheel_info.wheels_damping_relaxation
+            };
+
+            wheel.wheel_info.wheels_suspension_force =
+                force - (damping_vel_scale * wheel.wheel_info.suspension_relative_velcity);
+            wheel.wheel_info.wheels_suspension_force *= wheel.suspsension_force_scale;
+            wheel.wheel_info.wheels_suspension_force =
+                wheel.wheel_info.wheels_suspension_force.max(0.0);
+
+            if wheel.wheel_info.wheels_suspension_force == 0.0 {
+                continue;
+            }
+
+            let mut rb = self.chassis_body.borrow_mut();
+            let contact_point_offset = wheel.wheel_info.raycast_info.contact_point_ws
+                - rb.collision_object
+                    .borrow()
+                    .get_world_transform()
+                    .translation;
+            let base_force_scale =
+                wheel.wheel_info.wheels_suspension_force * delta_time + wheel.extra_pushback;
+            let force = wheel.wheel_info.raycast_info.contact_normal_ws * base_force_scale;
+            rb.apply_impulse(force, contact_point_offset);
+        }
+    }
+
+    fn apply_friction_impulses(&mut self, time_step: f32) {
+        let mut rb = self.chassis_body.borrow_mut();
+        let trans = *rb.collision_object.borrow().get_world_transform();
+
+        let up_dir = trans.matrix3.col(self.index_up_axis);
+
+        for wheel in &mut self.wheel_info {
+            if wheel.impulse == Vec3A::ZERO {
+                continue;
+            }
+
+            let wheel_contact_offset =
+                wheel.wheel_info.raycast_info.contact_point_ws - trans.translation;
+            let contact_up_dot = up_dir.dot(wheel_contact_offset);
+            let wheel_rel_pos = wheel_contact_offset - up_dir * contact_up_dot;
+            rb.apply_impulse(wheel.impulse * time_step, wheel_rel_pos);
+        }
+    }
+
+    pub fn update_vehicle_second(&mut self, step: f32) {
+        self.update_suspension(step);
+        self.apply_friction_impulses(step);
     }
 }
