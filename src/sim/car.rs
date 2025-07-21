@@ -974,7 +974,7 @@ impl Car {
         self.internal_state.last_controls = self.controls;
     }
 
-    pub(crate) fn finish_physics_tick(&mut self, mutator_config: &MutatorConfig) {
+    pub(crate) fn finish_physics_tick(&mut self) {
         const MAX_SPEED: f32 = CAR_MAX_SPEED * UU_TO_BT;
 
         if self.internal_state.is_demoed {

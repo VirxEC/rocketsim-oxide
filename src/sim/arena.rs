@@ -615,7 +615,7 @@ impl Arena {
 
         for car in self.objects.cars.values_mut() {
             car.post_tick_update(self.tick_time);
-            car.finish_physics_tick(&self.objects.mutator_config);
+            car.finish_physics_tick();
 
             if has_arena_stuff {
                 // todo: boostpad collision checks

@@ -39,7 +39,7 @@ impl CompoundShape {
         let (local_aabb_min, local_aabb_max) = shape.get_aabb(&local_transform);
 
         self.local_aabb_min = self.local_aabb_min.min(local_aabb_min);
-        self.local_aabb_max = self.local_aabb_max.min(local_aabb_max);
+        self.local_aabb_max = self.local_aabb_max.max(local_aabb_max);
 
         self.child = Some(CompoundShapeChild {
             transform: local_transform,
