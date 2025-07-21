@@ -939,4 +939,64 @@ impl Car {
         self.bullet_vehicle.update_vehicle_second(tick_time);
         self.update_boost(tick_time, mutator_config);
     }
+
+    pub(crate) fn post_tick_update(&mut self, tick_time: f32) {
+        if self.internal_state.is_demoed {
+            return;
+        }
+
+        let rb = self.rigid_body.borrow();
+        let co = rb.collision_object.borrow();
+
+        self.internal_state.physics.rot_mat = co.get_world_transform().matrix3;
+
+        let speed_squared = (rb.linear_velocity * BT_TO_UU).length_squared();
+        self.internal_state.is_supersonic = speed_squared
+            >= if self.internal_state.is_supersonic
+                && self.internal_state.supersonic_time < SUPERSONIC_MAINTAIN_MAX_TIME
+            {
+                const { SUPERSONIC_MAINTAIN_MIN_SPEED * SUPERSONIC_MAINTAIN_MIN_SPEED }
+            } else {
+                const { SUPERSONIC_START_SPEED * SUPERSONIC_START_SPEED }
+            };
+
+        if self.internal_state.is_supersonic {
+            self.internal_state.supersonic_time += tick_time;
+        } else {
+            self.internal_state.supersonic_time = 0.0;
+        }
+
+        if self.internal_state.car_contact.cooldown_timer > 0.0 {
+            self.internal_state.car_contact.cooldown_timer =
+                (self.internal_state.car_contact.cooldown_timer - tick_time).max(0.0);
+        }
+
+        self.internal_state.last_controls = self.controls;
+    }
+
+    pub(crate) fn finish_physics_tick(&mut self, mutator_config: &MutatorConfig) {
+        const MAX_SPEED: f32 = CAR_MAX_SPEED * UU_TO_BT;
+
+        if self.internal_state.is_demoed {
+            return;
+        }
+
+        let mut rb = self.rigid_body.borrow_mut();
+        if self.velocity_impulse_cache != Vec3A::ZERO {
+            rb.linear_velocity += self.velocity_impulse_cache;
+            self.velocity_impulse_cache = Vec3A::ZERO;
+        }
+
+        let vel = &mut rb.linear_velocity;
+        if vel.length_squared() > const { MAX_SPEED * MAX_SPEED } {
+            *vel = vel.normalize() * MAX_SPEED;
+        }
+
+        let ang_vel = &mut rb.angular_velocity;
+        if ang_vel.length_squared() > const { CAR_MAX_ANG_SPEED * CAR_MAX_ANG_SPEED } {
+            *ang_vel = ang_vel.normalize() * CAR_MAX_ANG_SPEED;
+        }
+
+        self.internal_state.tick_count_since_update += 1;
+    }
 }

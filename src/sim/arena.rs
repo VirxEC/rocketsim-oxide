@@ -599,11 +599,11 @@ impl Arena {
             );
         }
 
-        let ball_only = true;
+        let ball_only = self.objects.cars.is_empty();
         let has_arena_stuff = self.game_mode != GameMode::TheVoid;
 
         if has_arena_stuff && !ball_only {
-            todo!()
+            // todo: boostpad pretickupdate
         }
 
         self.objects
@@ -613,9 +613,28 @@ impl Arena {
         self.bullet_world
             .step_simulation(self.tick_time, &mut self.objects);
 
+        for car in self.objects.cars.values_mut() {
+            car.post_tick_update(self.tick_time);
+            car.finish_physics_tick(&self.objects.mutator_config);
+
+            if has_arena_stuff {
+                // todo: boostpad collision checks
+            }
+        }
+
+        if has_arena_stuff && !ball_only {
+            // todo: boostpad posttickupdate
+        }
+
         self.objects
             .ball
             .finish_physics_tick(&self.objects.mutator_config);
+
+        if self.game_mode == GameMode::Dropshot {
+            todo!("dropshot tile state sync")
+        }
+
+        // todo: goalscorecallback
 
         self.tick_count += 1;
     }
