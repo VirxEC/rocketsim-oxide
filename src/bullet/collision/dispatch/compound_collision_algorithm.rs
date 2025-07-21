@@ -2,7 +2,7 @@ use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
         dispatch::{
-            collision_object::CollisionObject,
+            collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
             convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
         },
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
@@ -18,6 +18,7 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
+    convex_transform: Affine3A,
     pub aabb_min: Vec3A,
     pub aabb_max: Vec3A,
     box_shape: &'a BoxShape,
@@ -27,14 +28,15 @@ pub struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
 
 impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
     pub fn new(
-        convex_obj: Rc<RefCell<CollisionObject>>,
+        convex_obj: CollisionObjectWrapper,
         tri_obj: Rc<RefCell<CollisionObject>>,
         box_shape: &'a BoxShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
-            manifold: PersistentManifold::new(convex_obj, tri_obj, is_swapped),
+            manifold: PersistentManifold::new(convex_obj.object, tri_obj, is_swapped),
+            convex_transform: convex_obj.world_transform,
             is_swapped,
             box_shape,
             aabb_max: Vec3A::ZERO,
@@ -135,6 +137,11 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
             return None;
         }
 
+        let compound_obj_wrap = CollisionObjectWrapper {
+            object: self.compound_obj.clone(),
+            world_transform: new_child_world_trans,
+        };
+
         match &*other_col_shape {
             CollisionShapes::TriangleMesh(tri_mesh) => {
                 let xform1 = other_obj.get_world_transform().transpose();
@@ -147,7 +154,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                 let (aabb_min, aabb_max) = box_shape.get_aabb(&convex_in_triangle_space);
 
                 let mut convex_triangle_callback = ConvexTriangleCallback::new(
-                    self.compound_obj.clone(),
+                    compound_obj_wrap,
                     self.other_obj.clone(),
                     box_shape,
                     self.is_swapped,
@@ -175,7 +182,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                 };
 
                 ConvexPlaneCollisionAlgorithm::new(
-                    self.compound_obj.clone(),
+                    compound_obj_wrap,
                     self.other_obj.clone(),
                     self.is_swapped,
                     self.contact_added_callback,
@@ -223,14 +230,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for CompoundCollisionAlgorithm<
             self.contact_added_callback,
         );
 
-        if let Some(manifold) = compound_leaf_callback.process_child_shape() {
-            if manifold.point_cache.is_empty() {
-                None
-            } else {
-                Some(manifold)
-            }
-        } else {
-            None
-        }
+        compound_leaf_callback
+            .process_child_shape()
+            .and_then(|manifold| (!manifold.point_cache.is_empty()).then_some(manifold))
     }
 }

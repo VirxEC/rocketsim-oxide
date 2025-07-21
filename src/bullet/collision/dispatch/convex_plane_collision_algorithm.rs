@@ -2,6 +2,7 @@ use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
+        dispatch::collision_object_wrapper::CollisionObjectWrapper,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,
     },
@@ -11,14 +12,14 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
     is_swapped: bool,
-    convex_obj: Rc<RefCell<CollisionObject>>,
+    convex_obj: CollisionObjectWrapper,
     plane_obj: Rc<RefCell<CollisionObject>>,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
     pub fn new(
-        convex_obj: Rc<RefCell<CollisionObject>>,
+        convex_obj: CollisionObjectWrapper,
         plane_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
@@ -45,7 +46,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         };
 
         let mut manifold =
-            PersistentManifold::new(self.convex_obj, self.plane_obj, self.is_swapped);
+            PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);
 
         let col_shape = convex_obj.get_collision_shape().unwrap().borrow();
 
@@ -60,7 +61,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let plane_in_convex =
             convex_obj.get_world_transform().transpose() * *plane_obj.get_world_transform();
         let convex_in_plane_trans =
-            plane_obj.get_world_transform().transpose() * *convex_obj.get_world_transform();
+            plane_obj.get_world_transform().transpose() * self.convex_obj.world_transform;
 
         let vtx = col_shape.local_get_supporting_vertex(plane_in_convex.matrix3 * -plane_normal);
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);

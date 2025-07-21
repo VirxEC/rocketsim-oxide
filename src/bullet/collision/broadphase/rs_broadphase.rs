@@ -219,21 +219,19 @@ impl RsBroadphase {
             for j in min.y..=max.y {
                 for k in min.z..=max.z {
                     debug_assert!(cells.is_empty());
-                    if ADD {
-                        if let Some(mesh_interface) = tri_mesh_shape {
-                            let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
-                            let cell_max = cell_min + Vec3A::splat(self.cell_size);
+                    if ADD && let Some(mesh_interface) = tri_mesh_shape {
+                        let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
+                        let cell_max = cell_min + Vec3A::splat(self.cell_size);
 
-                            callback_inst.hit = false;
-                            mesh_interface.process_all_triangles(
-                                &mut callback_inst,
-                                cell_min,
-                                cell_max,
-                            );
+                        callback_inst.hit = false;
+                        mesh_interface.process_all_triangles(
+                            &mut callback_inst,
+                            cell_min,
+                            cell_max,
+                        );
 
-                            if !callback_inst.hit {
-                                continue;
-                            }
+                        if !callback_inst.hit {
+                            continue;
                         }
                     }
 
