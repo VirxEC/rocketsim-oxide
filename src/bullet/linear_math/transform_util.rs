@@ -39,7 +39,7 @@ pub fn integrate_transform(
 
     let dorn = Quat::from_xyzw(axis.x, axis.y, axis.z, (angle * time_step * 0.5).cos());
     let orn0 = Quat::from_mat3a(&cur_trans.matrix3);
-    let predicted_orn = (dorn * orn0).normalize();
+    let predicted_orn = (dorn * orn0).normalize().conjugate();
 
     Affine3A {
         matrix3: Mat3A::from_quat(predicted_orn),
