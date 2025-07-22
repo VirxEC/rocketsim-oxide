@@ -200,7 +200,7 @@ impl SequentialImpulseConstraintSolver {
                 let rb0 = solver_body_a.original_body.as_ref();
                 let rb1 = solver_body_b.original_body.as_ref();
 
-                // setupContractConstraint
+                // setupContactConstraint
                 let relaxation = info.sor;
                 let inv_time_step = 1.0 / info.time_step;
                 debug_assert_eq!(info.global_cfm, 0.0);
@@ -214,9 +214,9 @@ impl SequentialImpulseConstraintSolver {
                 });
 
                 let torque_axis_1 = rel_pos2.cross(cp.normal_world_on_b);
-                let angular_component_b = rb0.map_or(Vec3A::ZERO, |rb| {
+                let angular_component_b = rb1.map_or(Vec3A::ZERO, |rb| {
                     rb.borrow().inv_inertia_tensor_world
-                        * -torque_axis_0
+                        * -torque_axis_1
                         * rb.borrow().angular_factor
                 });
 
@@ -353,10 +353,6 @@ impl SequentialImpulseConstraintSolver {
                     });
 
                 // convertContactInner
-                // if cp.combined_rolling_friction > 0.0 {
-                //     unimplemented!()
-                // }
-
                 let vel1 = solver_body_a.get_velocity_in_local_point_no_delta(rel_pos1);
                 let vel2 = solver_body_b.get_velocity_in_local_point_no_delta(rel_pos2);
 
@@ -417,9 +413,7 @@ impl SequentialImpulseConstraintSolver {
                     rb.borrow().inverse_mass + normal_axis.dot(vec)
                 });
 
-                dbg!(relaxation, denom0, denom1);
                 let jac_diag_ab_inv = relaxation / (denom0 + denom1);
-                dbg!(jac_diag_ab_inv);
 
                 let vel_1_dot_n = contact_normal_1
                     .dot(solver_body_a.linear_velocity + external_force_impulse_a)
@@ -764,7 +758,6 @@ impl SequentialImpulseConstraintSolver {
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
-                dbg!(solver.world_transform.translation);
                 solver.world_transform = if body.collision_object.borrow().no_rot {
                     integrate_transform_no_rot(
                         &solver.world_transform,
@@ -779,7 +772,6 @@ impl SequentialImpulseConstraintSolver {
                         info.time_step,
                     )
                 };
-                dbg!(solver.world_transform.translation);
             }
 
             body.set_linear_velocity(solver.linear_velocity + solver.external_force_impulse);

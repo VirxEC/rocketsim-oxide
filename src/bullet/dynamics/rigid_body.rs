@@ -133,13 +133,10 @@ impl RigidBody {
         );
 
         let linear_factor = Vec3A::ONE;
-        let world_mat = collision_object.get_world_transform().matrix3;
-        // TODO: ensure the below is correct
-        let inv_inertia_tensor_world = Mat3A::from_cols(
-            world_mat.x_axis * inv_inertia_local,
-            world_mat.y_axis * inv_inertia_local,
-            world_mat.z_axis * inv_inertia_local,
-        ) * world_mat.transpose();
+        let inv_inertia_tensor_world = Self::get_inertia_tensor(
+            collision_object.get_world_transform().matrix3,
+            inv_inertia_local,
+        );
 
         Self {
             collision_object: Rc::new(RefCell::new(collision_object)),
@@ -201,13 +198,21 @@ impl RigidBody {
         self.angular_velocity = ang_vel;
     }
 
+    fn get_inertia_tensor(world_mat: Mat3A, inv_inertia_local: Vec3A) -> Mat3A {
+        Mat3A::from_cols(
+            world_mat.x_axis * inv_inertia_local,
+            world_mat.y_axis * inv_inertia_local,
+            world_mat.z_axis * inv_inertia_local,
+        )
+        .transpose()
+            * world_mat
+    }
+
     pub fn update_inertia_tensor(&mut self) {
-        let world_mat = self.collision_object.borrow().get_world_transform().matrix3;
-        self.inv_inertia_tensor_world = Mat3A::from_cols(
-            world_mat.x_axis * self.inv_inertia_local,
-            world_mat.y_axis * self.inv_inertia_local,
-            world_mat.z_axis * self.inv_inertia_local,
-        ) * world_mat.transpose();
+        self.inv_inertia_tensor_world = Self::get_inertia_tensor(
+            self.collision_object.borrow().get_world_transform().matrix3,
+            self.inv_inertia_local,
+        );
     }
 
     pub fn apply_torque_impulse(&mut self, torque: Vec3A) {

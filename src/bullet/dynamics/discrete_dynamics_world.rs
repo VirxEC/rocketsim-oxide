@@ -210,19 +210,18 @@ impl DiscreteDynamicsWorld {
     fn integrate_transforms_internal(&self, time_step: f32) {
         for body in &self.non_static_rigid_bodies {
             let mut body = body.borrow_mut();
-            let mut co = body.collision_object.borrow_mut();
-            co.hit_fraction = 1.0;
 
-            debug_assert!(!co.is_static_or_kinematic_object());
-            if !co.is_active() {
-                continue;
+            {
+                let mut co = body.collision_object.borrow_mut();
+                co.hit_fraction = 1.0;
+
+                debug_assert!(!co.is_static_or_kinematic_object());
+                if !co.is_active() {
+                    continue;
+                }
             }
 
-            dbg!(co.get_world_transform().translation);
-            drop(co);
-
             let predicted_trans = body.predict_integration_transform(time_step);
-            dbg!(predicted_trans.translation);
             body.set_center_of_mass_transform(predicted_trans);
         }
     }

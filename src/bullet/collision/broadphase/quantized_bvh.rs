@@ -58,7 +58,6 @@ pub struct QuantizedBvh {
 
 impl QuantizedBvh {
     pub fn quantize(&self, point: Vec3A, is_max: bool) -> U16Vec3 {
-        // dbg!(point, self.bvh_aabb_max, self.bvh_aabb_min);
         debug_assert!(point.x <= self.bvh_aabb_max.x);
         debug_assert!(point.y <= self.bvh_aabb_max.y);
         debug_assert!(point.z <= self.bvh_aabb_max.z);

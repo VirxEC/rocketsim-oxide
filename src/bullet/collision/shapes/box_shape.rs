@@ -51,19 +51,23 @@ impl BoxShape {
         )
     }
 
-    pub fn calculate_local_intertia(&self, mut mass: f32) -> Vec3A {
+    pub fn calculate_local_intertia(&self, mass: f32) -> Vec3A {
         let half_extents = self
             .polyhedral_convex_shape
             .convex_internal_shape
-            .implicit_shape_dimensions;
+            .implicit_shape_dimensions
+            + self
+                .polyhedral_convex_shape
+                .convex_internal_shape
+                .collision_margin;
 
-        mass /= 12.0;
         let l = 2.0 * half_extents;
-        Vec3A::new(
-            mass * l.y * l.y + l.z * l.z,
-            mass * l.x * l.x + l.z * l.z,
-            mass * l.x * l.x + l.y * l.y,
-        )
+        mass / 12.0
+            * Vec3A::new(
+                l.y * l.y + l.z * l.z,
+                l.x * l.x + l.z * l.z,
+                l.x * l.x + l.y * l.y,
+            )
     }
 
     pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
