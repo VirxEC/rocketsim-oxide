@@ -670,8 +670,7 @@ impl SequentialImpulseConstraintSolver {
                 };
 
                 let residual = contact.resolve_split_penetration_impulse(body_a, body_b);
-
-                if residual * residual <= f32::EPSILON {
+                if residual * residual == 0.0 {
                     should_run ^= mask;
                 }
             }
