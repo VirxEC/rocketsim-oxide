@@ -532,7 +532,7 @@ impl Car {
                 let rb_torque = rb.inv_inertia_tensor_world.inverse()
                     * rb.collision_object.borrow().get_world_transform().matrix3
                     * dodge_torque;
-                rb.apply_central_force(rb_torque);
+                rb.apply_torque(rb_torque);
             }
         } else {
             do_air_control = true;
@@ -928,8 +928,9 @@ impl Car {
         self.update_auto_flip(tick_time, jump_pressed);
         self.update_double_jump_or_flip(tick_time, mutator_config, jump_pressed, forward_speed_uu);
 
-        if self.controls.throttle != 0.0 && (0 < num_wheels_in_contact && num_wheels_in_contact < 4)
-            || self.internal_state.world_contact_normal.is_some()
+        if self.controls.throttle != 0.0
+            && ((0 < num_wheels_in_contact && num_wheels_in_contact < 4)
+                || self.internal_state.world_contact_normal.is_some())
         {
             self.update_auto_roll(num_wheels_in_contact);
         }
