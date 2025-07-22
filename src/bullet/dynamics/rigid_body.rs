@@ -199,13 +199,12 @@ impl RigidBody {
     }
 
     fn get_inertia_tensor(world_mat: Mat3A, inv_inertia_local: Vec3A) -> Mat3A {
-        Mat3A::from_cols(
-            world_mat.x_axis * inv_inertia_local,
-            world_mat.y_axis * inv_inertia_local,
-            world_mat.z_axis * inv_inertia_local,
-        )
-        .transpose()
-            * world_mat
+        world_mat.transpose()
+            * Mat3A::from_cols(
+                world_mat.x_axis * inv_inertia_local,
+                world_mat.y_axis * inv_inertia_local,
+                world_mat.z_axis * inv_inertia_local,
+            )
     }
 
     pub fn update_inertia_tensor(&mut self) {

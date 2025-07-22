@@ -34,7 +34,7 @@ pub fn integrate_transform(
             * angle
             * angle
     } else {
-        ang_vel * (0.5 * angle * time_step).sin() / angle
+        ang_vel * ((0.5 * angle * time_step).sin() / angle)
     };
 
     let dorn = Quat::from_xyzw(axis.x, axis.y, axis.z, (angle * time_step * 0.5).cos());
