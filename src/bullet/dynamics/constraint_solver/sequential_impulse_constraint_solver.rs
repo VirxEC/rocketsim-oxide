@@ -739,7 +739,7 @@ impl SequentialImpulseConstraintSolver {
 
         for _ in 0..max_iterations {
             self.least_squares_residual = self.solve_single_iteration();
-            if self.least_squares_residual <= f32::EPSILON {
+            if self.least_squares_residual == 0.0 {
                 break;
             }
         }
