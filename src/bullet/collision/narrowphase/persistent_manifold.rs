@@ -252,10 +252,6 @@ impl PersistentManifold {
         contact_added_callback.callback(&mut self.point_cache[insert_index], &body0, &body1);
     }
 
-    fn remove_contact_point(&mut self, _idx: usize) {
-        todo!()
-    }
-
     pub fn refresh_contact_points(&mut self) {
         if self.point_cache.is_empty() {
             return;
@@ -281,21 +277,20 @@ impl PersistentManifold {
         drop(body0);
         drop(body1);
 
-        let contact_breaking_threshold_sq =
-            self.contact_breaking_threshold * self.contact_breaking_threshold;
+        #[cfg(debug_assertions)]
+        {
+            let contact_breaking_threshold_sq =
+                self.contact_breaking_threshold * self.contact_breaking_threshold;
 
-        for i in (0..self.point_cache.len()).rev() {
-            let point = &self.point_cache[i];
-            if point.distance_1 > self.contact_breaking_threshold {
-                self.remove_contact_point(i);
-            } else {
+            for i in (0..self.point_cache.len()).rev() {
+                let point = &self.point_cache[i];
+                assert!(point.distance_1 <= self.contact_breaking_threshold);
+
                 let projected_point =
                     point.position_world_on_a - point.normal_world_on_b * point.distance_1;
                 let projected_difference = point.position_world_on_b - projected_point;
                 let distance_2d = projected_difference.dot(projected_difference);
-                if distance_2d > contact_breaking_threshold_sq {
-                    self.remove_contact_point(i);
-                }
+                assert!(distance_2d <= contact_breaking_threshold_sq);
             }
         }
     }
