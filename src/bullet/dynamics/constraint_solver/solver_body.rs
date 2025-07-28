@@ -51,7 +51,7 @@ impl SolverBody {
             linear_velocity: rb_ref.linear_velocity,
             angular_velocity: rb_ref.angular_velocity,
             external_force_impulse: rb_ref.total_force * rb_ref.inverse_mass * time_step,
-            external_torque_impulse: rb_ref.inv_inertia_tensor_world
+            external_torque_impulse: rb_ref.inv_inertia_tensor_world.transpose()
                 * rb_ref.total_torque
                 * time_step,
             original_body: {

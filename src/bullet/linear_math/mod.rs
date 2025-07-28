@@ -1,4 +1,4 @@
-use glam::{Affine3A, Vec3A};
+use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec4, Vec4Swizzles};
 use std::f32::consts::FRAC_1_SQRT_2;
 
 pub mod aabb_util_2;
@@ -23,6 +23,64 @@ impl AffineExt for Affine3A {
 
     fn inv_x_form(&self, in_vec: Vec3A) -> Vec3A {
         self.matrix3.transpose() * (in_vec - self.translation)
+    }
+}
+
+pub trait Mat3AExt {
+    fn cofac(&self, r1: usize, c1: usize, r2: usize, c2: usize) -> f32;
+    fn bullet_inverse(&self) -> Self;
+}
+
+impl Mat3AExt for Mat3A {
+    fn cofac(&self, r1: usize, c1: usize, r2: usize, c2: usize) -> f32 {
+        self.col(r1)[c1] * self.col(r2)[c2] - self.col(r1)[c2] * self.col(r2)[c1]
+    }
+
+    fn bullet_inverse(&self) -> Self {
+        let co = Vec3A::new(
+            self.cofac(1, 1, 2, 2),
+            self.cofac(1, 2, 2, 0),
+            self.cofac(1, 0, 2, 1),
+        );
+        let det = self.x_axis.dot(co);
+        debug_assert_ne!(det, 0.0);
+        let s = Vec3A::splat(det.recip());
+
+        Mat3A::from_cols(
+            co * s,
+            Vec3A::new(
+                self.cofac(0, 2, 2, 1),
+                self.cofac(0, 0, 2, 2),
+                self.cofac(0, 1, 2, 0),
+            ) * s,
+            Vec3A::new(
+                self.cofac(0, 1, 1, 2),
+                self.cofac(0, 2, 1, 0),
+                self.cofac(0, 0, 1, 1),
+            ) * s,
+        )
+    }
+}
+
+pub trait QuatExt {
+    fn bullet_mul_quat(self, q2: Self) -> Self;
+}
+
+impl QuatExt for Quat {
+    fn bullet_mul_quat(self, q2: Self) -> Self {
+        const NEG_W: Vec4 = Vec4::new(1.0, 1.0, 1.0, -1.0);
+
+        let q1: Vec4 = self.into();
+        let q2: Vec4 = q2.into();
+
+        let a2 = q1.yzxy() * q2.zxyy();
+        let a1 = q1.xyzx() * q2.wwwx() + a2;
+
+        let b1 = q1.zxyz() * q2.yzxz();
+        let a0 = q1.wwww() * q2 - b1;
+
+        let q = a0 + a1 * NEG_W;
+        Quat::from_array(q.to_array())
     }
 }
 

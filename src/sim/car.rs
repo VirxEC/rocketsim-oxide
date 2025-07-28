@@ -21,6 +21,7 @@ use crate::{
                 vehicle_rl::{VehicleRL, VehicleTuning},
             },
         },
+        linear_math::Mat3AExt,
     },
     consts::{
         btvehicle::{
@@ -360,7 +361,7 @@ impl Car {
             ..Default::default()
         };
 
-        self.set_state(&new_state);
+        self.set_state(new_state);
     }
 
     pub fn get_state(&self) -> CarState {
@@ -379,7 +380,7 @@ impl Car {
         internal_state
     }
 
-    pub fn set_state(&mut self, state: &CarState) {
+    pub fn set_state(&mut self, state: CarState) {
         let mut rb = self.rigid_body.borrow_mut();
 
         rb.collision_object
@@ -394,6 +395,7 @@ impl Car {
         rb.update_inertia_tensor();
 
         self.velocity_impulse_cache = Vec3A::ZERO;
+        self.internal_state = state;
         self.internal_state.tick_count_since_update = 0;
     }
 
@@ -529,7 +531,7 @@ impl Car {
                 let dodge_torque =
                     rel_dodge_torque * const { Vec3A::new(FLIP_TORQUE_X, FLIP_TORQUE_Y, 0.0) };
 
-                let rb_torque = rb.inv_inertia_tensor_world.inverse()
+                let rb_torque = rb.inv_inertia_tensor_world.bullet_inverse()
                     * rb.collision_object.borrow().get_world_transform().matrix3
                     * dodge_torque;
                 rb.apply_torque(rb_torque);
@@ -573,8 +575,9 @@ impl Car {
 
             let damping = dir_yaw * damp_yaw + dir_pitch * damp_pitch + dir_roll * damp_roll;
 
-            let rb_torque =
-                rb.inv_inertia_tensor_world.inverse() * (torque - damping) * CAR_TORQUE_SCALE;
+            let rb_torque = rb.inv_inertia_tensor_world.bullet_inverse()
+                * (torque - damping)
+                * CAR_TORQUE_SCALE;
             rb.apply_torque(rb_torque);
         }
 
@@ -812,7 +815,7 @@ impl Car {
             ground_down_dir * const { CAR_AUTOROLL_FORCE * UU_TO_BT * CAR_MASS_BT },
         );
 
-        let rb_torque = rb.inv_inertia_tensor_world.inverse()
+        let rb_torque = rb.inv_inertia_tensor_world.bullet_inverse()
             * (torque_forward + torque_right)
             * CAR_AUTOROLL_TORQUE;
         rb.apply_torque(rb_torque);
