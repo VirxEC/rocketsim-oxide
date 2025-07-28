@@ -114,22 +114,10 @@ impl RigidBody {
             1.0 / info.mass
         };
 
-        let inv_inertia_local = Vec3A::new(
-            if info.local_inertia.x == 0.0 {
-                0.0
-            } else {
-                1.0 / info.local_inertia.x
-            },
-            if info.local_inertia.y == 0.0 {
-                0.0
-            } else {
-                1.0 / info.local_inertia.y
-            },
-            if info.local_inertia.z == 0.0 {
-                0.0
-            } else {
-                1.0 / info.local_inertia.z
-            },
+        let inv_inertia_local = Vec3A::select(
+            info.local_inertia.cmpeq(Vec3A::splat(0.0)),
+            Vec3A::ZERO,
+            1.0 / info.local_inertia,
         );
 
         let linear_factor = Vec3A::ONE;
@@ -199,12 +187,12 @@ impl RigidBody {
     }
 
     fn get_inertia_tensor(world_mat: Mat3A, inv_inertia_local: Vec3A) -> Mat3A {
-        world_mat.transpose()
-            * Mat3A::from_cols(
-                world_mat.x_axis * inv_inertia_local,
-                world_mat.y_axis * inv_inertia_local,
-                world_mat.z_axis * inv_inertia_local,
-            )
+        let mut scaled_mat = world_mat.transpose();
+        scaled_mat.x_axis *= inv_inertia_local;
+        scaled_mat.y_axis *= inv_inertia_local;
+        scaled_mat.z_axis *= inv_inertia_local;
+
+        world_mat * scaled_mat
     }
 
     pub fn update_inertia_tensor(&mut self) {
