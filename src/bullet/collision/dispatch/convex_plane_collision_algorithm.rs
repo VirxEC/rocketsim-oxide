@@ -58,25 +58,25 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let plane_normal = plane_shape.get_plane_normal();
         let plane_constant = plane_shape.get_plane_constant();
 
-        let plane_in_convex =
-            convex_obj.get_world_transform().transpose() * *plane_obj.get_world_transform();
+        let plane_in_convex = self.convex_obj.world_transform.matrix3.transpose()
+            * plane_obj.get_world_transform().matrix3;
         let convex_in_plane_trans =
-            plane_obj.get_world_transform().transpose() * self.convex_obj.world_transform;
+            self.convex_obj.world_transform * plane_obj.get_world_transform();
 
-        let vtx = col_shape.local_get_supporting_vertex(plane_in_convex.matrix3 * -plane_normal);
+        let vtx = col_shape.local_get_supporting_vertex(plane_in_convex * -plane_normal);
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);
         let distance = plane_normal.dot(vtx_in_plane) - plane_constant;
 
         if distance < manifold.contact_breaking_threshold {
             let vtx_in_plane_projected = vtx_in_plane - distance * plane_normal;
-            let vtx_in_plane_in_world = plane_obj
+            let vtx_in_plane_world = plane_obj
                 .get_world_transform()
                 .transform_point3a(vtx_in_plane_projected);
             let normal_on_surface_b = plane_obj.get_world_transform().matrix3 * plane_normal;
 
             manifold.add_contact_point(
                 normal_on_surface_b,
-                vtx_in_plane_in_world,
+                vtx_in_plane_world,
                 distance,
                 -1,
                 -1,
