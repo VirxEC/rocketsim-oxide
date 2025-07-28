@@ -640,13 +640,8 @@ impl SequentialImpulseConstraintSolver {
 
     fn solve_group_split_impulse_iterations(&mut self, info: &ContactSolverInfo) {
         debug_assert!(info.split_impulse);
-        debug_assert_eq!(MANIFOLD_CACHE_SIZE, 4);
 
-        let mut should_run = 0xfu8;
-
-        for i in self.tmp_solver_contact_constraint_pool.len()..MANIFOLD_CACHE_SIZE {
-            should_run ^= 1 << i;
-        }
+        let mut should_run = (1u8 << self.tmp_solver_contact_constraint_pool.len()) - 1;
 
         for _ in 0..info.num_iterations {
             for (i, contact) in self
