@@ -527,7 +527,7 @@ impl Arena {
                     0.0,
                 );
 
-                car.set_state(&spawn_state);
+                car.set_state(spawn_state);
             }
         }
 
