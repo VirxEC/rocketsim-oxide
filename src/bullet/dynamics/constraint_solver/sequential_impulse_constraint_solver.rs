@@ -765,7 +765,7 @@ impl SequentialImpulseConstraintSolver {
                     integrate_transform(
                         &solver.world_transform,
                         solver.push_velocity,
-                        solver.turn_velocity,
+                        solver.turn_velocity * info.split_impulse_turn_erp,
                         info.time_step,
                     )
                 };
