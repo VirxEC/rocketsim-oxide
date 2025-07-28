@@ -1,12 +1,9 @@
 use super::collision_object::CollisionObject;
-use crate::bullet::{
-    collision::{
-        broadphase::collision_algorithm::CollisionAlgorithm,
-        dispatch::collision_object_wrapper::CollisionObjectWrapper,
-        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::collision_shape::CollisionShapes,
-    },
-    linear_math::AffineExt,
+use crate::bullet::collision::{
+    broadphase::collision_algorithm::CollisionAlgorithm,
+    dispatch::collision_object_wrapper::CollisionObjectWrapper,
+    narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
+    shapes::collision_shape::CollisionShapes,
 };
 use std::{cell::RefCell, rc::Rc};
 
