@@ -1,9 +1,8 @@
+use crate::bullet::collision::dispatch::collision_object::CollisionObject;
+use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
-use glam::{Affine3A, Vec3A};
-
-use crate::bullet::collision::dispatch::collision_object::CollisionObject;
-
+#[derive(Clone, Copy)]
 pub struct WheelInfoConstructionInfo {
     pub chassis_connection_cs: Vec3A,
     pub wheel_direction_cs: Vec3A,

@@ -31,7 +31,7 @@ pub fn integrate_transform(
 
     let axis = if angle < 0.001 {
         ang_vel
-            * (0.5 * time_step - time_step * time_step * time_step * 0.020833334)
+            * (0.5 * time_step - time_step * time_step * time_step * 0.020_833_334)
             * angle
             * angle
     } else {

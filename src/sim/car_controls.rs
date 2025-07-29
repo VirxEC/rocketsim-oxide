@@ -28,7 +28,7 @@ impl CarControls {
         handbrake: false,
     };
 
-    pub(crate) fn clamp_fix(&mut self) {
+    pub(crate) const fn clamp_fix(&mut self) {
         self.throttle = self.throttle.clamp(-1.0, 1.0);
         self.steer = self.steer.clamp(-1.0, 1.0);
         self.pitch = self.pitch.clamp(-1.0, 1.0);

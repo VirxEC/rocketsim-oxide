@@ -106,8 +106,8 @@ impl CollisionShapes {
     #[must_use]
     pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
         match self {
-            CollisionShapes::Sphere(shape) => shape.local_get_supporting_vertex(vec),
-            CollisionShapes::Compound(shape) => shape
+            Self::Sphere(shape) => shape.local_get_supporting_vertex(vec),
+            Self::Compound(shape) => shape
                 .child
                 .as_ref()
                 .unwrap()

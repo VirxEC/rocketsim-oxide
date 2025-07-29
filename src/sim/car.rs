@@ -155,6 +155,7 @@ impl CarState {
         last_controls: CarControls::DEFAULT,
     };
 
+    #[must_use]
     pub const fn has_flip_or_jump(&self) -> bool {
         self.is_on_ground
             || (!self.has_flipped
@@ -162,10 +163,12 @@ impl CarState {
                 && self.air_time_since_jump < DOUBLEJUMP_MAX_DELAY)
     }
 
+    #[must_use]
     pub const fn has_flip_reset(&self) -> bool {
         !self.is_on_ground && self.has_flip_or_jump() && !self.has_jumped
     }
 
+    #[must_use]
     pub const fn got_flip_reset(&self) -> bool {
         !self.is_on_ground && !self.has_jumped
     }
@@ -179,7 +182,8 @@ pub enum Team {
 }
 
 impl Team {
-    pub fn from_team_y(y: f32) -> Self {
+    #[must_use]
+    pub const fn from_team_y(y: f32) -> Self {
         if y.is_sign_negative() {
             Self::Blue
         } else {
@@ -187,6 +191,7 @@ impl Team {
         }
     }
 
+    #[must_use]
     pub fn into_team_y(self) -> f32 {
         f32::from(self as i8 * 2 - 1)
     }
@@ -305,21 +310,25 @@ impl Car {
     }
 
     /// Get the forward direction as a unit vector
+    #[must_use]
     pub const fn get_forward_dir(&self) -> Vec3A {
         self.internal_state.physics.rot_mat.x_axis
     }
 
     /// Get the rightward direction as a unit vector
+    #[must_use]
     pub const fn get_right_dir(&self) -> Vec3A {
         self.internal_state.physics.rot_mat.y_axis
     }
 
     /// Get the upward direction as a unit vector
+    #[must_use]
     pub const fn get_up_dir(&self) -> Vec3A {
         self.internal_state.physics.rot_mat.z_axis
     }
 
     /// Configuration for this car
+    #[must_use]
     pub const fn config(&self) -> &CarConfig {
         &self.config
     }
@@ -364,6 +373,7 @@ impl Car {
         self.set_state(new_state);
     }
 
+    #[must_use]
     pub fn get_state(&self) -> CarState {
         let rb = self.rigid_body.borrow();
 
@@ -472,7 +482,7 @@ impl Car {
             steer_angle += (POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE
                 .get_output(abs_forward_speed_uu, None)
                 - steer_angle)
-                * self.internal_state.handbrake_val
+                * self.internal_state.handbrake_val;
         }
 
         steer_angle *= self.controls.steer;
@@ -689,7 +699,7 @@ impl Car {
         self.internal_state.air_time += tick_time;
 
         if self.internal_state.has_jumped && !self.internal_state.is_jumping {
-            self.internal_state.air_time_since_jump += tick_time
+            self.internal_state.air_time_since_jump += tick_time;
         } else {
             self.internal_state.air_time_since_jump = 0.0;
         }
@@ -786,7 +796,7 @@ impl Car {
         }
     }
 
-    fn update_auto_roll(&mut self, num_wheels_in_contact: u8) {
+    fn update_auto_roll(&self, num_wheels_in_contact: u8) {
         let ground_up_dir = if num_wheels_in_contact > 0 {
             self.bullet_vehicle.get_upwards_dir_from_wheel_contacts()
         } else {
@@ -921,10 +931,10 @@ impl Car {
             forward_speed_uu,
         );
 
-        if !self.internal_state.is_on_ground {
-            self.update_air_torque(num_wheels_in_contact == 0);
-        } else {
+        if self.internal_state.is_on_ground {
             self.internal_state.is_flipping = false;
+        } else {
+            self.update_air_torque(num_wheels_in_contact == 0);
         }
 
         self.update_jump(tick_time, mutator_config, jump_pressed);

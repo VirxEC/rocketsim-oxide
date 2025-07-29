@@ -102,7 +102,7 @@ impl VehicleRL {
             index_right_axis: 1,
             index_up_axis: 2,
             index_forward_axis: 0,
-            wheel_info: const { ArrayVec::new_const() },
+            wheel_info: ArrayVec::new(),
         }
     }
 
@@ -217,7 +217,7 @@ impl VehicleRL {
         self.update_wheel_transform(wheel_idx);
     }
 
-    pub fn get_num_wheels(&self) -> usize {
+    pub const fn get_num_wheels(&self) -> usize {
         self.wheel_info.len()
     }
 

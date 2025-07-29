@@ -350,10 +350,9 @@ impl QuantizedBvh {
                     node_callback.process_node(part_id, triangle_index);
                     cur_index += 1;
                 }
-                NodeType::Branch { escape_index } if !aabb_overlap => {
-                    cur_index += escape_index;
+                NodeType::Branch { escape_index } => {
+                    cur_index += if aabb_overlap { 1 } else { escape_index };
                 }
-                _ => cur_index += 1,
             }
         }
     }

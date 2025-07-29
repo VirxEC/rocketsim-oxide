@@ -39,10 +39,10 @@ impl CollisionMeshFile {
 
     /// From: <https://stackoverflow.com/questions/20511347/a-good-hash-function-for-a-vector/72073933#72073933>
     fn calculate_hash(indices: &Vec<usize>, vertices: &[Vec3A]) -> u32 {
-        let mut hash = Wrapping((vertices.len() + (indices.len() / 3 * vertices.len())) as u32);
+        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D_9F3B);
+        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E37_79B9);
 
-        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D9F3B);
-        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E3779B9);
+        let mut hash = Wrapping((vertices.len() + (indices.len() / 3 * vertices.len())) as u32);
 
         for &vert_index in indices {
             for pos in vertices[vert_index].to_array() {

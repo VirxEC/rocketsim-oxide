@@ -69,7 +69,7 @@ impl HashedOverlappingPairCache {
     }
 
     pub fn contains_pair<'a>(
-        &mut self,
+        &self,
         mut proxy0: &'a RsBroadphaseProxy,
         mut proxy1: &'a RsBroadphaseProxy,
     ) -> bool {

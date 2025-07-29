@@ -46,7 +46,7 @@ impl Mat3AExt for Mat3A {
         debug_assert_ne!(det, 0.0);
         let s = Vec3A::splat(det.recip());
 
-        Mat3A::from_cols(
+        Self::from_cols(
             co * s,
             Vec3A::new(
                 self.cofac(0, 2, 2, 1),
@@ -80,7 +80,7 @@ impl QuatExt for Quat {
         let a0 = q1.wwww() * q2 - b1;
 
         let q = a0 + a1 * NEG_W;
-        Quat::from_array(q.to_array())
+        Self::from_array(q.to_array())
     }
 }
 

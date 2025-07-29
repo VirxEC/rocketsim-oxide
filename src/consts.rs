@@ -233,7 +233,7 @@ pub const STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<6> = LinearPieceCurve {
     ],
 };
 pub const STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.342473), (2300., 0.034837)],
+    value_mappings: [(0., 0.342_473), (2300., 0.034_837)],
 };
 pub const POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
     value_mappings: [(0., 0.39235), (2500., 0.12610)],
