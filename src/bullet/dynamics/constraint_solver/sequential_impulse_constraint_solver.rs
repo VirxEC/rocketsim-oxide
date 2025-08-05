@@ -728,20 +728,20 @@ impl SequentialImpulseConstraintSolver {
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
-                solver.world_transform = if body.collision_object.borrow().no_rot {
+                if body.collision_object.borrow().no_rot {
                     integrate_transform_no_rot(
-                        &solver.world_transform,
+                        &mut solver.world_transform,
                         solver.push_velocity,
                         info.time_step,
-                    )
+                    );
                 } else {
                     integrate_transform(
-                        &solver.world_transform,
+                        &mut solver.world_transform,
                         solver.push_velocity,
                         solver.turn_velocity * info.split_impulse_turn_erp,
                         info.time_step,
-                    )
-                };
+                    );
+                }
             }
 
             body.set_linear_velocity(solver.linear_velocity + solver.external_force_impulse);

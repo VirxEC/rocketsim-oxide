@@ -252,16 +252,20 @@ impl RigidBody {
     #[must_use]
     pub fn predict_integration_transform(&self, time_step: f32) -> Affine3A {
         let co = self.collision_object.borrow();
+        let mut trans = *co.get_world_transform();
+
         if co.no_rot {
-            integrate_transform_no_rot(co.get_world_transform(), self.linear_velocity, time_step)
+            integrate_transform_no_rot(&mut trans, self.linear_velocity, time_step)
         } else {
             integrate_transform(
-                co.get_world_transform(),
+                &mut trans,
                 self.linear_velocity,
                 self.angular_velocity,
                 time_step,
             )
         }
+
+        trans
     }
 
     pub fn set_center_of_mass_transform(&mut self, xform: Affine3A) {

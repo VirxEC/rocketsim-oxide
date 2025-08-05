@@ -398,6 +398,7 @@ impl Arena {
         dist_sq - RADIUS_SQ
     }
 
+    #[must_use]
     pub fn is_ball_scored(&self) -> bool {
         let ball_pos = self
             .objects
@@ -428,6 +429,7 @@ impl Arena {
         }
     }
 
+    #[must_use]
     pub const fn get_tick_rate(&self) -> f32 {
         1.0 / self.tick_time
     }

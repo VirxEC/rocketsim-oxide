@@ -4,24 +4,17 @@ use std::f32::consts::FRAC_PI_4;
 
 const ANGULAR_MOTION_THRESHOLD: f32 = FRAC_PI_4;
 
-pub fn integrate_transform_no_rot(
-    cur_trans: &Affine3A,
-    lin_vel: Vec3A,
-    time_step: f32,
-) -> Affine3A {
-    Affine3A {
-        matrix3: cur_trans.matrix3,
-        translation: cur_trans.translation + lin_vel * time_step,
-    }
+pub fn integrate_transform_no_rot(cur_trans: &mut Affine3A, lin_vel: Vec3A, time_step: f32) {
+    cur_trans.translation += lin_vel * time_step;
 }
 
 pub fn integrate_transform(
-    cur_trans: &Affine3A,
+    cur_trans: &mut Affine3A,
     lin_vel: Vec3A,
     ang_vel: Vec3A,
     time_step: f32,
-) -> Affine3A {
-    let translation = cur_trans.translation + lin_vel * time_step;
+) {
+    integrate_transform_no_rot(cur_trans, lin_vel, time_step);
 
     let mut angle = ang_vel.length();
 
@@ -41,10 +34,5 @@ pub fn integrate_transform(
     let dorn = Quat::from_xyzw(axis.x, axis.y, axis.z, (angle * time_step * 0.5).cos());
     let orn0 = Quat::from_mat3a(&cur_trans.matrix3);
     let predicted_orn = dorn.bullet_mul_quat(orn0).bullet_normalize();
-    let matrix3 = Mat3A::bullet_from_quat(predicted_orn);
-
-    Affine3A {
-        matrix3,
-        translation,
-    }
+    cur_trans.matrix3 = Mat3A::bullet_from_quat(predicted_orn);
 }
