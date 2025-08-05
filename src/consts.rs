@@ -214,7 +214,7 @@ impl<const N: usize> LinearPieceCurve<N> {
                 let range_between = after_pair.0 - before_pair.0;
                 let val_diff_between = after_pair.1 - before_pair.1;
                 let linear_interp_factor = (input - before_pair.0) / range_between;
-                return val_diff_between.mul_add(linear_interp_factor, before_pair.1);
+                return val_diff_between * linear_interp_factor + before_pair.1;
             }
         }
 

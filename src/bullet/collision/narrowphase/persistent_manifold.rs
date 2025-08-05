@@ -1,7 +1,7 @@
 use super::manifold_point::ManifoldPoint;
 use crate::bullet::{
     collision::dispatch::collision_object::CollisionObject,
-    linear_math::{AffineExt, plane_space},
+    linear_math::{AffineExt, plane_space_2},
 };
 use arrayvec::ArrayVec;
 use glam::{Vec3A, Vec4};
@@ -224,7 +224,7 @@ impl PersistentManifold {
         new_pt.combined_restitution = Self::calculate_combined_restitution(&body0, &body1);
 
         (new_pt.lateral_friction_dir_1, new_pt.lateral_friction_dir_2) =
-            plane_space(new_pt.normal_world_on_b);
+            plane_space_2(new_pt.normal_world_on_b);
 
         if self.is_swapped {
             new_pt.part_id_0 = part_id_1;

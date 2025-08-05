@@ -9,7 +9,7 @@ use crate::bullet::{
     },
     dynamics::rigid_body::RigidBody,
     linear_math::{
-        plane_space,
+        plane_space_1, plane_space_2,
         transform_util::{integrate_transform, integrate_transform_no_rot},
     },
 };
@@ -350,7 +350,7 @@ impl SequentialImpulseConstraintSolver {
                     cp.lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
                 } else {
                     (cp.lateral_friction_dir_1, cp.lateral_friction_dir_2) =
-                        plane_space(cp.normal_world_on_b);
+                        plane_space_2(cp.normal_world_on_b);
                 }
 
                 let rb0 = solver_body_a.original_body.as_ref();
@@ -571,7 +571,7 @@ impl SequentialImpulseConstraintSolver {
         if lat_rel_vel > f32::EPSILON {
             lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
         } else {
-            (lateral_friction_dir_1, _) = plane_space(normal_world_on_b);
+            lateral_friction_dir_1 = plane_space_1(normal_world_on_b);
         }
 
         let rb0 = solver_body_a.original_body.as_ref();
