@@ -30,13 +30,13 @@ impl Default for TriangleInfo {
 
 #[derive(Clone)]
 pub struct TriangleInfoMap {
-    pub(crate) internal_map: AHashMap<i32, TriangleInfo>,
-    pub(crate) convex_epsilon: f32,
-    pub(crate) planar_epsilon: f32,
-    pub(crate) equal_vertex_threshold: f32,
-    pub(crate) edge_distance_threshold: f32,
-    pub(crate) max_edge_angle_threshold: f32,
-    pub(crate) zero_area_threshold: f32,
+    pub internal_map: AHashMap<i32, TriangleInfo>,
+    pub convex_epsilon: f32,
+    pub planar_epsilon: f32,
+    pub equal_vertex_threshold: f32,
+    pub edge_distance_threshold: f32,
+    pub max_edge_angle_threshold: f32,
+    pub zero_area_threshold: f32,
 }
 
 impl Default for TriangleInfoMap {

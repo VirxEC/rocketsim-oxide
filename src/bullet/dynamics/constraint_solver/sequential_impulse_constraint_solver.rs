@@ -144,7 +144,7 @@ impl SequentialImpulseConstraintSolver {
             }
         }
 
-        for manifold in manifolds.drain(..) {
+        for manifold in manifolds.iter_mut() {
             let solver_body_id_a =
                 self.get_or_init_solver_body(bodies, &manifold.body0, info.time_step);
             let solver_body_id_b =
@@ -162,7 +162,7 @@ impl SequentialImpulseConstraintSolver {
             body0.companion_id = Some(solver_body_id_a);
             body1.companion_id = Some(solver_body_id_b);
 
-            for mut cp in manifold.point_cache {
+            for cp in &mut manifold.point_cache {
                 assert!(cp.distance_1 <= manifold.contact_processing_threshold);
 
                 let rel_pos1 = cp.position_world_on_a - body0.get_world_transform().translation;
@@ -431,6 +431,8 @@ impl SequentialImpulseConstraintSolver {
                     });
             }
         }
+
+        manifolds.clear();
 
         for body in bodies {
             let body = body.borrow();
@@ -716,7 +718,7 @@ impl SequentialImpulseConstraintSolver {
 
     fn solve_group_finish(&mut self, info: &ContactSolverInfo) {
         // writeBackBodies
-        for mut solver in self.tmp_solver_body_pool.drain(..) {
+        for solver in &mut self.tmp_solver_body_pool {
             let Some(mut body) = solver.original_body.as_ref().map(|body| body.borrow_mut()) else {
                 continue;
             };
@@ -752,6 +754,7 @@ impl SequentialImpulseConstraintSolver {
                 .set_world_transform(solver.world_transform);
         }
 
+        self.tmp_solver_body_pool.clear();
         self.tmp_solver_contact_constraint_pool.clear();
         self.tmp_solver_contact_friction_constraint_pool.clear();
     }
