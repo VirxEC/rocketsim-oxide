@@ -29,6 +29,7 @@ impl AffineExt for Affine3A {
 pub trait Mat3AExt {
     fn cofac(&self, r1: usize, c1: usize, r2: usize, c2: usize) -> f32;
     fn bullet_inverse(&self) -> Self;
+    fn bullet_from_quat(q: Quat) -> Self;
 }
 
 impl Mat3AExt for Mat3A {
@@ -60,10 +61,60 @@ impl Mat3AExt for Mat3A {
             ) * s,
         )
     }
+
+    fn bullet_from_quat(q: Quat) -> Self {
+        let d = q.length_squared();
+        let s = 2.0 / d;
+
+        let q: Vec4 = q.into();
+        let nq = -q;
+
+        let mut v1 = q.yxzw() * Vec4::new(-1.0, 1.0, 1.0, 1.0);
+        let mut v2 = q.xxyw() * Vec4::new(-1.0, -1.0, 1.0, 1.0);
+        let mut v3 = q.zyxw();
+
+        let v11 = q.yyxw();
+        let mut v21 = q.zzww();
+        let v31 = q.xzxw() * Vec4::new(1.0, 1.0, -1.0, -1.0);
+
+        v2 *= v1;
+        v1 *= v11;
+        v3 *= v31;
+
+        let v11 = q.zwyw() * Vec4::new(-1.0, -1.0, 1.0, 1.0) * v21;
+        v21.x *= -1.0;
+        let mut v31 = q.wwyw() * Vec4::new(-1.0, 1.0, -1.0, -1.0);
+        let y = nq.wzxw();
+        let z = q.yxyw();
+
+        v21 *= y;
+        v31 *= z;
+
+        v1 += v11;
+        v2 += v21;
+        v3 += v31;
+
+        let vs = Vec4::new(s, s, s, 0.0);
+        v1 *= vs;
+        v2 *= vs;
+        v3 *= vs;
+
+        v1.x += 1.0;
+        v2.y += 1.0;
+        v3.z += 1.0;
+
+        Self::from_cols(
+            Vec3A::from_vec4(v1),
+            Vec3A::from_vec4(v2),
+            Vec3A::from_vec4(v3),
+        )
+        .transpose()
+    }
 }
 
 pub trait QuatExt {
     fn bullet_mul_quat(self, q2: Self) -> Self;
+    fn bullet_normalize(self) -> Self;
 }
 
 impl QuatExt for Quat {
@@ -80,7 +131,13 @@ impl QuatExt for Quat {
         let a0 = q1.wwww() * q2 - b1;
 
         let q = a0 + a1 * NEG_W;
-        Self::from_array(q.to_array())
+        Self::from_vec4(q)
+    }
+
+    fn bullet_normalize(self) -> Self {
+        let vec: Vec4 = self.into();
+        let q = vec * vec.length().recip();
+        Self::from_vec4(q)
     }
 }
 

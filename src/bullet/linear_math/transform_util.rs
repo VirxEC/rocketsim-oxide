@@ -1,4 +1,4 @@
-use crate::bullet::linear_math::QuatExt;
+use crate::bullet::linear_math::{Mat3AExt, QuatExt};
 use glam::{Affine3A, Mat3A, Quat, Vec3A};
 use std::f32::consts::FRAC_PI_4;
 
@@ -40,8 +40,8 @@ pub fn integrate_transform(
 
     let dorn = Quat::from_xyzw(axis.x, axis.y, axis.z, (angle * time_step * 0.5).cos());
     let orn0 = Quat::from_mat3a(&cur_trans.matrix3);
-    let predicted_orn = dorn.bullet_mul_quat(orn0).normalize();
-    let matrix3 = Mat3A::from_quat(predicted_orn);
+    let predicted_orn = dorn.bullet_mul_quat(orn0).bullet_normalize();
+    let matrix3 = Mat3A::bullet_from_quat(predicted_orn);
 
     Affine3A {
         matrix3,

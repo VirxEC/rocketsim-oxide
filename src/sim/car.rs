@@ -32,11 +32,7 @@ use crate::{
     },
 };
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
-use std::{
-    cell::RefCell,
-    f32::{self, consts::PI},
-    rc::Rc,
-};
+use std::{cell::RefCell, f32::consts::PI, rc::Rc};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CarContact {
