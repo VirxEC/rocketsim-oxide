@@ -5,10 +5,7 @@ use super::{
 use crate::bullet::{
     collision::{
         dispatch::collision_object::{CollisionObject, SpecialResolveInfo},
-        narrowphase::{
-            manifold_point::ContactPointFlags,
-            persistent_manifold::{MANIFOLD_CACHE_SIZE, PersistentManifold},
-        },
+        narrowphase::{manifold_point::ContactPointFlags, persistent_manifold::PersistentManifold},
     },
     dynamics::rigid_body::RigidBody,
     linear_math::{
@@ -19,27 +16,16 @@ use crate::bullet::{
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
 
-// pub type SingleConstraintRowSolver = fn(&mut SolverBody, &mut SolverBody, &SolverConstraint) -> f32;
-
 pub struct SequentialImpulseConstraintSolver {
     pub tmp_solver_body_pool: Vec<SolverBody>,
     pub tmp_solver_contact_constraint_pool: Vec<SolverConstraint>,
     // pub tmp_solver_non_contact_constraint_pool: Vec<SolverConstraint>,
     pub tmp_solver_contact_friction_constraint_pool: Vec<SolverConstraint>,
-    // pub tmp_solver_contact_rolling_constraint_pool: Vec<SolverConstraint>,
-    // pub order_tmp_constraint_pool: Vec<i32>,
-    // pub order_non_contact_constraint_pool: Vec<i32>,
-    // pub order_friction_constraint_pool: Vec<i32>,
-    pub max_override_num_solver_iterations: u32,
     pub fixed_body_id: Option<usize>,
     // pub kinematic_body_unique_id_to_solver_body_table: Vec<i32>,
-    // pub resolve_single_constraint_row_generic: SingleConstraintRowSolver,
-    // pub resolve_single_constraint_row_lower_limit: SingleConstraintRowSolver,
-    // pub resolve_split_penetration_impulse: SingleConstraintRowSolver,
     // pub cached_solver_mode: i32,
     pub least_squares_residual: f32,
     // pub bt_seed_2: u64,
-    // btSolverAnalyticsData m_analyticsData;
 }
 
 impl Default for SequentialImpulseConstraintSolver {
@@ -53,7 +39,6 @@ impl Default for SequentialImpulseConstraintSolver {
             // order_tmp_constraint_pool: Vec::new(),
             // order_non_contact_constraint_pool: Vec::new(),
             // order_friction_constraint_pool: Vec::new(),
-            max_override_num_solver_iterations: 0,
             fixed_body_id: None,
             // kinematic_body_unique_id_to_solver_body_table: Vec::new(),
             // resolve_single_constraint_row_generic: Self::resolve_single_constraint_row_generic,
@@ -132,7 +117,6 @@ impl SequentialImpulseConstraintSolver {
         info: &ContactSolverInfo,
     ) {
         self.fixed_body_id = None;
-        self.max_override_num_solver_iterations = 0;
 
         self.tmp_solver_body_pool.clear();
         self.tmp_solver_body_pool.reserve(manifolds.len() * 2);
@@ -172,23 +156,20 @@ impl SequentialImpulseConstraintSolver {
                     .get_disjoint_unchecked_mut([solver_body_id_a, solver_body_id_b])
             };
 
-            manifold.body0.borrow_mut().companion_id = Some(solver_body_id_a);
-            manifold.body1.borrow_mut().companion_id = Some(solver_body_id_b);
+            let mut body0 = manifold.body0.borrow_mut();
+            let mut body1 = manifold.body1.borrow_mut();
 
-            let trans0 = manifold.body0.borrow().get_world_transform().translation;
-            let trans1 = manifold.body1.borrow().get_world_transform().translation;
+            body0.companion_id = Some(solver_body_id_a);
+            body1.companion_id = Some(solver_body_id_b);
 
             for mut cp in manifold.point_cache {
                 assert!(cp.distance_1 <= manifold.contact_processing_threshold);
 
-                let rel_pos1 = cp.position_world_on_a - trans0;
-                let rel_pos2 = cp.position_world_on_b - trans1;
+                let rel_pos1 = cp.position_world_on_a - body0.get_world_transform().translation;
+                let rel_pos2 = cp.position_world_on_b - body1.get_world_transform().translation;
 
                 if cp.is_special {
-                    for (mut obj, rel_pos) in [
-                        (manifold.body0.borrow_mut(), rel_pos1),
-                        (manifold.body1.borrow_mut(), rel_pos2),
-                    ] {
+                    for (obj, rel_pos) in [(&mut *body0, rel_pos1), (&mut *body1, rel_pos2)] {
                         obj.special_resolve_info.num_special_collisions += 1;
                         obj.special_resolve_info.friction = cp.combined_friction;
                         obj.special_resolve_info.restitution = cp.combined_restitution;
@@ -209,13 +190,13 @@ impl SequentialImpulseConstraintSolver {
                 let torque_axis_0 = rel_pos1.cross(cp.normal_world_on_b);
                 let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
                     let rb = rb.borrow();
-                    rb.inv_inertia_tensor_world * torque_axis_0 * rb.angular_factor
+                    rb.inv_inertia_tensor_world.transpose() * torque_axis_0 * rb.angular_factor
                 });
 
                 let torque_axis_1 = rel_pos2.cross(cp.normal_world_on_b);
                 let angular_component_b = rb1.map_or(Vec3A::ZERO, |rb| {
                     let rb = rb.borrow();
-                    rb.inv_inertia_tensor_world * -torque_axis_1 * rb.angular_factor
+                    rb.inv_inertia_tensor_world.transpose() * -torque_axis_1 * rb.angular_factor
                 });
 
                 let denom0 = rb0.map_or(0.0, |rb| {
@@ -301,13 +282,13 @@ impl SequentialImpulseConstraintSolver {
                 let penetration_impulse = positional_error * jac_diag_ab_inv;
                 let velocity_impulse = velocity_error * jac_diag_ab_inv;
 
-                let (rhs, rhs_penetration) = if !info.split_impulse
-                    || penetration > info.split_impulse_penetration_threshold
-                {
-                    (penetration_impulse + velocity_impulse, 0.0)
-                } else {
-                    (velocity_impulse, penetration_impulse)
-                };
+                debug_assert!(info.split_impulse);
+                let (rhs, rhs_penetration) =
+                    if penetration > info.split_impulse_penetration_threshold {
+                        (penetration_impulse + velocity_impulse, 0.0)
+                    } else {
+                        (velocity_impulse, penetration_impulse)
+                    };
 
                 let applied_impulse = cp.applied_impulse * info.warmstarting_factor;
                 if rb0.is_some() {
@@ -415,13 +396,11 @@ impl SequentialImpulseConstraintSolver {
 
                 let vel_1_dot_n = contact_normal_1
                     .dot(solver_body_a.linear_velocity + external_force_impulse_a)
-                    + rel_pos1_cross_normal
-                        .dot(solver_body_a.angular_velocity + external_torque_impulse_a);
+                    + rel_pos1_cross_normal.dot(solver_body_a.angular_velocity);
 
                 let vel_2_dot_n = contact_normal_2
                     .dot(solver_body_b.linear_velocity + external_force_impulse_b)
-                    + rel_pos2_cross_normal
-                        .dot(solver_body_b.angular_velocity + external_torque_impulse_b);
+                    + rel_pos2_cross_normal.dot(solver_body_b.angular_velocity);
 
                 let rel_vel = vel_1_dot_n + vel_2_dot_n;
 
@@ -558,12 +537,12 @@ impl SequentialImpulseConstraintSolver {
         let penetration_impulse = positional_error * jac_diag_ab_inv;
         let velocity_impulse = velocity_error * jac_diag_ab_inv;
 
-        let (rhs, rhs_penetration) =
-            if !info.split_impulse || penetration > info.split_impulse_penetration_threshold {
-                (penetration_impulse + velocity_impulse, 0.0)
-            } else {
-                (velocity_impulse, penetration_impulse)
-            };
+        debug_assert!(info.split_impulse);
+        let (rhs, rhs_penetration) = if penetration > info.split_impulse_penetration_threshold {
+            (penetration_impulse + velocity_impulse, 0.0)
+        } else {
+            (velocity_impulse, penetration_impulse)
+        };
 
         self.tmp_solver_contact_constraint_pool
             .push(SolverConstraint {
@@ -663,6 +642,7 @@ impl SequentialImpulseConstraintSolver {
                 };
 
                 let residual = contact.resolve_split_penetration_impulse(body_a, body_b);
+                // println!("residual: {residual:?}");
                 if residual * residual == 0.0 {
                     should_run ^= mask;
                 }
@@ -691,6 +671,7 @@ impl SequentialImpulseConstraintSolver {
             };
 
             let residual = contact.resolve_single_constraint_row_lower_limit(body_a, body_b);
+            // println!("residual: {residual:?}");
             least_squares_residual = (residual * residual).max(least_squares_residual);
         }
 
@@ -714,6 +695,7 @@ impl SequentialImpulseConstraintSolver {
             };
 
             let residual = contact.resolve_single_constraint_row_generic(body_a, body_b);
+            // println!("residual: {residual:?}");
             least_squares_residual = (residual * residual).max(least_squares_residual);
         }
 
@@ -723,14 +705,9 @@ impl SequentialImpulseConstraintSolver {
     fn solve_group_iterations(&mut self, info: &ContactSolverInfo) {
         self.solve_group_split_impulse_iterations(info);
 
-        let max_iterations = if self.max_override_num_solver_iterations > info.num_iterations {
-            self.max_override_num_solver_iterations
-        } else {
-            info.num_iterations
-        };
-
-        for _ in 0..max_iterations {
+        for _ in 0..info.num_iterations {
             self.least_squares_residual = self.solve_single_iteration();
+            // println!("least_squares_residual: {:?}", self.least_squares_residual);
             if self.least_squares_residual == 0.0 {
                 break;
             }
@@ -747,6 +724,7 @@ impl SequentialImpulseConstraintSolver {
             solver.linear_velocity += solver.delta_linear_velocity;
             solver.angular_velocity += solver.delta_angular_velocity;
 
+            debug_assert!(info.split_impulse);
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
@@ -769,7 +747,6 @@ impl SequentialImpulseConstraintSolver {
             body.set_linear_velocity(solver.linear_velocity + solver.external_force_impulse);
             body.set_angular_velocity(solver.angular_velocity + solver.external_torque_impulse);
 
-            debug_assert!(info.split_impulse);
             body.collision_object
                 .borrow_mut()
                 .set_world_transform(solver.world_transform);
