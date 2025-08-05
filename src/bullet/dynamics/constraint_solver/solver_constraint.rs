@@ -127,13 +127,12 @@ impl SolverConstraint {
         delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
 
         let sum = self.applied_push_impulse + delta_impulse;
-        delta_impulse = if sum < self.lower_limit {
-            self.lower_limit - self.applied_push_impulse
+        if sum < self.lower_limit {
+            delta_impulse = self.lower_limit - self.applied_push_impulse;
+            self.applied_push_impulse = self.lower_limit;
         } else {
-            delta_impulse
+            self.applied_push_impulse = sum;
         };
-
-        self.applied_push_impulse = sum.max(self.lower_limit);
 
         body_a.push_velocity +=
             self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
