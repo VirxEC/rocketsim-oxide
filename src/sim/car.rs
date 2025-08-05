@@ -221,7 +221,7 @@ impl Car {
         };
         compound_shape.add_child_shape(hitbox_offset, child_hitbox_shape);
 
-        let collision_shape = CollisionShapes::Compound(compound_shape);
+        let collision_shape = CollisionShapes::Compound(Box::new(compound_shape));
         let mut info = RigidBodyConstructionInfo::new(CAR_MASS_BT, collision_shape);
         info.friction = CAR_COLLISION_FRICTION;
         info.restitution = CAR_COLLISION_RESTITUTION;

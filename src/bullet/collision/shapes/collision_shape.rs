@@ -33,7 +33,7 @@ impl Default for CollisionShape {
 }
 
 pub enum CollisionShapes {
-    Compound(CompoundShape),
+    Compound(Box<CompoundShape>),
     Sphere(SphereShape),
     StaticPlane(StaticPlaneShape),
     TriangleMesh(Arc<BvhTriangleMeshShape>),
