@@ -16,7 +16,7 @@ pub struct VehicleRaycaster {
 }
 
 impl VehicleRaycaster {
-    pub fn new(added_filter_mask: i32) -> Self {
+    pub const fn new(added_filter_mask: i32) -> Self {
         Self { added_filter_mask }
     }
 

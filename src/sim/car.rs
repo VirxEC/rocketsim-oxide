@@ -250,7 +250,7 @@ impl Car {
             max_suspension_force: f32::MAX,
             ..Default::default()
         };
-        let raycaster = VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32);
+        let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32) };
         let mut bullet_vehicle = VehicleRL::new(rigid_body.clone(), raycaster);
 
         let wheel_direction_cs = Vec3A::new(0.0, 0.0, -1.0);

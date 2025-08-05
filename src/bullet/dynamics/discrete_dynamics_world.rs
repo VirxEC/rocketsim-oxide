@@ -18,20 +18,12 @@ pub struct DiscreteDynamicsWorld {
     pub dynamics_world: DynamicsWorld,
     // sorted_constraints: Vec<TypedConstraint>,
     solver: SequentialImpulseConstraintSolver,
-    // island_manager: SimulationIslandManager,
     // constraints: Vec<TypedConstraint>,
     non_static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
     gravity: Vec3A,
-    // bool m_ownsIslandManager;
-    // bool m_ownsConstraintSolver;
     // synchronize_all_motion_states: bool,
     apply_speculative_contact_restitution: bool,
-    // btAlignedObjectArray<btActionInterface*> m_actions;
-    actions: Vec<()>,
-    // int m_profileTimings;
-    // latency_motion_state_interpolation: bool,
     // predictive_manifolds: Vec<PersistentManifold>,
-    // btSpinMutex m_predictiveManifoldsMutex;
 }
 
 impl DiscreteDynamicsWorld {
@@ -43,19 +35,10 @@ impl DiscreteDynamicsWorld {
     ) -> Self {
         Self {
             dynamics_world: DynamicsWorld::new(dispatcher, pair_cache),
-            // sorted_constraints: Vec::new(),
             solver: constraint_solver,
             gravity: Vec3A::new(0.0, -10.0, 0.0),
-            // local_time: 0.0,
-            // fixed_time_step: 0.0,
-            // synchronize_all_motion_states: false,
             apply_speculative_contact_restitution: false,
-            // latency_motion_state_interpolation: true,
-            // island_manager: SimulationIslandManager::default(),
-            // constraints: Vec::new(),
             non_static_rigid_bodies: Vec::new(),
-            // predictive_manifolds: Vec::new(),
-            actions: Vec::new(),
         }
     }
 
@@ -234,10 +217,6 @@ impl DiscreteDynamicsWorld {
         debug_assert!(!self.apply_speculative_contact_restitution);
     }
 
-    fn update_actions(&mut self, _time_step: f32) {
-        assert!(self.actions.is_empty());
-    }
-
     fn update_activation_state(&self, time_step: f32) {
         for body in &self.non_static_rigid_bodies {
             let mut body = body.borrow_mut();
@@ -291,7 +270,6 @@ impl DiscreteDynamicsWorld {
 
         self.solve_constraints();
         self.integrate_transforms(time_step);
-        self.update_actions(time_step);
         self.update_activation_state(time_step);
     }
 

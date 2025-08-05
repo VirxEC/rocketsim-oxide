@@ -132,7 +132,7 @@ impl SolverConstraint {
             self.applied_push_impulse = self.lower_limit;
         } else {
             self.applied_push_impulse = sum;
-        };
+        }
 
         body_a.push_velocity +=
             self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
