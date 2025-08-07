@@ -66,7 +66,6 @@ pub struct RigidBody {
     pub linear_velocity: Vec3A,
     pub angular_velocity: Vec3A,
     pub inverse_mass: f32,
-    pub linear_factor: Vec3A,
     pub gravity: Vec3A,
     pub gravity_acceleration: Vec3A,
     pub inv_inertia_local: Vec3A,
@@ -86,7 +85,6 @@ pub struct RigidBody {
     pub rigidbody_flags: i32,
     pub delta_linear_velocity: Vec3A,
     pub delta_angular_velocity: Vec3A,
-    pub angular_factor: Vec3A,
     pub inv_mass: Vec3A,
     pub push_velocity: Vec3A,
     pub turn_velocity: Vec3A,
@@ -120,7 +118,6 @@ impl RigidBody {
             1.0 / info.local_inertia,
         );
 
-        let linear_factor = Vec3A::ONE;
         let inv_inertia_tensor_world = Self::get_inertia_tensor(
             collision_object.get_world_transform().matrix3,
             inv_inertia_local,
@@ -132,7 +129,6 @@ impl RigidBody {
             linear_velocity: Vec3A::ZERO,
             angular_velocity: Vec3A::ZERO,
             inverse_mass,
-            linear_factor,
             gravity: Vec3A::ZERO,
             gravity_acceleration: Vec3A::ZERO,
             inv_inertia_local,
@@ -152,8 +148,7 @@ impl RigidBody {
             rigidbody_flags: 0,
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
-            angular_factor: Vec3A::ONE,
-            inv_mass: inverse_mass * linear_factor,
+            inv_mass: Vec3A::splat(inverse_mass),
             push_velocity: Vec3A::ZERO,
             turn_velocity: Vec3A::ZERO,
         }
@@ -204,28 +199,28 @@ impl RigidBody {
 
     pub fn apply_torque_impulse(&mut self, torque: Vec3A) {
         debug_assert!(!torque.is_nan());
-        self.angular_velocity += self.inv_inertia_tensor_world * torque * self.angular_factor;
+        self.angular_velocity += self.inv_inertia_tensor_world * torque;
     }
 
     pub fn apply_impulse(&mut self, impulse: Vec3A, rel_pos: Vec3A) {
         debug_assert_ne!(self.inverse_mass, 0.0);
         self.apply_central_impulse(impulse);
-        self.apply_torque_impulse(rel_pos.cross(impulse * self.linear_factor));
+        self.apply_torque_impulse(rel_pos.cross(impulse));
     }
 
     pub fn apply_torque(&mut self, torque: Vec3A) {
         debug_assert!(!torque.is_nan());
-        self.total_torque += torque * self.angular_factor;
+        self.total_torque += torque;
     }
 
     pub fn apply_central_impulse(&mut self, impulse: Vec3A) {
         debug_assert!(!impulse.is_nan());
-        self.linear_velocity += impulse * self.linear_factor * self.inverse_mass;
+        self.linear_velocity += impulse * self.inverse_mass;
     }
 
     pub fn apply_central_force(&mut self, force: Vec3A) {
         debug_assert!(!force.is_nan());
-        self.total_force += force * self.linear_factor;
+        self.total_force += force;
     }
 
     pub fn apply_gravity(&mut self) {

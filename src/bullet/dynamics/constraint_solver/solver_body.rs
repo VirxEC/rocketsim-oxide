@@ -6,8 +6,6 @@ pub struct SolverBody {
     pub world_transform: Affine3A,
     pub delta_linear_velocity: Vec3A,
     pub delta_angular_velocity: Vec3A,
-    pub angular_factor: Vec3A,
-    pub linear_factor: Vec3A,
     pub inv_mass: Vec3A,
     pub push_velocity: Vec3A,
     pub turn_velocity: Vec3A,
@@ -23,8 +21,6 @@ impl SolverBody {
         world_transform: Affine3A::IDENTITY,
         delta_linear_velocity: Vec3A::ZERO,
         delta_angular_velocity: Vec3A::ZERO,
-        angular_factor: Vec3A::ONE,
-        linear_factor: Vec3A::ONE,
         inv_mass: Vec3A::ZERO,
         push_velocity: Vec3A::ZERO,
         turn_velocity: Vec3A::ZERO,
@@ -43,15 +39,13 @@ impl SolverBody {
             world_transform,
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
-            angular_factor: rb_ref.angular_factor,
-            linear_factor: rb_ref.linear_factor,
             inv_mass: rb_ref.inv_mass,
             push_velocity: Vec3A::ZERO,
             turn_velocity: Vec3A::ZERO,
             linear_velocity: rb_ref.linear_velocity,
             angular_velocity: rb_ref.angular_velocity,
             external_force_impulse: rb_ref.total_force * rb_ref.inverse_mass * time_step,
-            external_torque_impulse: rb_ref.inv_inertia_tensor_world.transpose()
+            external_torque_impulse: rb_ref.inv_inertia_tensor_world
                 * rb_ref.total_torque
                 * time_step,
             original_body: {
@@ -68,8 +62,8 @@ impl SolverBody {
         impulse_magnitude: f32,
     ) {
         debug_assert!(self.original_body.is_some());
-        self.delta_linear_velocity += linear_component * impulse_magnitude * self.linear_factor;
-        self.delta_angular_velocity += angular_component * impulse_magnitude * self.angular_factor;
+        self.delta_linear_velocity += linear_component * impulse_magnitude;
+        self.delta_angular_velocity += angular_component * impulse_magnitude;
     }
 
     #[must_use]

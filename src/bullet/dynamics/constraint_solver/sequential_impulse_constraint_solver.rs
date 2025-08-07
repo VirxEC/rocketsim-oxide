@@ -190,13 +190,13 @@ impl SequentialImpulseConstraintSolver {
                 let torque_axis_0 = rel_pos1.cross(cp.normal_world_on_b);
                 let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
                     let rb = rb.borrow();
-                    rb.inv_inertia_tensor_world.transpose() * torque_axis_0 * rb.angular_factor
+                    rb.inv_inertia_tensor_world.transpose() * torque_axis_0
                 });
 
                 let torque_axis_1 = rel_pos2.cross(cp.normal_world_on_b);
                 let angular_component_b = rb1.map_or(Vec3A::ZERO, |rb| {
                     let rb = rb.borrow();
-                    rb.inv_inertia_tensor_world.transpose() * -torque_axis_1 * rb.angular_factor
+                    rb.inv_inertia_tensor_world.transpose() * -torque_axis_1
                 });
 
                 let denom0 = rb0.map_or(0.0, |rb| {
@@ -367,19 +367,20 @@ impl SequentialImpulseConstraintSolver {
                         (
                             normal_axis,
                             torque_axis,
-                            rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
+                            rb.inv_inertia_tensor_world.transpose() * torque_axis,
                         )
                     });
 
                 let (contact_normal_2, rel_pos2_cross_normal, angular_component_b) =
                     rb1.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
                         let rb = rb.borrow();
-                        let torque_axis = rel_pos2.cross(-normal_axis);
+                        let normal_axis = -normal_axis;
+                        let torque_axis = rel_pos2.cross(normal_axis);
 
                         (
-                            -normal_axis,
+                            normal_axis,
                             torque_axis,
-                            rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
+                            rb.inv_inertia_tensor_world.transpose() * torque_axis,
                         )
                     });
 
@@ -486,7 +487,7 @@ impl SequentialImpulseConstraintSolver {
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
         let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
-            rb.borrow().inv_inertia_tensor_world * torque_axis_0 * rb.borrow().angular_factor
+            rb.borrow().inv_inertia_tensor_world.transpose() * torque_axis_0
         });
 
         let denom = rb0.map_or(0.0, |rb| {
@@ -585,7 +586,7 @@ impl SequentialImpulseConstraintSolver {
                 (
                     lateral_friction_dir_1,
                     torque_axis,
-                    rb.inv_inertia_tensor_world * torque_axis * rb.angular_factor,
+                    rb.inv_inertia_tensor_world * torque_axis,
                 )
             });
 
