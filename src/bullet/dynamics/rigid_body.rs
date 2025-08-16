@@ -324,4 +324,17 @@ impl RigidBody {
             1.0 / self.inverse_mass
         }
     }
+
+    pub fn compute_impulse_denominator(&self, pos: Vec3A, normal: Vec3A) -> f32 {
+        let r0 = pos
+            - self
+                .collision_object
+                .borrow()
+                .get_world_transform()
+                .translation;
+        let c0 = r0.cross(normal);
+        let vec = (self.inv_inertia_tensor_world.transpose() * c0).cross(r0);
+
+        self.inverse_mass + normal.dot(vec)
+    }
 }

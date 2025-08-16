@@ -255,7 +255,7 @@ impl Car {
 
         for i in 0..4 {
             let front = i < 2;
-            let left = i % 2 == 0;
+            let left = i % 2 == 1;
 
             let wheels = if front {
                 &config.front_wheels
@@ -402,14 +402,7 @@ impl Car {
         self.internal_state.tick_count_since_update = 0;
     }
 
-    fn update_wheels(
-        &mut self,
-        tick_time: f32,
-        collision_world: &DiscreteDynamicsWorld,
-        mutator_config: &MutatorConfig,
-        num_wheels_in_contact: u8,
-        forward_speed_uu: f32,
-    ) {
+    fn update_wheels(&mut self, tick_time: f32, num_wheels_in_contact: u8, forward_speed_uu: f32) {
         let abs_forward_speed_uu = forward_speed_uu.abs();
 
         let mut wheels_have_world_contact = false;
@@ -484,16 +477,9 @@ impl Car {
         self.bullet_vehicle.wheel_info[1].steer_angle = steer_angle;
 
         for wheel in &mut self.bullet_vehicle.wheel_info {
-            let Some(ground_obj_ref) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
+            let Some(ground_rb_ref) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
                 continue;
             };
-
-            let ground_rb_ref = collision_world
-                .static_rigid_bodies
-                .iter()
-                .chain(&collision_world.non_static_rigid_bodies)
-                .find(|rb| Rc::ptr_eq(&rb.borrow().collision_object, ground_obj_ref))
-                .unwrap();
             let ground_rb = ground_rb_ref.borrow();
 
             let vel = ground_rb.linear_velocity;
@@ -503,7 +489,11 @@ impl Car {
             let long_dir = lat_dir.cross(wheel.wheel_info.raycast_info.contact_normal_ws);
 
             let wheel_delta = wheel.wheel_info.raycast_info.hard_point_ws
-                - ground_obj_ref.borrow().get_world_transform().translation;
+                - ground_rb
+                    .collision_object
+                    .borrow()
+                    .get_world_transform()
+                    .translation;
             let cross_vec = (angular_vel.cross(wheel_delta) + vel) * BT_TO_UU;
 
             let base_friction = cross_vec.dot(lat_dir).abs();
@@ -611,11 +601,10 @@ impl Car {
                 || self.controls.yaw != 0.0
                 || self.controls.roll != 0.0
             {
-                if self.internal_state.is_flipping {
-                    pitch_torque_scale = 0.0;
-                } else if self.internal_state.has_flipped
-                    && self.internal_state.flip_time
-                        < const { FLIP_TORQUE_TIME + FLIP_PITCHLOCK_EXTRA_TIME }
+                if self.internal_state.is_flipping
+                    || self.internal_state.has_flipped
+                        && self.internal_state.flip_time
+                            < const { FLIP_TORQUE_TIME + FLIP_PITCHLOCK_EXTRA_TIME }
                 {
                     pitch_torque_scale = 0.0;
                 }
@@ -977,13 +966,7 @@ impl Car {
         self.internal_state.is_on_ground = num_wheels_in_contact >= 3;
 
         let forward_speed_uu = self.bullet_vehicle.get_forward_speed() * BT_TO_UU;
-        self.update_wheels(
-            tick_time,
-            collision_world,
-            mutator_config,
-            num_wheels_in_contact,
-            forward_speed_uu,
-        );
+        self.update_wheels(tick_time, num_wheels_in_contact, forward_speed_uu);
 
         if self.internal_state.is_on_ground {
             self.internal_state.is_flipping = false;

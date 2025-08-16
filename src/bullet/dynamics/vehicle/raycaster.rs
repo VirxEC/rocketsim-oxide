@@ -1,6 +1,9 @@
-use crate::bullet::collision::dispatch::{
-    collision_object::CollisionObject,
-    collision_world::{ClosestRayResultCallback, CollisionWorld, RayResultCallback},
+use crate::bullet::{
+    collision::dispatch::{
+        collision_object::CollisionObject,
+        collision_world::{ClosestRayResultCallback, RayResultCallback},
+    },
+    dynamics::{discrete_dynamics_world::DiscreteDynamicsWorld, rigid_body::RigidBody},
 };
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
@@ -9,7 +12,7 @@ pub struct VehicleRaycasterResult {
     pub hit_point_in_world: Vec3A,
     pub hit_normal_in_world: Vec3A,
     pub dist_fraction: f32,
-    pub collision_object: Rc<RefCell<CollisionObject>>,
+    pub rigid_body: Rc<RefCell<RigidBody>>,
 }
 
 pub struct VehicleRaycaster {
@@ -23,24 +26,35 @@ impl VehicleRaycaster {
 
     pub fn cast_ray(
         &self,
-        collision_world: &CollisionWorld,
+        collision_world: &DiscreteDynamicsWorld,
         from: Vec3A,
         to: Vec3A,
         ignore_obj: &Rc<RefCell<CollisionObject>>,
     ) -> Option<VehicleRaycasterResult> {
         let mut ray_callback = ClosestRayResultCallback::new(from, to, ignore_obj);
         ray_callback.base.collision_filter_group |= self.added_filter_mask;
-        collision_world.ray_test(from, to, &mut ray_callback);
+        collision_world
+            .dynamics_world
+            .collision_world
+            .ray_test(from, to, &mut ray_callback);
 
         if ray_callback.has_hit()
             && let Some(co) = ray_callback.base.collision_object.as_ref()
             && co.borrow().has_contact_response()
         {
+            let rigid_body = collision_world
+                .static_rigid_bodies
+                .iter()
+                .chain(&collision_world.non_static_rigid_bodies)
+                .find(|rb| Rc::ptr_eq(&rb.borrow().collision_object, co))
+                .unwrap()
+                .clone();
+
             Some(VehicleRaycasterResult {
+                rigid_body,
                 hit_point_in_world: ray_callback.hit_point_world,
                 hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
                 dist_fraction: ray_callback.base.closest_hit_fraction,
-                collision_object: co.clone(),
             })
         } else {
             None

@@ -1,42 +1,21 @@
 use glam::{Mat3A, Vec3A};
 
-pub struct JacobianEntry {
-    linear_joint_axis: Vec3A,
-    a_j: Vec3A,
-    b_j: Vec3A,
-    min_v_jt_0: Vec3A,
-    min_v_jt_1: Vec3A,
-    a_diag: f32,
+pub struct JacbobianBody<'a> {
+    pub world: &'a Mat3A,
+    pub rel_pos: Vec3A,
+    pub inertia_inv: Vec3A,
+    pub mass_inv: f32,
 }
 
-impl JacobianEntry {
-    pub fn new(
-        world2_a: &Mat3A,
-        world2_b: &Mat3A,
-        rel_pos1: Vec3A,
-        rel_pos2: Vec3A,
-        joint_axis: Vec3A,
-        inertia_inv_a: Vec3A,
-        mass_inv_a: f32,
-        inertia_inv_b: Vec3A,
-        mass_inv_b: f32,
-    ) -> Self {
-        let a_j = world2_a * rel_pos1.cross(joint_axis);
-        let b_j = world2_b * rel_pos2.cross(-joint_axis);
-        let min_v_jt_0 = inertia_inv_a * a_j;
-        let min_v_jt_1 = inertia_inv_b * b_j;
+pub fn get_jacobian_diagonal(
+    body_a: JacbobianBody<'_>,
+    body_b: JacbobianBody<'_>,
+    joint_axis: Vec3A,
+) -> f32 {
+    let a_j = body_a.world * body_a.rel_pos.cross(joint_axis);
+    let b_j = body_b.world * body_b.rel_pos.cross(-joint_axis);
+    let min_v_jt_0 = body_a.inertia_inv * a_j;
+    let min_v_jt_1 = body_b.inertia_inv * b_j;
 
-        Self {
-            a_j,
-            b_j,
-            min_v_jt_0,
-            min_v_jt_1,
-            linear_joint_axis: joint_axis,
-            a_diag: mass_inv_a + min_v_jt_0.dot(a_j) + mass_inv_b + min_v_jt_1.dot(b_j),
-        }
-    }
-
-    pub fn get_diagonal(&self) -> f32 {
-        self.a_diag
-    }
+    body_a.mass_inv + min_v_jt_0.dot(a_j) + body_b.mass_inv + min_v_jt_1.dot(b_j)
 }

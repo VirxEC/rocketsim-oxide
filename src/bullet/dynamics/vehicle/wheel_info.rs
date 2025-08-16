@@ -1,4 +1,4 @@
-use crate::bullet::collision::dispatch::collision_object::CollisionObject;
+use crate::bullet::dynamics::rigid_body::RigidBody;
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
 
@@ -27,7 +27,7 @@ pub struct RaycastInfo {
     pub wheel_direction_ws: Vec3A,
     pub wheel_axle_ws: Vec3A,
     pub is_in_contact: bool,
-    pub ground_object: Option<Rc<RefCell<CollisionObject>>>,
+    pub ground_object: Option<Rc<RefCell<RigidBody>>>,
 }
 
 pub struct WheelInfo {

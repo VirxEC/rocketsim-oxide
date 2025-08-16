@@ -1,8 +1,5 @@
 use glam::Vec3A;
-use std::{
-    f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI},
-    num::NonZeroUsize,
-};
+use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
 
 pub const GRAVITY_Z: f32 = -650.;
 pub const ARENA_EXTENT_X: f32 = 4096.;
