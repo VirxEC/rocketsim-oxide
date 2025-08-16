@@ -9,6 +9,7 @@ pub struct VehicleRaycasterResult {
     pub hit_point_in_world: Vec3A,
     pub hit_normal_in_world: Vec3A,
     pub dist_fraction: f32,
+    pub collision_object: Rc<RefCell<CollisionObject>>,
 }
 
 pub struct VehicleRaycaster {
@@ -29,10 +30,18 @@ impl VehicleRaycaster {
     ) -> Option<VehicleRaycasterResult> {
         let mut ray_callback = ClosestRayResultCallback::new(from, to, ignore_obj);
         ray_callback.base.collision_filter_group |= self.added_filter_mask;
-        collision_world.ray_test(from, to, &ray_callback);
+        collision_world.ray_test(from, to, &mut ray_callback);
 
-        if ray_callback.has_hit() {
-            todo!("vehicle raycast hit");
+        if ray_callback.has_hit()
+            && let Some(co) = ray_callback.base.collision_object.as_ref()
+            && co.borrow().has_contact_response()
+        {
+            Some(VehicleRaycasterResult {
+                hit_point_in_world: ray_callback.hit_point_world,
+                hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
+                dist_fraction: ray_callback.base.closest_hit_fraction,
+                collision_object: co.clone(),
+            })
         } else {
             None
         }

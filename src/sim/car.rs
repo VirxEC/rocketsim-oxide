@@ -4,10 +4,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::broadphase_proxy::CollisionFilterGroups,
-            dispatch::{
-                collision_object::{ACTIVE_TAG, CollisionFlags, DISABLE_SIMULATION},
-                collision_world::CollisionWorld,
-            },
+            dispatch::collision_object::{ACTIVE_TAG, CollisionFlags, DISABLE_SIMULATION},
             shapes::{
                 box_shape::BoxShape, collision_shape::CollisionShapes,
                 compound_shape::CompoundShape,
@@ -278,7 +275,7 @@ impl Car {
                 wheel_ray_start_offset * UU_TO_BT,
                 wheel_direction_cs,
                 wheel_axle_cs,
-                suspension_rest_length,
+                suspension_rest_length * UU_TO_BT,
                 radius * UU_TO_BT,
                 &tuning,
                 front,
@@ -486,9 +483,11 @@ impl Car {
         self.bullet_vehicle.wheel_info[1].steer_angle = steer_angle;
 
         for wheel in &mut self.bullet_vehicle.wheel_info {
-            if let Some(ground_obj) = wheel.wheel_info.raycast_info.ground_object.as_ref() {
-                todo!("wheel-ground contact")
-            }
+            let Some(ground_obj) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
+                continue;
+            };
+
+            todo!("wheel-ground contact")
         }
 
         if wheels_have_world_contact {
@@ -866,7 +865,7 @@ impl Car {
 
     pub(crate) fn pre_tick_update(
         &mut self,
-        collision_world: &CollisionWorld,
+        collision_world: &DiscreteDynamicsWorld,
         game_mode: GameMode,
         tick_time: f32,
         mutator_config: &MutatorConfig,

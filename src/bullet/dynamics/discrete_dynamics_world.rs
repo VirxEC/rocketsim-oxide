@@ -19,7 +19,8 @@ pub struct DiscreteDynamicsWorld {
     // sorted_constraints: Vec<TypedConstraint>,
     solver: SequentialImpulseConstraintSolver,
     // constraints: Vec<TypedConstraint>,
-    non_static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
+    pub non_static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
+    pub static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
     gravity: Vec3A,
     // synchronize_all_motion_states: bool,
     apply_speculative_contact_restitution: bool,
@@ -39,6 +40,7 @@ impl DiscreteDynamicsWorld {
             gravity: Vec3A::new(0.0, -10.0, 0.0),
             apply_speculative_contact_restitution: false,
             non_static_rigid_bodies: Vec::new(),
+            static_rigid_bodies: Vec::new(),
         }
     }
 
@@ -73,6 +75,7 @@ impl DiscreteDynamicsWorld {
             let co = body.borrow().collision_object.clone();
             if co.borrow().is_static_object() {
                 co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+                self.static_rigid_bodies.push(body);
             } else {
                 self.non_static_rigid_bodies.push(body);
             }
@@ -115,6 +118,7 @@ impl DiscreteDynamicsWorld {
             let co = body.borrow().collision_object.clone();
             if co.borrow().is_static_object() {
                 co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+                self.static_rigid_bodies.push(body);
             } else {
                 self.non_static_rigid_bodies.push(body);
             }

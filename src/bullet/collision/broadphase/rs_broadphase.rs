@@ -3,6 +3,7 @@ use super::{
 };
 use crate::bullet::{
     collision::{
+        broadphase::broadphase_proxy::BroadphaseAabbCallback,
         dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
         narrowphase::persistent_manifold::ContactAddedCallback,
         shapes::{
@@ -448,5 +449,22 @@ impl RsBroadphase {
             &self.handles,
             contact_added_callback,
         );
+    }
+
+    pub fn ray_test<T: BroadphaseAabbCallback>(
+        &self,
+        ray_from: Vec3A,
+        ray_to: Vec3A,
+        ray_callback: &mut T,
+    ) {
+        debug_assert!(ray_from.distance_squared(ray_to) < self.cell_size_sq);
+        let cell = &self.cells[self.get_cell_index(ray_from)];
+
+        for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
+            let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;
+            if other_proxy.client_object.is_some() {
+                ray_callback.process(other_proxy);
+            }
+        }
     }
 }

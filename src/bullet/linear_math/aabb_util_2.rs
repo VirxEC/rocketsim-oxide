@@ -28,3 +28,46 @@ pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> (Vec3A,
 
     (center - extent, center + extent)
 }
+
+pub fn ray_aabb_2(
+    ray_from: Vec3A,
+    ray_inv_dir: Vec3A,
+    ray_sign: [bool; 3],
+    bounds: &[Vec3A; 2],
+    lambda_min: f32,
+    lambda_max: f32,
+) -> bool {
+    let mut tmin = (bounds[ray_sign[0] as usize].x - ray_from.x) * ray_inv_dir.x;
+    let mut tmax = (bounds[!ray_sign[0] as usize].x - ray_from.x) * ray_inv_dir.x;
+    let tymin = (bounds[ray_sign[1] as usize].y - ray_from.y) * ray_inv_dir.y;
+    let tymax = (bounds[!ray_sign[1] as usize].y - ray_from.y) * ray_inv_dir.y;
+
+    if tmin > tymax || tymin > tmax {
+        return false;
+    }
+
+    if tymin > tmin {
+        tmin = tymin;
+    }
+
+    if tymax < tmax {
+        tmax = tymax;
+    }
+
+    let tzmin = (bounds[ray_sign[2] as usize].z - ray_from.z) * ray_inv_dir.z;
+    let tzmax = (bounds[!ray_sign[2] as usize].z - ray_from.z) * ray_inv_dir.z;
+
+    if tmin > tzmax || tzmin > tmax {
+        return false;
+    }
+
+    if tzmin > tmin {
+        tmin = tzmin;
+    }
+
+    if tzmax < tmax {
+        tmax = tzmax;
+    }
+
+    tmin < lambda_max && tmax > lambda_min
+}

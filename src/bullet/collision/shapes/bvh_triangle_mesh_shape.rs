@@ -82,6 +82,20 @@ impl BvhTriangleMeshShape {
         );
     }
 
+    pub fn perform_raycast<T: TriangleCallback>(
+        &self,
+        callback: &mut T,
+        ray_source: Vec3A,
+        ray_target: Vec3A,
+    ) {
+        let mut my_node_callback = MyNodeOverlapCallback::new(self.get_mesh_interface(), callback);
+        self.bvh.quantized_bvh.report_ray_overlapping_node(
+            &mut my_node_callback,
+            ray_source,
+            ray_target,
+        );
+    }
+
     #[must_use]
     pub const fn get_collision_shape(&self) -> &CollisionShape {
         &self.triangle_mesh_shape.concave_shape.collision_shape

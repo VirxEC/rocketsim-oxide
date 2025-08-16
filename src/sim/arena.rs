@@ -594,7 +594,7 @@ impl Arena {
 
         for car in self.objects.cars.values_mut() {
             car.pre_tick_update(
-                &self.bullet_world.dynamics_world.collision_world,
+                &self.bullet_world,
                 self.game_mode,
                 self.tick_time,
                 &self.objects.mutator_config,

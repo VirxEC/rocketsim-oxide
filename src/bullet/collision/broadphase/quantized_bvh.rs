@@ -1,6 +1,6 @@
 use crate::bullet::{
     collision::shapes::{triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh},
-    linear_math::aabb_util_2::test_quantized_aabb_against_quantized_aabb,
+    linear_math::aabb_util_2::{ray_aabb_2, test_quantized_aabb_against_quantized_aabb},
 };
 use glam::{U16Vec3, Vec3A};
 use std::mem;
@@ -380,6 +380,94 @@ impl QuantizedBvh {
                 );
             }
         }
+    }
+
+    fn walk_stackless_quantized_tree_against_ray<T: NodeOverlapCallback>(
+        &self,
+        node_callback: &mut T,
+        ray_source: Vec3A,
+        ray_target: Vec3A,
+        start_node_index: usize,
+        end_node_index: usize,
+    ) {
+        let mut cur_index = start_node_index;
+        let mut walk_iterations = 0;
+        let sub_tree_size = end_node_index - start_node_index;
+
+        let ray_direction = (ray_target - ray_source).normalize_or_zero();
+        let lambda_max = ray_direction.dot(ray_target - ray_source);
+
+        let ray_direction_inverse = 1.0 / ray_direction;
+        debug_assert!(!ray_direction_inverse.is_nan());
+
+        let sign: [bool; 3] = ray_direction.cmplt(Vec3A::ZERO).into();
+
+        let ray_aabb_min = ray_source.min(ray_target);
+        let ray_aabb_max = ray_source.max(ray_target);
+
+        let quantized_query_aabb_min = self.quantize_with_clamp(ray_aabb_min, false);
+        let quantized_query_aabb_max = self.quantize_with_clamp(ray_aabb_max, true);
+
+        while cur_index < end_node_index {
+            debug_assert!(walk_iterations < sub_tree_size);
+            let root_node = &self.quantized_contiguous_nodes[cur_index];
+
+            walk_iterations += 1;
+
+            let mut ray_box_overlap = false;
+
+            let box_box_overlap = test_quantized_aabb_against_quantized_aabb(
+                quantized_query_aabb_min,
+                quantized_query_aabb_max,
+                root_node.quantized_aabb_min,
+                root_node.quantized_aabb_max,
+            );
+            if box_box_overlap {
+                let bounds = [
+                    self.unquantize(root_node.quantized_aabb_min),
+                    self.unquantize(root_node.quantized_aabb_max),
+                ];
+
+                ray_box_overlap = ray_aabb_2(
+                    ray_source,
+                    ray_direction_inverse,
+                    sign,
+                    &bounds,
+                    0.0,
+                    lambda_max,
+                );
+            }
+
+            match root_node.node_type {
+                NodeType::Leaf {
+                    part_id,
+                    triangle_index,
+                } => {
+                    if ray_box_overlap {
+                        node_callback.process_node(part_id, triangle_index);
+                    }
+                    cur_index += 1;
+                }
+                NodeType::Branch { escape_index } => {
+                    cur_index += if ray_box_overlap { 1 } else { escape_index };
+                }
+            }
+        }
+    }
+
+    pub fn report_ray_overlapping_node<T: NodeOverlapCallback>(
+        &self,
+        node_callback: &mut T,
+        ray_source: Vec3A,
+        ray_target: Vec3A,
+    ) {
+        self.walk_stackless_quantized_tree_against_ray(
+            node_callback,
+            ray_source,
+            ray_target,
+            0,
+            self.cur_node_index,
+        );
     }
 
     pub fn report_aabb_overlapping_node<T: NodeOverlapCallback>(
