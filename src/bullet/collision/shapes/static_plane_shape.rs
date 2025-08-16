@@ -99,29 +99,29 @@ impl StaticPlaneShape {
     ) {
         let aabb_min = self.concave_shape.collision_shape.aabb_min_cache;
         let aabb_max = self.concave_shape.collision_shape.aabb_max_cache;
-    
+
         let ray_aabb_min = ray_source.min(ray_target);
         let ray_aabb_max = ray_source.max(ray_target);
-    
+
         if !test_aabb_against_aabb(ray_aabb_min, ray_aabb_max, aabb_min, aabb_max) {
             return;
         }
-    
+
         let delta = ray_target - ray_source;
         let dist = delta.length();
         let ray_direction = delta / dist;
-    
+
         let dir_align = self.plane_normal.dot(ray_direction);
         if dir_align.abs() < f32::EPSILON {
             return;
         }
-    
+
         let normal_start = self.plane_normal.dot(ray_source);
         let t = -normal_start / dir_align;
         if t < 0.0 {
             return;
         }
-    
+
         let hit_fraction = t / dist;
         result_callback.report_hit(self.plane_normal, hit_fraction);
     }

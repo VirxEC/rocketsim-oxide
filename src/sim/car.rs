@@ -405,6 +405,7 @@ impl Car {
     fn update_wheels(
         &mut self,
         tick_time: f32,
+        collision_world: &DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
@@ -453,7 +454,7 @@ impl Car {
         }
 
         let mut drive_speed_scale =
-            DRIVE_SPEED_TORQUE_FACTOR_CURVE.get_output(abs_forward_speed_uu, None);
+            DRIVE_SPEED_TORQUE_FACTOR_CURVE.get_output(abs_forward_speed_uu);
         if num_wheels_in_contact < 3 {
             drive_speed_scale /= 4.0;
         }
@@ -467,13 +468,13 @@ impl Car {
         }
 
         let mut steer_angle = if self.config.three_wheels {
-            STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL.get_output(abs_forward_speed_uu, None)
+            STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL.get_output(abs_forward_speed_uu)
         } else {
-            STEER_ANGLE_FROM_SPEED_CURVE.get_output(abs_forward_speed_uu, None)
+            STEER_ANGLE_FROM_SPEED_CURVE.get_output(abs_forward_speed_uu)
         };
         if self.internal_state.handbrake_val != 0.0 {
             steer_angle += (POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE
-                .get_output(abs_forward_speed_uu, None)
+                .get_output(abs_forward_speed_uu)
                 - steer_angle)
                 * self.internal_state.handbrake_val;
         }
@@ -483,11 +484,68 @@ impl Car {
         self.bullet_vehicle.wheel_info[1].steer_angle = steer_angle;
 
         for wheel in &mut self.bullet_vehicle.wheel_info {
-            let Some(ground_obj) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
+            let Some(ground_obj_ref) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
                 continue;
             };
 
-            todo!("wheel-ground contact")
+            let ground_rb_ref = collision_world
+                .static_rigid_bodies
+                .iter()
+                .chain(&collision_world.non_static_rigid_bodies)
+                .find(|rb| Rc::ptr_eq(&rb.borrow().collision_object, ground_obj_ref))
+                .unwrap();
+            let ground_rb = ground_rb_ref.borrow();
+
+            let vel = ground_rb.linear_velocity;
+            let angular_vel = ground_rb.angular_velocity;
+
+            let lat_dir = wheel.wheel_info.world_transform.matrix3.col(1);
+            let long_dir = lat_dir.cross(wheel.wheel_info.raycast_info.contact_normal_ws);
+
+            let wheel_delta = wheel.wheel_info.raycast_info.hard_point_ws
+                - ground_obj_ref.borrow().get_world_transform().translation;
+            let cross_vec = (angular_vel.cross(wheel_delta) + vel) * BT_TO_UU;
+
+            let base_friction = cross_vec.dot(lat_dir).abs();
+
+            let mut friction_curve_input = 0.0;
+            if base_friction > 5.0 {
+                friction_curve_input =
+                    base_friction / (cross_vec.dot(long_dir).abs() + base_friction);
+            }
+
+            let mut lat_friction = if self.config.three_wheels {
+                LAT_FRICTION_CURVE_THREEWHEEL
+            } else {
+                LAT_FRICTION_CURVE
+            }
+            .get_output(friction_curve_input);
+            let mut long_friction = 1.0;
+
+            if self.internal_state.handbrake_val != 0.0 {
+                long_friction = LONG_FRICTION_CURVE.get_output(friction_curve_input);
+
+                let handbrake_amount = self.internal_state.handbrake_val;
+                lat_friction *=
+                    (HANDBRAKE_LAT_FRICTION_FACTOR_CURVE.get_output(friction_curve_input) - 1.0)
+                        * handbrake_amount
+                        + 1.0;
+                long_friction *=
+                    (HANDBRAKE_LONG_FRICTION_FACTOR_CURVE.get_output(friction_curve_input) - 1.0)
+                        * handbrake_amount
+                        + 1.0;
+            }
+
+            if real_throttle == 0.0 {
+                // contact is not sticky
+                let non_sticky_scale = NON_STICKY_FRICTION_FACTOR_CURVE
+                    .get_output(wheel.wheel_info.raycast_info.contact_normal_ws.z);
+                lat_friction *= non_sticky_scale;
+                long_friction *= non_sticky_scale;
+            }
+
+            wheel.lat_friction = lat_friction;
+            wheel.long_friction = long_friction;
         }
 
         if wheels_have_world_contact {
@@ -921,6 +979,7 @@ impl Car {
         let forward_speed_uu = self.bullet_vehicle.get_forward_speed() * BT_TO_UU;
         self.update_wheels(
             tick_time,
+            collision_world,
             mutator_config,
             num_wheels_in_contact,
             forward_speed_uu,

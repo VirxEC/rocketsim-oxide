@@ -1,5 +1,8 @@
 use glam::Vec3A;
-use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
+use std::{
+    f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI},
+    num::NonZeroUsize,
+};
 
 pub const GRAVITY_Z: f32 = -650.;
 pub const ARENA_EXTENT_X: f32 = 4096.;
@@ -193,12 +196,9 @@ impl<const N: usize> LinearPieceCurve<N> {
     /// # Arguments
     ///
     /// * `input` - The input to the curve
-    /// * `default_output` - The default output if N is 0
     #[must_use]
-    pub fn get_output(&self, input: f32, default_output: Option<f32>) -> f32 {
-        if N == 0 {
-            return default_output.unwrap_or(1.);
-        }
+    pub fn get_output(&self, input: f32) -> f32 {
+        debug_assert!(N != 0);
 
         let first_val_pair = self.value_mappings[0];
 
