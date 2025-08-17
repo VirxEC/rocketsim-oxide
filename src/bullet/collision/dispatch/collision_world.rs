@@ -10,10 +10,7 @@ use crate::bullet::{
             rs_broadphase::RsBroadphase,
         },
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
-        shapes::{
-            collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
-            triangle_shape::TriangleShape,
-        },
+        shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
     },
     linear_math::interpolate_3,
 };
@@ -417,33 +414,19 @@ impl CollisionWorld {
         let ray_from_local = world_to_co.transform_point3a(ray_from);
         let ray_to_local = world_to_co.transform_point3a(ray_to);
 
-        let shape = co.get_collision_shape().as_ref().unwrap().borrow();
-        match &*shape {
-            CollisionShapes::Compound(_) => todo!("compound ray test"),
-            CollisionShapes::Sphere(_) => todo!("sphere ray test"),
-            CollisionShapes::StaticPlane(plane) => {
-                let hit_fraction = result_callback.get_base().closest_hit_fraction;
-                let mut rcb = BridgeTriangleRaycastCallback::new(
-                    ray_from_local,
-                    ray_to_local,
-                    result_callback,
-                    collision_object,
-                );
-                rcb.hit_fraction = hit_fraction;
-                plane.perform_raycast(&mut rcb, ray_from_local, ray_to_local);
-            }
-            CollisionShapes::TriangleMesh(mesh) => {
-                let hit_fraction = result_callback.get_base().closest_hit_fraction;
-                let mut rcb = BridgeTriangleRaycastCallback::new(
-                    ray_from_local,
-                    ray_to_local,
-                    result_callback,
-                    collision_object,
-                );
-                rcb.hit_fraction = hit_fraction;
-                mesh.perform_raycast(&mut rcb, ray_from_local, ray_to_local);
-            }
-        }
+        let hit_fraction = result_callback.get_base().closest_hit_fraction;
+        let mut rcb = BridgeTriangleRaycastCallback::new(
+            ray_from_local,
+            ray_to_local,
+            result_callback,
+            collision_object,
+        );
+        rcb.hit_fraction = hit_fraction;
+        co.get_collision_shape().unwrap().borrow().perform_raycast(
+            &mut rcb,
+            ray_from_local,
+            ray_to_local,
+        );
     }
 
     pub fn ray_test<T: RayResultCallback>(

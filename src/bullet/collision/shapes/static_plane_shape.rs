@@ -118,7 +118,7 @@ impl StaticPlaneShape {
 
         let normal_start = self.plane_normal.dot(ray_source);
         let t = -normal_start / dir_align;
-        if t < 0.0 {
+        if !(0.0..1.0).contains(&t) {
             return;
         }
 

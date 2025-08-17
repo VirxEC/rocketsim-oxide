@@ -226,7 +226,6 @@ impl VehicleRL {
     }
 
     fn ray_cast(&mut self, collision_world: &DiscreteDynamicsWorld, wheel_idx: usize) -> f32 {
-        let up = self.get_up_vector();
         let num_wheels = self.get_num_wheels();
 
         let cb = self.chassis_body.borrow();
@@ -272,6 +271,7 @@ impl VehicleRL {
 
         wheel.wheel_info.raycast_info.ground_object = Some(ray_results.rigid_body.clone());
 
+        let up = cb_co.get_world_transform().matrix3.col(self.index_up_axis);
         let wheel_trace_len_sq = (wheel.wheel_info.raycast_info.hard_point_ws
             - wheel.wheel_info.raycast_info.contact_point_ws)
             .dot(up);

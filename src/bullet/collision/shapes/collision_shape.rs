@@ -2,7 +2,10 @@ use super::{
     bvh_triangle_mesh_shape::BvhTriangleMeshShape, compound_shape::CompoundShape,
     sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
 };
-use crate::bullet::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
+use crate::bullet::collision::{
+    broadphase::broadphase_proxy::BroadphaseNativeTypes,
+    dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+};
 use glam::{Affine3A, Vec3A};
 use std::sync::Arc;
 
@@ -114,6 +117,24 @@ impl CollisionShapes {
                 .child_shape
                 .local_get_supporting_vertex(vec),
             _ => todo!(),
+        }
+    }
+
+    pub fn perform_raycast<T: RayResultCallback>(
+        &self,
+        result_callback: &mut BridgeTriangleRaycastCallback<T>,
+        ray_from_local: Vec3A,
+        ray_to_local: Vec3A,
+    ) {
+        match self {
+            CollisionShapes::Compound(_) => todo!("compound ray test"),
+            CollisionShapes::Sphere(_) => todo!("sphere ray test"),
+            CollisionShapes::StaticPlane(plane) => {
+                plane.perform_raycast(result_callback, ray_from_local, ray_to_local);
+            }
+            CollisionShapes::TriangleMesh(mesh) => {
+                mesh.perform_raycast(result_callback, ray_from_local, ray_to_local);
+            }
         }
     }
 }
