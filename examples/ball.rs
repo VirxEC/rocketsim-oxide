@@ -9,7 +9,7 @@ fn main() {
     let mut arena = Arena::new(GameMode::Soccar);
 
     let start = Instant::now();
-    for _ in 0..10_000 {
+    for _ in 0..20_000 {
         let mut ball = BallState::DEFAULT;
         ball.physics.vel.x = 600.0;
         ball.physics.vel.y = 1550.0;
@@ -21,6 +21,6 @@ fn main() {
     let elapsed = Instant::now().duration_since(start).as_secs_f32();
     println!(
         "Elapsed: {elapsed}\nSPS: {}",
-        (10000 * 720) as f32 / elapsed
+        (20_000 * 720) as f32 / elapsed
     );
 }

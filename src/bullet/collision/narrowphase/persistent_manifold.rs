@@ -197,8 +197,6 @@ impl PersistentManifold {
         normal_on_b_in_world: Vec3A,
         point_in_world: Vec3A,
         depth: f32,
-        part_id_0: i32,
-        part_id_1: i32,
         index_0: i32,
         index_1: i32,
         contact_added_callback: &mut T,
@@ -227,13 +225,9 @@ impl PersistentManifold {
             plane_space_2(new_pt.normal_world_on_b);
 
         if self.is_swapped {
-            new_pt.part_id_0 = part_id_1;
-            new_pt.part_id_1 = part_id_0;
             new_pt.index_0 = index_1;
             new_pt.index_1 = index_0;
         } else {
-            new_pt.part_id_0 = part_id_0;
-            new_pt.part_id_1 = part_id_1;
             new_pt.index_0 = index_0;
             new_pt.index_1 = index_1;
         }

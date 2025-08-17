@@ -69,7 +69,7 @@ pub struct CarState {
     pub is_jumping: bool,
     /// Total time spent in the air
     pub air_time: f32,
-    /// Time spent in the air once !is_jumping
+    /// Time spent in the air once `!is_jumping`
     ///
     /// If we never jumped, it is 0
     pub air_time_since_jump: f32,
@@ -497,12 +497,11 @@ impl Car {
             let cross_vec = (angular_vel.cross(wheel_delta) + vel) * BT_TO_UU;
 
             let base_friction = cross_vec.dot(lat_dir).abs();
-
-            let mut friction_curve_input = 0.0;
-            if base_friction > 5.0 {
-                friction_curve_input =
-                    base_friction / (cross_vec.dot(long_dir).abs() + base_friction);
-            }
+            let friction_curve_input = if base_friction > 5.0 {
+                base_friction / (cross_vec.dot(long_dir).abs() + base_friction)
+            } else {
+                0.0
+            };
 
             let mut lat_friction = if self.config.three_wheels {
                 LAT_FRICTION_CURVE_THREEWHEEL

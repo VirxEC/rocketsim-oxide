@@ -170,14 +170,14 @@ impl RigidBody {
     pub fn set_linear_velocity(&mut self, lin_vel: Vec3A) {
         debug_assert!(!lin_vel.is_nan());
 
-        self.collision_object.borrow_mut().update_revision += 1;
+        // self.collision_object.borrow_mut().update_revision += 1;
         self.linear_velocity = lin_vel;
     }
 
     pub fn set_angular_velocity(&mut self, ang_vel: Vec3A) {
         debug_assert!(!ang_vel.is_nan());
 
-        self.collision_object.borrow_mut().update_revision += 1;
+        // self.collision_object.borrow_mut().update_revision += 1;
         self.angular_velocity = ang_vel;
     }
 
@@ -250,14 +250,14 @@ impl RigidBody {
         let mut trans = *co.get_world_transform();
 
         if co.no_rot {
-            integrate_transform_no_rot(&mut trans, self.linear_velocity, time_step)
+            integrate_transform_no_rot(&mut trans, self.linear_velocity, time_step);
         } else {
             integrate_transform(
                 &mut trans,
                 self.linear_velocity,
                 self.angular_velocity,
                 time_step,
-            )
+            );
         }
 
         trans

@@ -1,10 +1,13 @@
-use super::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape};
+use super::triangle_shape::TriangleShape;
+use crate::bullet::{
+    collision::shapes::triangle_callback::TriangleCallback, linear_math::aabb_util_2::Aabb,
+};
 use glam::Vec3A;
 
 #[derive(Debug)]
 pub struct TriangleMesh {
     triangles: Box<[TriangleShape]>,
-    aabbs: Box<[(Vec3A, Vec3A)]>,
+    aabbs: Box<[Aabb]>,
 }
 
 impl TriangleMesh {
@@ -19,7 +22,10 @@ impl TriangleMesh {
                 let p1 = verts[ids[1]];
                 let p2 = verts[ids[2]];
 
-                (p0.min(p1).min(p2), p0.max(p1).max(p2))
+                Aabb {
+                    min: p0.min(p1).min(p2),
+                    max: p0.max(p1).max(p2),
+                }
             })
             .collect();
 
@@ -31,33 +37,26 @@ impl TriangleMesh {
         Self { triangles, aabbs }
     }
 
-    pub fn internal_process_all_triangles<T: InternalTriangleIndexCallback>(
-        &self,
-        callback: &mut T,
-        _aabb_min: &Vec3A,
-        _aabb_max: &Vec3A,
-    ) {
-        let part = 0;
-        let (tris, aabbs) = self.get_tris_aabbs(part);
+    pub fn internal_process_all_triangles<T: TriangleCallback>(&self, callback: &mut T) {
+        let (tris, aabbs) = self.get_tris_aabbs();
 
-        for (i, (triangle, (aabb_min, aabb_max))) in tris.iter().zip(aabbs).enumerate() {
-            let continue_processing =
-                callback.internal_process_triangle_index(triangle, *aabb_min, *aabb_max, part, i);
+        for (i, (triangle, aabb)) in tris.iter().zip(aabbs).enumerate() {
+            let continue_processing = callback.process_triangle(triangle, aabb, i);
             if !continue_processing {
                 return;
             }
         }
     }
 
-    pub fn get_triangle(&self, subpart: usize, index: usize) -> TriangleShape {
-        self.get_tris_aabbs(subpart).0[index]
+    pub fn get_triangle(&self, index: usize) -> &TriangleShape {
+        &self.triangles[index]
     }
 
     pub fn get_total_num_faces(&self) -> usize {
         self.triangles.len()
     }
 
-    pub fn get_tris_aabbs(&self, _subpart: usize) -> (&[TriangleShape], &[(Vec3A, Vec3A)]) {
+    pub fn get_tris_aabbs(&self) -> (&[TriangleShape], &[Aabb]) {
         (&self.triangles, &self.aabbs)
     }
 }

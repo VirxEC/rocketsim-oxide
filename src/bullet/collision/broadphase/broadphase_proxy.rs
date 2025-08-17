@@ -1,5 +1,6 @@
-use crate::bullet::collision::dispatch::collision_object::CollisionObject;
-use glam::Vec3A;
+use crate::bullet::{
+    collision::dispatch::collision_object::CollisionObject, linear_math::aabb_util_2::Aabb,
+};
 use std::{cell::RefCell, rc::Rc};
 
 #[allow(dead_code)]
@@ -87,8 +88,7 @@ pub struct BroadphaseProxy {
     pub collision_filter_group: i32,
     pub collision_filter_mask: i32,
     pub unique_id: u32,
-    pub aabb_min: Vec3A,
-    pub aabb_max: Vec3A,
+    pub aabb: Aabb,
 }
 
 pub struct BroadphasePair {

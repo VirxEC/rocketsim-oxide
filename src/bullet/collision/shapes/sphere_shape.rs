@@ -2,7 +2,9 @@ use super::{
     collision_shape::CollisionShape, convex_internal_shape::ConvexInternalShape,
     convex_shape::ConvexShape,
 };
-use crate::bullet::collision::broadphase::broadphase_proxy::BroadphaseNativeTypes;
+use crate::bullet::{
+    collision::broadphase::broadphase_proxy::BroadphaseNativeTypes, linear_math::aabb_util_2::Aabb,
+};
 use glam::{Affine3A, Vec3A};
 
 pub struct SphereShape {
@@ -37,12 +39,15 @@ impl SphereShape {
     }
 
     #[must_use]
-    pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
+    pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
         let center = t.translation;
         let margin = self.get_margin() + 0.08;
         let extent = Vec3A::splat(margin);
 
-        (center - extent, center + extent)
+        Aabb {
+            min: center - extent,
+            max: center + extent,
+        }
     }
 
     #[must_use]

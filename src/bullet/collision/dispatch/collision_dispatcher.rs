@@ -38,7 +38,7 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
         ))
     }
 
-    fn new_convex_concave(
+    const fn new_convex_concave(
         convex_obj: Rc<RefCell<CollisionObject>>,
         concave_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
@@ -52,7 +52,7 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
         ))
     }
 
-    fn new_compound(
+    const fn new_compound(
         compound_obj: Rc<RefCell<CollisionObject>>,
         other_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
@@ -89,7 +89,6 @@ pub struct CollisionDispatcher {
 
 impl CollisionDispatcher {
     fn find_algorithm<'a, T: ContactAddedCallback>(
-        &self,
         col_obj_0: Rc<RefCell<CollisionObject>>,
         col_obj_1: Rc<RefCell<CollisionObject>>,
         contact_added_callback: &'a mut T,
@@ -188,7 +187,7 @@ impl CollisionDispatcher {
             return;
         }
 
-        let algorithm = self.find_algorithm(
+        let algorithm = Self::find_algorithm(
             proxy0
                 .broadphase_proxy
                 .client_object

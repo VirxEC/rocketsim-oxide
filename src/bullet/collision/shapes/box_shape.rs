@@ -5,7 +5,7 @@ use super::{
 };
 use crate::bullet::{
     collision::broadphase::broadphase_proxy::BroadphaseNativeTypes,
-    linear_math::aabb_util_2::transform_aabb,
+    linear_math::aabb_util_2::{Aabb, transform_aabb},
 };
 use glam::{Affine3A, Vec3A};
 
@@ -39,7 +39,7 @@ impl BoxShape {
         }
     }
 
-    pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
+    pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
         transform_aabb(
             self.polyhedral_convex_shape
                 .convex_internal_shape

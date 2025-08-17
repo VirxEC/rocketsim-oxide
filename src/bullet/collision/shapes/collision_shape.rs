@@ -2,9 +2,12 @@ use super::{
     bvh_triangle_mesh_shape::BvhTriangleMeshShape, compound_shape::CompoundShape,
     sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
 };
-use crate::bullet::collision::{
-    broadphase::broadphase_proxy::BroadphaseNativeTypes,
-    dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+use crate::bullet::{
+    collision::{
+        broadphase::broadphase_proxy::BroadphaseNativeTypes,
+        dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+    },
+    linear_math::aabb_util_2::Aabb,
 };
 use glam::{Affine3A, Vec3A};
 use std::sync::Arc;
@@ -15,9 +18,7 @@ pub struct CollisionShape {
     // pub user_pointer: *mut c_void,
     // pub user_index: i32,
     // pub user_index_2: i32,
-    pub aabb_cached: bool,
-    pub aabb_min_cache: Vec3A,
-    pub aabb_max_cache: Vec3A,
+    pub aabb_cache: Option<Aabb>,
     pub aabb_cache_trans: Affine3A,
 }
 
@@ -27,9 +28,7 @@ impl Default for CollisionShape {
             shape_type: BroadphaseNativeTypes::InvalidShapeProxytype,
             // user_index: -1,
             // user_index_2: -1,
-            aabb_cached: false,
-            aabb_min_cache: Vec3A::ZERO,
-            aabb_max_cache: Vec3A::ZERO,
+            aabb_cache: None,
             aabb_cache_trans: Affine3A::ZERO,
         }
     }
@@ -60,16 +59,14 @@ impl CollisionShapes {
     }
 
     #[must_use]
-    pub fn get_aabb(&self, t: &Affine3A) -> (Vec3A, Vec3A) {
+    pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
         match self {
             Self::Sphere(shape) => shape.get_aabb(t),
             Self::Compound(shape) => shape.get_aabb(t),
             _ => {
                 let cs = self.get_collision_shape();
-                debug_assert!(cs.aabb_cached);
                 debug_assert!(fast_compare_transforms(t, &cs.aabb_cache_trans));
-
-                (cs.aabb_min_cache, cs.aabb_max_cache)
+                cs.aabb_cache.unwrap()
             }
         }
     }
@@ -88,9 +85,9 @@ impl CollisionShapes {
         if let Self::Sphere(sphere) = self {
             (Vec3A::ZERO, sphere.get_radius() + 0.08)
         } else {
-            let (aabb_min, aabb_max) = self.get_aabb(&Affine3A::IDENTITY);
-            let center = (aabb_min + aabb_max) * 0.5;
-            let radius = (aabb_max - aabb_min).length() * 0.5;
+            let aabb = self.get_aabb(&Affine3A::IDENTITY);
+            let center = (aabb.min + aabb.max) * 0.5;
+            let radius = (aabb.max - aabb.min).length() * 0.5;
 
             (center, radius)
         }
@@ -127,12 +124,12 @@ impl CollisionShapes {
         ray_to_local: Vec3A,
     ) {
         match self {
-            CollisionShapes::Compound(_) => todo!("compound ray test"),
-            CollisionShapes::Sphere(_) => todo!("sphere ray test"),
-            CollisionShapes::StaticPlane(plane) => {
+            Self::Compound(_) => todo!("compound ray test"),
+            Self::Sphere(_) => todo!("sphere ray test"),
+            Self::StaticPlane(plane) => {
                 plane.perform_raycast(result_callback, ray_from_local, ray_to_local);
             }
-            CollisionShapes::TriangleMesh(mesh) => {
+            Self::TriangleMesh(mesh) => {
                 mesh.perform_raycast(result_callback, ray_from_local, ray_to_local);
             }
         }

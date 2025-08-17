@@ -8,15 +8,17 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
+    linear_math::{
+        AffineExt,
+        aabb_util_2::{Aabb, test_aabb_against_aabb},
+    },
 };
-use glam::{Affine3A, Vec3A};
+use glam::Affine3A;
 use std::{cell::RefCell, rc::Rc};
 
 struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
-    pub aabb_min: Vec3A,
-    pub aabb_max: Vec3A,
+    pub aabb: &'a Aabb,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
@@ -25,15 +27,15 @@ impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
     pub fn new(
         convex_obj: Rc<RefCell<CollisionObject>>,
         tri_obj: Rc<RefCell<CollisionObject>>,
+        aabb: &'a Aabb,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             manifold: PersistentManifold::new(convex_obj, tri_obj, is_swapped),
+            aabb,
             is_swapped,
             contact_added_callback,
-            aabb_max: Vec3A::ZERO,
-            aabb_min: Vec3A::ZERO,
         }
     }
 }
@@ -42,12 +44,10 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,
-        tri_aabb_min: Vec3A,
-        tri_aabb_max: Vec3A,
-        part_id: usize,
+        tri_aabb: &Aabb,
         triangle_index: usize,
     ) -> bool {
-        if !test_aabb_against_aabb(tri_aabb_min, tri_aabb_max, self.aabb_min, self.aabb_max) {
+        if !test_aabb_against_aabb(tri_aabb, self.aabb) {
             return true;
         }
 
@@ -75,8 +75,6 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             contact_info.contact_point,
             contact_info.depth,
             -1,
-            part_id as i32,
-            -1,
             triangle_index as i32,
             self.contact_added_callback,
         );
@@ -93,7 +91,7 @@ pub struct ConvexConcaveCollisionAlgorithm<'a, T: ContactAddedCallback> {
 }
 
 impl<'a, T: ContactAddedCallback> ConvexConcaveCollisionAlgorithm<'a, T> {
-    pub fn new(
+    pub const fn new(
         convex_obj: Rc<RefCell<CollisionObject>>,
         concave_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
@@ -137,22 +135,18 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
             translation: xform1.transform_point3a(xform2.translation),
         };
 
-        let (aabb_min, aabb_max) = sphere_shape.get_aabb(&convex_in_triangle_space);
-
+        let aabb = sphere_shape.get_aabb(&convex_in_triangle_space);
         let mut convex_triangle_callback = ConvexTriangleCallback::new(
             self.convex_obj,
             self.concave_obj,
+            &aabb,
             self.is_swapped,
             self.contact_added_callback,
         );
 
-        convex_triangle_callback.aabb_min = aabb_min;
-        convex_triangle_callback.aabb_max = aabb_max;
-
-        tri_mesh.process_all_triangles(&mut convex_triangle_callback, aabb_min, aabb_max);
+        tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb);
 
         convex_triangle_callback.manifold.refresh_contact_points();
-
         if convex_triangle_callback.manifold.point_cache.is_empty() {
             None
         } else {

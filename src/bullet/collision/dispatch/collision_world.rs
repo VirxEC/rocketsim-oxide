@@ -12,7 +12,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
         shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
     },
-    linear_math::interpolate_3,
+    linear_math::{aabb_util_2::Aabb, interpolate_3},
 };
 use glam::{BVec3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
@@ -180,7 +180,7 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
 
         if self.result_callback.needs_collision(handle) {
-            self.world.ray_test_single(
+            CollisionWorld::ray_test_single(
                 self.ray_from_world,
                 self.ray_to_world,
                 co,
@@ -243,13 +243,11 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
     }
 }
 
-impl<'a, T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'a, T> {
+impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_, T> {
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,
-        _tri_aabb_min: Vec3A,
-        _tri_aabb_max: Vec3A,
-        _part_id: usize,
+        _tri_aabb: &Aabb,
         _triangle_index: usize,
     ) -> bool {
         let dir_align = self.dir.dot(triangle.normal);
@@ -321,14 +319,13 @@ impl CollisionWorld {
         let trans = obj.get_world_transform();
 
         let shape = obj.get_collision_shape().unwrap().borrow_mut();
-        let (aabb_min, aabb_max) = shape.get_aabb(trans);
+        let aabb = shape.get_aabb(trans);
 
         drop(shape);
         drop(obj);
 
         let proxy = self.broadphase_pair_cache.create_proxy(
-            aabb_min,
-            aabb_max,
+            aabb,
             object.clone(),
             filter_group,
             filter_mask,
@@ -340,7 +337,7 @@ impl CollisionWorld {
 
     fn update_single_aabb(&mut self, col_obj_idx: usize) {
         let col_obj = self.collision_objects[col_obj_idx].borrow();
-        let (mut min_aabb, mut max_aabb) = col_obj
+        let mut aabb = col_obj
             .get_collision_shape()
             .as_ref()
             .unwrap()
@@ -348,32 +345,27 @@ impl CollisionWorld {
             .get_aabb(col_obj.get_world_transform());
 
         let contact_threshold = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
-        min_aabb -= contact_threshold;
-        max_aabb += contact_threshold;
+        aabb.min -= contact_threshold;
+        aabb.max += contact_threshold;
 
         if self.dispatcher_info.use_continuous
             && col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
             && !col_obj.is_static_or_kinematic_object()
         {
-            let (mut min_aabb_2, mut max_aabb_2) = col_obj
+            let mut aabb2 = col_obj
                 .get_collision_shape()
                 .as_ref()
                 .unwrap()
                 .borrow()
                 .get_aabb(&col_obj.interpolation_world_transform);
-            min_aabb_2 -= contact_threshold;
-            max_aabb_2 += contact_threshold;
-
-            min_aabb = min_aabb.min(min_aabb_2);
-            max_aabb = max_aabb.max(max_aabb_2);
+            aabb2.min -= contact_threshold;
+            aabb2.max += contact_threshold;
+            aabb += aabb2;
         }
 
-        if col_obj.is_static_object() || (max_aabb - min_aabb).length_squared() < 1e12 {
-            self.broadphase_pair_cache.set_aabb(
-                col_obj.get_broadphase_handle().unwrap(),
-                min_aabb,
-                max_aabb,
-            );
+        if col_obj.is_static_object() || (aabb.max - aabb.min).length_squared() < 1e12 {
+            self.broadphase_pair_cache
+                .set_aabb(col_obj.get_broadphase_handle().unwrap(), aabb);
         } else {
             unreachable!()
         }
@@ -402,7 +394,6 @@ impl CollisionWorld {
     }
 
     fn ray_test_single<T: RayResultCallback>(
-        &self,
         ray_from: Vec3A,
         ray_to: Vec3A,
         collision_object: &Rc<RefCell<CollisionObject>>,

@@ -3,9 +3,12 @@ use super::{
     triangle_callback::TriangleCallback, triangle_info_map::TriangleInfoMap,
     triangle_mesh::TriangleMesh, triangle_mesh_shape::TriangleMeshShape,
 };
-use crate::bullet::collision::{
-    broadphase::{broadphase_proxy::BroadphaseNativeTypes, quantized_bvh::MyNodeOverlapCallback},
-    dispatch::internal_edge_utility::generate_internal_edge_info,
+use crate::bullet::{
+    collision::{
+        broadphase::{broadphase_proxy::BroadphaseNativeTypes, bvh::MyNodeOverlapCallback},
+        dispatch::internal_edge_utility::generate_internal_edge_info,
+    },
+    linear_math::aabb_util_2::Aabb,
 };
 use glam::{Affine3A, Vec3A};
 
@@ -24,31 +27,15 @@ impl BvhTriangleMeshShape {
 
         // pre-calculate the aabb
         let trans = Affine3A::IDENTITY;
-        let (aabb_min, aabb_max) = triangle_mesh_shape.get_aabb(&trans);
-        triangle_mesh_shape
-            .concave_shape
-            .collision_shape
-            .aabb_cached = true;
-        triangle_mesh_shape
-            .concave_shape
-            .collision_shape
-            .aabb_min_cache = aabb_min;
-        triangle_mesh_shape
-            .concave_shape
-            .collision_shape
-            .aabb_max_cache = aabb_max;
+        let aabb = triangle_mesh_shape.get_aabb(&trans);
+        triangle_mesh_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
         triangle_mesh_shape
             .concave_shape
             .collision_shape
             .aabb_cache_trans = trans;
 
-        let bvh = OptimizedBvh::new(
-            &mesh_interface,
-            triangle_mesh_shape.local_aabb_min,
-            triangle_mesh_shape.local_aabb_max,
-        );
-
-        let triangle_info_map = generate_internal_edge_info(&bvh.quantized_bvh, &mesh_interface);
+        let bvh = OptimizedBvh::new(&mesh_interface, triangle_mesh_shape.local_aabb);
+        let triangle_info_map = generate_internal_edge_info(&bvh.bvh, &mesh_interface);
 
         Self {
             triangle_mesh_shape,
@@ -68,18 +55,11 @@ impl BvhTriangleMeshShape {
         &self.mesh_interface
     }
 
-    pub fn process_all_triangles<T: TriangleCallback>(
-        &self,
-        callback: &mut T,
-        aabb_min: Vec3A,
-        aabb_max: Vec3A,
-    ) {
+    pub fn process_all_triangles<T: TriangleCallback>(&self, callback: &mut T, aabb: &Aabb) {
         let mut my_node_callback = MyNodeOverlapCallback::new(self.get_mesh_interface(), callback);
-        self.bvh.quantized_bvh.report_aabb_overlapping_node(
-            &mut my_node_callback,
-            aabb_min,
-            aabb_max,
-        );
+        self.bvh
+            .bvh
+            .report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 
     pub fn perform_raycast<T: TriangleCallback>(
@@ -89,11 +69,9 @@ impl BvhTriangleMeshShape {
         ray_target: Vec3A,
     ) {
         let mut my_node_callback = MyNodeOverlapCallback::new(self.get_mesh_interface(), callback);
-        self.bvh.quantized_bvh.report_ray_overlapping_node(
-            &mut my_node_callback,
-            ray_source,
-            ray_target,
-        );
+        self.bvh
+            .bvh
+            .report_ray_overlapping_node(&mut my_node_callback, ray_source, ray_target);
     }
 
     #[must_use]

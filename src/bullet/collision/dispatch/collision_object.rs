@@ -95,7 +95,7 @@ pub struct CollisionObject {
     // pub ccd_motion_threshold: f32,
     // pub check_collide_with: bool,
     // btAlignedObjectArray<const btCollisionObject*> m_objectsWithoutCollisionCheck;
-    pub update_revision: u32,
+    // pub update_revision: u32,
     pub special_resolve_info: SpecialResolveInfo,
 }
 
@@ -135,15 +135,15 @@ impl Default for CollisionObject {
             // ccd_swept_sphere_radius: 0.0,
             // ccd_motion_threshold: 0.0,
             // check_collide_with: false,
-            update_revision: 0,
+            // update_revision: 0,
             special_resolve_info: SpecialResolveInfo::default(),
         }
     }
 }
 
 impl CollisionObject {
-    pub fn set_world_transform(&mut self, world_trans: Affine3A) {
-        self.update_revision += 1;
+    pub const fn set_world_transform(&mut self, world_trans: Affine3A) {
+        // self.update_revision += 1;
         self.world_transform = world_trans;
     }
 
@@ -153,7 +153,7 @@ impl CollisionObject {
     }
 
     pub fn set_collision_shape(&mut self, collision_shape: CollisionShapes) {
-        self.update_revision += 1;
+        // self.update_revision += 1;
         let collision_shape = Rc::new(RefCell::new(collision_shape));
         self.collision_shape = Some(collision_shape.clone());
         self.root_collision_shape = Some(collision_shape);

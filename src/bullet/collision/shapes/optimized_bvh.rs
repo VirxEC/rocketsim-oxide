@@ -1,107 +1,66 @@
 use super::triangle_mesh::TriangleMesh;
-use crate::bullet::collision::{
-    broadphase::quantized_bvh::{
-        BvhSubtreeInfo, MAX_NUM_PARTS_IN_BITS, NodeType, QuantizedBvh, QuantizedBvhNode,
-    },
-    shapes::{triangle_callback::InternalTriangleIndexCallback, triangle_shape::TriangleShape},
+use crate::bullet::{
+    collision::broadphase::bvh::{Bvh, BvhNode, NodeType},
+    linear_math::aabb_util_2::Aabb,
 };
 use glam::Vec3A;
 
-struct QuantizedNodeTriangleCallback<'a> {
-    pub optimized_tree: &'a mut QuantizedBvh,
-}
+fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {
+    const MIN_AABB_DIMENSION: f32 = 0.002;
+    const MIN_AABB_HALF_DIMENSION: f32 = MIN_AABB_DIMENSION / 2.0;
 
-impl InternalTriangleIndexCallback for QuantizedNodeTriangleCallback<'_> {
-    fn internal_process_triangle_index(
-        &mut self,
-        _triangle: &TriangleShape,
-        mut aabb_min: Vec3A,
-        mut aabb_max: Vec3A,
-        part_id: usize,
-        triangle_index: usize,
-    ) -> bool {
-        const MIN_AABB_DIMENSION: f32 = 0.002;
-        const MIN_AABB_HALF_DIMENSION: f32 = MIN_AABB_DIMENSION / 2.0;
+    let diff = (aabb.max - aabb.min).cmplt(const { Vec3A::splat(MIN_AABB_DIMENSION) });
 
-        debug_assert!(part_id < (1 << MAX_NUM_PARTS_IN_BITS));
-        debug_assert!(triangle_index < (1 << (31 - MAX_NUM_PARTS_IN_BITS)));
+    if diff.any() {
+        let [x, y, z] = diff.into();
 
-        let diff = (aabb_max - aabb_min).cmplt(const { Vec3A::splat(MIN_AABB_DIMENSION) });
-
-        if diff.any() {
-            let [x, y, z] = diff.into();
-
-            if x {
-                aabb_max.x += MIN_AABB_HALF_DIMENSION;
-                aabb_min.x -= MIN_AABB_HALF_DIMENSION;
-            }
-
-            if y {
-                aabb_max.y += MIN_AABB_HALF_DIMENSION;
-                aabb_min.y -= MIN_AABB_HALF_DIMENSION;
-            }
-
-            if z {
-                aabb_max.z += MIN_AABB_HALF_DIMENSION;
-                aabb_min.z -= MIN_AABB_HALF_DIMENSION;
-            }
+        if x {
+            aabb.max.x += MIN_AABB_HALF_DIMENSION;
+            aabb.min.x -= MIN_AABB_HALF_DIMENSION;
         }
 
-        let node = QuantizedBvhNode {
-            quantized_aabb_min: self.optimized_tree.quantize(aabb_min, false),
-            quantized_aabb_max: self.optimized_tree.quantize(aabb_max, true),
-            node_type: NodeType::Leaf {
-                part_id,
-                triangle_index,
-            },
-        };
+        if y {
+            aabb.max.y += MIN_AABB_HALF_DIMENSION;
+            aabb.min.y -= MIN_AABB_HALF_DIMENSION;
+        }
 
-        self.optimized_tree.quantized_leaf_nodes.push(node);
-        true
+        if z {
+            aabb.max.z += MIN_AABB_HALF_DIMENSION;
+            aabb.min.z -= MIN_AABB_HALF_DIMENSION;
+        }
     }
+
+    aabb
 }
 
 pub struct OptimizedBvh {
-    pub quantized_bvh: QuantizedBvh,
+    pub bvh: Bvh,
 }
 
 impl OptimizedBvh {
-    pub fn new(triangles: &TriangleMesh, local_aabb_min: Vec3A, local_aabb_max: Vec3A) -> Self {
-        let mut quantized_bvh = QuantizedBvh::default();
+    pub fn new(triangles: &TriangleMesh, aabb: Aabb) -> Self {
+        let mut leaf_nodes: Vec<_> = triangles
+            .get_tris_aabbs()
+            .1
+            .iter()
+            .copied()
+            .map(update_triangle_aabb)
+            .enumerate()
+            .map(|(triangle_index, aabb)| BvhNode {
+                aabb,
+                node_type: NodeType::Leaf { triangle_index },
+            })
+            .collect();
+        let num_leaf_nodes = leaf_nodes.len();
 
-        quantized_bvh.set_quantization_values(local_aabb_min, local_aabb_max);
-        quantized_bvh
-            .quantized_leaf_nodes
-            .reserve(triangles.get_total_num_faces());
-
-        let min_aabb = quantized_bvh.bvh_aabb_min;
-        let max_aabb = quantized_bvh.bvh_aabb_max;
-
-        let mut callback = QuantizedNodeTriangleCallback {
-            optimized_tree: &mut quantized_bvh,
+        let mut bvh = Bvh {
+            aabb,
+            cur_node_index: 0,
+            contiguous_nodes: vec![BvhNode::DEFAULT; 2 * num_leaf_nodes].into_boxed_slice(),
         };
 
-        triangles.internal_process_all_triangles(&mut callback, &min_aabb, &max_aabb);
+        bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);
 
-        let num_leaf_nodes = quantized_bvh.quantized_leaf_nodes.len();
-        quantized_bvh
-            .quantized_contiguous_nodes
-            .resize(2 * num_leaf_nodes, QuantizedBvhNode::DEFAULT);
-
-        quantized_bvh.cur_node_index = 0;
-        quantized_bvh.build_tree(0, num_leaf_nodes);
-
-        if quantized_bvh.subtree_headers.is_empty() {
-            quantized_bvh.subtree_headers.push(BvhSubtreeInfo {
-                quantized_aabb_min: quantized_bvh.quantized_contiguous_nodes[0].quantized_aabb_min,
-                quantized_aabb_max: quantized_bvh.quantized_contiguous_nodes[0].quantized_aabb_max,
-                root_node_index: 0,
-                subtree_size: quantized_bvh.quantized_contiguous_nodes[0].get_subtree_size(),
-            });
-        }
-
-        quantized_bvh.quantized_leaf_nodes.clear();
-
-        Self { quantized_bvh }
+        Self { bvh }
     }
 }

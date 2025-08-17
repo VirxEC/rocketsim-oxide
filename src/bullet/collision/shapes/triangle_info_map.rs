@@ -1,4 +1,3 @@
-use ahash::AHashMap;
 use std::f32::consts::PI;
 
 pub const TRI_INFO_V0V1_CONVEX: i32 = 1;
@@ -30,7 +29,7 @@ impl Default for TriangleInfo {
 
 #[derive(Clone)]
 pub struct TriangleInfoMap {
-    pub internal_map: AHashMap<i32, TriangleInfo>,
+    pub internal_map: Vec<TriangleInfo>,
     pub convex_epsilon: f32,
     pub planar_epsilon: f32,
     pub equal_vertex_threshold: f32,
@@ -42,7 +41,7 @@ pub struct TriangleInfoMap {
 impl Default for TriangleInfoMap {
     fn default() -> Self {
         Self {
-            internal_map: AHashMap::new(),
+            internal_map: Vec::new(),
             convex_epsilon: 0.0,
             planar_epsilon: 0.0001,
             equal_vertex_threshold: 0.0001,

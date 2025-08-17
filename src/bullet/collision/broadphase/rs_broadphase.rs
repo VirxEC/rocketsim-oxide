@@ -11,7 +11,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::aabb_util_2::test_aabb_against_aabb,
+    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
 use glam::{USizeVec3, Vec3A};
 use std::{cell::RefCell, rc::Rc};
@@ -75,9 +75,7 @@ impl TriangleCallback for BoolHitTriangleCallback {
     fn process_triangle(
         &mut self,
         _triangle: &TriangleShape,
-        _tri_aabb_min: Vec3A,
-        _tri_aabb_max: Vec3A,
-        _part_id: usize,
+        _tri_aabb: &Aabb,
         _triangle_index: usize,
     ) -> bool {
         self.hit = true;
@@ -196,9 +194,9 @@ impl RsBroadphase {
         let proxy = &self.handles[proxy_idx];
 
         // TODO: "Fix dumb massive value aabb bug"
-        let aabb_max = proxy.broadphase_proxy.aabb_max.min(self.max_pos);
+        let aabb_max = proxy.broadphase_proxy.aabb.max.min(self.max_pos);
 
-        let min = self.get_cell_indices(proxy.broadphase_proxy.aabb_min);
+        let min = self.get_cell_indices(proxy.broadphase_proxy.aabb.min);
         let max = self.get_cell_indices(aabb_max);
 
         let col_obj = &*proxy
@@ -222,14 +220,11 @@ impl RsBroadphase {
                     debug_assert!(cells.is_empty());
                     if ADD && let Some(mesh_interface) = tri_mesh_shape {
                         let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
-                        let cell_max = cell_min + Vec3A::splat(self.cell_size);
+                        let cell_aabb =
+                            Aabb::new(cell_min, cell_min + Vec3A::splat(self.cell_size));
 
                         callback_inst.hit = false;
-                        mesh_interface.process_all_triangles(
-                            &mut callback_inst,
-                            cell_min,
-                            cell_max,
-                        );
+                        mesh_interface.process_all_triangles(&mut callback_inst, &cell_aabb);
 
                         if !callback_inst.hit {
                             continue;
@@ -300,33 +295,26 @@ impl RsBroadphase {
     }
 
     fn aabb_overlap(proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) -> bool {
-        test_aabb_against_aabb(
-            proxy0.broadphase_proxy.aabb_min,
-            proxy0.broadphase_proxy.aabb_max,
-            proxy1.broadphase_proxy.aabb_min,
-            proxy1.broadphase_proxy.aabb_max,
-        )
+        test_aabb_against_aabb(&proxy0.broadphase_proxy.aabb, &proxy1.broadphase_proxy.aabb)
     }
 
-    pub fn set_aabb(&mut self, proxy_idx: usize, aabb_min: Vec3A, aabb_max: Vec3A) {
+    pub fn set_aabb(&mut self, proxy_idx: usize, aabb: Aabb) {
         let sbp = &self.handles[proxy_idx];
 
-        if sbp.broadphase_proxy.aabb_min != aabb_min || sbp.broadphase_proxy.aabb_max != aabb_max {
+        if sbp.broadphase_proxy.aabb.min != aabb.min || sbp.broadphase_proxy.aabb.max != aabb.max {
             if sbp.is_static {
                 self.update_cells_static::<false>(proxy_idx);
 
                 let sbp = &mut self.handles[proxy_idx];
-                sbp.broadphase_proxy.aabb_min = aabb_min;
-                sbp.broadphase_proxy.aabb_max = aabb_max;
+                sbp.broadphase_proxy.aabb = aabb;
 
                 self.update_cells_static::<true>(proxy_idx);
             } else {
                 let sbp = &mut self.handles[proxy_idx];
                 let old_index = sbp.cell_idx;
-                sbp.broadphase_proxy.aabb_min = aabb_min;
-                sbp.broadphase_proxy.aabb_max = aabb_max;
+                sbp.broadphase_proxy.aabb = aabb;
 
-                let new_indices = self.get_cell_indices(aabb_min);
+                let new_indices = self.get_cell_indices(aabb.min);
                 let new_index = self.cell_indices_to_index(new_indices);
                 self.handles[proxy_idx].cell_idx = new_index;
 
@@ -341,13 +329,12 @@ impl RsBroadphase {
 
     pub fn create_proxy(
         &mut self,
-        aabb_min: Vec3A,
-        aabb_max: Vec3A,
+        aabb: Aabb,
         collision_object: Rc<RefCell<CollisionObject>>,
         collision_filter_group: i32,
         collision_filter_mask: i32,
     ) -> usize {
-        debug_assert!(aabb_min.cmple(aabb_max).all());
+        debug_assert!(aabb.min.cmple(aabb.max).all());
 
         let co = collision_object.borrow();
         let is_static = co.is_static_object();
@@ -355,13 +342,12 @@ impl RsBroadphase {
         drop(co);
 
         let new_handle_idx = self.alloc_handle();
-        let cell_idx = self.get_cell_index(aabb_min);
-        let indices = self.get_cell_indices(aabb_min);
+        let indices = self.get_cell_indices(aabb.min);
+        let cell_idx = self.cell_indices_to_index(indices);
 
         let new_handle = RsBroadphaseProxy {
             broadphase_proxy: BroadphaseProxy {
-                aabb_min,
-                aabb_max,
+                aabb,
                 client_object_world_index: Some(world_index),
                 client_object: Some(collision_object),
                 collision_filter_group,
@@ -379,7 +365,7 @@ impl RsBroadphase {
         if is_static {
             self.update_cells_static::<true>(new_handle_idx);
         } else {
-            debug_assert!(aabb_min.distance_squared(aabb_max) <= self.cell_size_sq);
+            debug_assert!(aabb.min.distance_squared(aabb.max) <= self.cell_size_sq);
 
             self.update_cells_dynamic::<true>(new_handle_idx, indices);
             self.num_dyn_proxies += 1;

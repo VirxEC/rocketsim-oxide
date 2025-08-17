@@ -131,19 +131,13 @@ impl ContactAddedCallback for Objects {
             mem::swap(&mut body_a, &mut body_b);
         }
 
-        let (part_id, index) = if should_swap {
-            (contact_point.part_id_0, contact_point.index_0)
+        let index = if should_swap {
+            contact_point.index_0
         } else {
-            (contact_point.part_id_1, contact_point.index_1)
+            contact_point.index_1
         };
 
-        adjust_internal_edge_contacts(
-            contact_point,
-            body_a,
-            body_b,
-            part_id as usize,
-            index as usize,
-        );
+        adjust_internal_edge_contacts(contact_point, body_a, index as usize);
     }
 }
 
@@ -334,10 +328,8 @@ impl Arena {
                 matrix3: Mat3A::IDENTITY,
                 translation: pos_bt,
             };
-            let (aabb_min, aabb_max) = plane_shape.get_aabb(&trans);
-            plane_shape.concave_shape.collision_shape.aabb_cached = true;
-            plane_shape.concave_shape.collision_shape.aabb_min_cache = aabb_min;
-            plane_shape.concave_shape.collision_shape.aabb_max_cache = aabb_max;
+            let aabb = plane_shape.get_aabb(&trans);
+            plane_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
             plane_shape.concave_shape.collision_shape.aabb_cache_trans = trans;
 
             Self::add_static_collision_shape(

@@ -11,16 +11,18 @@ use crate::bullet::{
             triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
+    linear_math::{
+        AffineExt,
+        aabb_util_2::{Aabb, test_aabb_against_aabb},
+    },
 };
-use glam::{Affine3A, Vec3A};
+use glam::Affine3A;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
     convex_transform: Affine3A,
-    pub aabb_min: Vec3A,
-    pub aabb_max: Vec3A,
+    pub aabb: &'a Aabb,
     box_shape: &'a BoxShape,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
@@ -30,6 +32,7 @@ impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
     pub fn new(
         convex_obj: CollisionObjectWrapper,
         tri_obj: Rc<RefCell<CollisionObject>>,
+        aabb: &'a Aabb,
         box_shape: &'a BoxShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
@@ -37,10 +40,9 @@ impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
         Self {
             manifold: PersistentManifold::new(convex_obj.object, tri_obj, is_swapped),
             convex_transform: convex_obj.world_transform,
+            aabb,
             is_swapped,
             box_shape,
-            aabb_max: Vec3A::ZERO,
-            aabb_min: Vec3A::ZERO,
             contact_added_callback,
         }
     }
@@ -50,12 +52,10 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,
-        tri_aabb_min: Vec3A,
-        tri_aabb_max: Vec3A,
-        part_id: usize,
+        tri_aabb: &Aabb,
         triangle_index: usize,
     ) -> bool {
-        if !test_aabb_against_aabb(tri_aabb_min, tri_aabb_max, self.aabb_min, self.aabb_max) {
+        if !test_aabb_against_aabb(tri_aabb, self.aabb) {
             return true;
         }
 
@@ -99,7 +99,7 @@ struct CompoundLeafCallback<'a, T: ContactAddedCallback> {
 }
 
 impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
-    pub fn new(
+    pub const fn new(
         compound_obj: Rc<RefCell<CollisionObject>>,
         other_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
@@ -127,13 +127,13 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let new_child_world_trans = org_trans * child_trans;
 
         let box_shape = &child.child_shape;
-        let (aabb_min_1, aabb_max_1) = box_shape.get_aabb(&new_child_world_trans);
+        let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
         let other_obj = self.other_obj.borrow();
         let other_col_shape = other_obj.get_collision_shape().unwrap().borrow();
-        let (aabb_min_2, aabb_max_2) = other_col_shape.get_aabb(other_obj.get_world_transform());
+        let aabb2 = other_col_shape.get_aabb(other_obj.get_world_transform());
 
-        if !test_aabb_against_aabb(aabb_min_1, aabb_max_1, aabb_min_2, aabb_max_2) {
+        if !test_aabb_against_aabb(&aabb1, &aabb2) {
             return None;
         }
 
@@ -151,23 +151,19 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                     translation: xform1.transform_point3a(xform2.translation),
                 };
 
-                let (aabb_min, aabb_max) = box_shape.get_aabb(&convex_in_triangle_space);
-
+                let aabb = box_shape.get_aabb(&convex_in_triangle_space);
                 let mut convex_triangle_callback = ConvexTriangleCallback::new(
                     compound_obj_wrap,
                     self.other_obj.clone(),
+                    &aabb,
                     box_shape,
                     self.is_swapped,
                     self.contact_added_callback,
                 );
 
-                convex_triangle_callback.aabb_min = aabb_min;
-                convex_triangle_callback.aabb_max = aabb_max;
-
-                tri_mesh.process_all_triangles(&mut convex_triangle_callback, aabb_min, aabb_max);
+                tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb);
 
                 convex_triangle_callback.manifold.refresh_contact_points();
-
                 if convex_triangle_callback.manifold.point_cache.is_empty() {
                     None
                 } else {
@@ -202,7 +198,7 @@ pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
 }
 
 impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
-    pub fn new(
+    pub const fn new(
         compound_obj: Rc<RefCell<CollisionObject>>,
         other_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,

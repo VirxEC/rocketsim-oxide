@@ -1,7 +1,7 @@
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
-        broadphase::quantized_bvh::{MAX_NUM_PARTS_IN_BITS, MyNodeOverlapCallback, QuantizedBvh},
+        broadphase::bvh::{Bvh, MyNodeOverlapCallback},
         narrowphase::manifold_point::ManifoldPoint,
         shapes::{
             collision_shape::CollisionShapes,
@@ -9,50 +9,43 @@ use crate::bullet::{
             triangle_info_map::{
                 TRI_INFO_V0V1_CONVEX, TRI_INFO_V0V1_SWAP_NORMALB, TRI_INFO_V1V2_CONVEX,
                 TRI_INFO_V1V2_SWAP_NORMALB, TRI_INFO_V2V0_CONVEX, TRI_INFO_V2V0_SWAP_NORMALB,
-                TriangleInfoMap,
+                TriangleInfo, TriangleInfoMap,
             },
             triangle_mesh::TriangleMesh,
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::AffineExt,
+    linear_math::{AffineExt, aabb_util_2::Aabb},
 };
 use glam::{Quat, Vec3, Vec3A};
 use std::{f32::consts::PI, mem};
-
-const fn get_hash(part_id: usize, triangle_index: usize) -> i32 {
-    ((part_id as i32) << (31 - MAX_NUM_PARTS_IN_BITS as i32)) | triangle_index as i32
-}
 
 fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {
     normal_b.dot(edge_a).atan2(normal_b.dot(normal_a))
 }
 
 struct ConnectivityProcessor<'a> {
-    part_id_a: usize,
-    triangle_index_a: usize,
-    triangle_a: &'a TriangleShape,
-    triangle_info_map: &'a mut TriangleInfoMap,
+    index: usize,
+    shape: &'a TriangleShape,
+    info_map: &'a mut TriangleInfoMap,
 }
 
 impl TriangleCallback for ConnectivityProcessor<'_> {
     fn process_triangle(
         &mut self,
         tri: &TriangleShape,
-        _tri_aabb_min: Vec3A,
-        _tri_aabb_max: Vec3A,
-        part_id: usize,
+        _tri_aabb: &Aabb,
         triangle_index: usize,
     ) -> bool {
-        if self.part_id_a == part_id && self.triangle_index_a == triangle_index {
+        if self.index == triangle_index {
             return true;
         }
 
-        if tri.normal_length < self.triangle_info_map.equal_vertex_threshold {
+        if tri.normal_length < self.info_map.equal_vertex_threshold {
             return true;
         }
 
-        if self.triangle_a.normal_length < self.triangle_info_map.equal_vertex_threshold {
+        if self.shape.normal_length < self.info_map.equal_vertex_threshold {
             return true;
         }
 
@@ -60,9 +53,9 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
         let mut shared_verts_a = [0; 2];
         let mut shared_verts_b = [0; 2];
 
-        for (i, vert_a) in self.triangle_a.points.into_iter().enumerate() {
+        for (i, vert_a) in self.shape.points.into_iter().enumerate() {
             for (j, vert) in tri.points.into_iter().enumerate() {
-                if vert_a.distance_squared(vert) < self.triangle_info_map.equal_vertex_threshold {
+                if vert_a.distance_squared(vert) < self.info_map.equal_vertex_threshold {
                     debug_assert!(num_shared < 2, "degenerate triangle");
 
                     shared_verts_a[num_shared] = i;
@@ -81,22 +74,19 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 mem::swap(a, b);
             }
 
-            let hash = get_hash(self.part_id_a, self.triangle_index_a);
-            let info = self.triangle_info_map.internal_map.entry(hash).or_default();
-
+            let info = &mut self.info_map.internal_map[self.index];
             let sum_verts_a = shared_verts_a[0] + shared_verts_a[1];
             let other_index_a = 3 - sum_verts_a;
 
-            let edge = (self.triangle_a.points[shared_verts_a[1]]
-                - self.triangle_a.points[shared_verts_a[0]])
+            let edge = (self.shape.points[shared_verts_a[1]]
+                - self.shape.points[shared_verts_a[0]])
                 .normalize();
 
             let other_index_b = 3 - (shared_verts_b[0] + shared_verts_b[1]);
 
-            let mut edge_cross_a = edge.cross(self.triangle_a.normal).normalize();
+            let mut edge_cross_a = edge.cross(self.shape.normal).normalize();
             {
-                let tmp = self.triangle_a.points[other_index_a]
-                    - self.triangle_a.points[shared_verts_a[0]];
+                let tmp = self.shape.points[other_index_a] - self.shape.points[shared_verts_a[0]];
                 if edge_cross_a.dot(tmp) < 0.0 {
                     edge_cross_a *= -1.0;
                 }
@@ -116,22 +106,22 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
             let mut corrected_angle = 0.0;
             let mut is_convex = false;
 
-            if len2 >= self.triangle_info_map.planar_epsilon {
+            if len2 >= self.info_map.planar_epsilon {
                 let calculated_edge = calculated_edge.normalize();
                 let calculated_normal_a = calculated_edge.cross(edge_cross_a).normalize();
                 let angle2 = get_angle(calculated_normal_a, edge_cross_a, edge_cross_b);
                 let ang4 = PI - angle2;
 
-                let dot_a = self.triangle_a.normal.dot(edge_cross_b);
+                let dot_a = self.shape.normal.dot(edge_cross_b);
                 is_convex = dot_a < 0.0;
                 corrected_angle = if is_convex { ang4 } else { -ang4 };
             }
 
             match sum_verts_a {
                 1 => {
-                    let edge = (-self.triangle_a.edges[0]).normalize();
+                    let edge = (-self.shape.edges[0]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V0V1_SWAP_NORMALB;
@@ -143,9 +133,9 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                     }
                 }
                 2 => {
-                    let edge = (-self.triangle_a.edges[2]).normalize();
+                    let edge = (-self.shape.edges[2]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V2V0_SWAP_NORMALB;
@@ -157,9 +147,9 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                     }
                 }
                 3 => {
-                    let edge = (-self.triangle_a.edges[1]).normalize();
+                    let edge = (-self.shape.edges[1]).normalize();
                     let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
-                    let mut computed_normal_b = orn * self.triangle_a.normal;
+                    let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
                         info.flags |= TRI_INFO_V1V2_SWAP_NORMALB;
@@ -178,29 +168,24 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
     }
 }
 
-pub fn generate_internal_edge_info(
-    quantized_bvh: &QuantizedBvh,
-    mesh_interface: &TriangleMesh,
-) -> TriangleInfoMap {
+pub fn generate_internal_edge_info(bvh: &Bvh, mesh_interface: &TriangleMesh) -> TriangleInfoMap {
     let mut triangle_info_map = TriangleInfoMap::default();
-    triangle_info_map
-        .internal_map
-        .reserve(mesh_interface.get_total_num_faces());
+    triangle_info_map.internal_map.resize(
+        mesh_interface.get_total_num_faces(),
+        TriangleInfo::default(),
+    );
 
-    let part_id = 0;
-    let (tris, aabbs) = mesh_interface.get_tris_aabbs(part_id);
-
-    for (i, (triangle_a, (aabb_min, aabb_max))) in tris.iter().zip(aabbs).enumerate() {
+    let (tris, aabbs) = mesh_interface.get_tris_aabbs();
+    for (i, (triangle_a, aabb)) in tris.iter().zip(aabbs).enumerate() {
         let mut connectivity_processor = ConnectivityProcessor {
-            part_id_a: part_id,
-            triangle_index_a: i,
-            triangle_a,
-            triangle_info_map: &mut triangle_info_map,
+            index: i,
+            shape: triangle_a,
+            info_map: &mut triangle_info_map,
         };
 
         let mut my_node_callback =
             MyNodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
-        quantized_bvh.report_aabb_overlapping_node(&mut my_node_callback, *aabb_min, *aabb_max);
+        bvh.report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 
     triangle_info_map
@@ -247,8 +232,6 @@ enum BestEdge {
 pub fn adjust_internal_edge_contacts(
     cp: &mut ManifoldPoint,
     tri_mesh_col_obj: &CollisionObject,
-    _other_col_obj: &CollisionObject,
-    part_id: usize,
     index: usize,
 ) {
     let tri_col_shape = tri_mesh_col_obj.get_collision_shape().unwrap().borrow();
@@ -258,11 +241,10 @@ pub fn adjust_internal_edge_contacts(
 
     let info_map = tri_mesh.get_triangle_info_map();
 
-    let hash = get_hash(part_id, index);
-    let info = info_map.internal_map.get(&hash).unwrap();
+    let info = info_map.internal_map[index];
 
     let front_facing = 1.0;
-    let tri = tri_mesh.get_mesh_interface().get_triangle(part_id, index);
+    let tri = tri_mesh.get_mesh_interface().get_triangle(index);
     let nearest = nearst_point_in_line_segment(cp.local_point_b, tri.points[0], tri.points[1]);
     let contact = cp.local_point_b;
 

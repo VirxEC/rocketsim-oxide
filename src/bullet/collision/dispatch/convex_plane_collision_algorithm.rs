@@ -15,7 +15,7 @@ pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
 }
 
 impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
-    pub fn new(
+    pub const fn new(
         convex_obj: CollisionObjectWrapper,
         plane_obj: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
@@ -75,8 +75,6 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
                 normal_on_surface_b,
                 vtx_in_plane_world,
                 distance,
-                -1,
-                -1,
                 -1,
                 -1,
                 self.contact_added_callback,
