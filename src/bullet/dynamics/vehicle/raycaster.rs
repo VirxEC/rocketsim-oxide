@@ -29,7 +29,7 @@ impl VehicleRaycaster {
         collision_world: &DiscreteDynamicsWorld,
         from: Vec3A,
         to: Vec3A,
-        ignore_obj: &Rc<RefCell<CollisionObject>>,
+        ignore_obj: &CollisionObject,
     ) -> Option<VehicleRaycasterResult> {
         let mut ray_callback = ClosestRayResultCallback::new(from, to, ignore_obj);
         ray_callback.base.collision_filter_group |= self.added_filter_mask;
@@ -39,23 +39,26 @@ impl VehicleRaycaster {
             .ray_test(from, to, &mut ray_callback);
 
         if ray_callback.has_hit()
-            && let Some(co) = ray_callback.base.collision_object.as_ref()
-            && co.borrow().has_contact_response()
+            && let Some(co_ref) = ray_callback.base.collision_object.as_ref()
         {
-            let rigid_body = collision_world
-                .static_rigid_bodies
-                .iter()
-                .chain(&collision_world.non_static_rigid_bodies)
-                .find(|rb| Rc::ptr_eq(&rb.borrow().collision_object, co))
-                .unwrap()
+            let co = co_ref.borrow();
+            if co.has_contact_response() {
+                let rigid_body = if co.is_static_object() {
+                    &collision_world.static_rigid_bodies
+                } else {
+                    &collision_world.non_static_rigid_bodies
+                }[co.get_rigid_body_world_index()]
                 .clone();
 
-            Some(VehicleRaycasterResult {
-                rigid_body,
-                hit_point_in_world: ray_callback.hit_point_world,
-                hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
-                dist_fraction: ray_callback.base.closest_hit_fraction,
-            })
+                Some(VehicleRaycasterResult {
+                    rigid_body,
+                    hit_point_in_world: ray_callback.hit_point_world,
+                    hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
+                    dist_fraction: ray_callback.base.closest_hit_fraction,
+                })
+            } else {
+                None
+            }
         } else {
             None
         }

@@ -349,7 +349,11 @@ impl RsBroadphase {
     ) -> usize {
         debug_assert!(aabb_min.cmple(aabb_max).all());
 
-        let is_static = collision_object.borrow().is_static_object();
+        let co = collision_object.borrow();
+        let is_static = co.is_static_object();
+        let world_index = co.get_world_array_index();
+        drop(co);
+
         let new_handle_idx = self.alloc_handle();
         let cell_idx = self.get_cell_index(aabb_min);
         let indices = self.get_cell_indices(aabb_min);
@@ -358,6 +362,7 @@ impl RsBroadphase {
             broadphase_proxy: BroadphaseProxy {
                 aabb_min,
                 aabb_max,
+                client_object_world_index: Some(world_index),
                 client_object: Some(collision_object),
                 collision_filter_group,
                 collision_filter_mask,

@@ -32,67 +32,66 @@ pub struct LocalRayResult {
     hit_fraction: f32,
 }
 
-pub struct RayResultCallbackBase<'a> {
+pub struct RayResultCallbackBase {
     pub closest_hit_fraction: f32,
     pub collision_object: Option<Rc<RefCell<CollisionObject>>>,
-    pub ignore_object: Option<&'a Rc<RefCell<CollisionObject>>>,
+    pub ignore_object_world_index: Option<usize>,
     pub collision_filter_group: i32,
     pub collision_filter_mask: i32,
     pub flags: u32,
 }
 
-impl Default for RayResultCallbackBase<'_> {
+impl Default for RayResultCallbackBase {
     fn default() -> Self {
         Self {
             closest_hit_fraction: 1.0,
             collision_object: None,
             collision_filter_group: CollisionFilterGroups::DefaultFilter as i32,
             collision_filter_mask: CollisionFilterGroups::AllFilter as i32,
-            ignore_object: None,
+            ignore_object_world_index: None,
             flags: 0,
         }
     }
 }
 
 pub trait RayResultCallback {
-    fn get_base(&self) -> &RayResultCallbackBase<'_>;
+    fn get_base(&self) -> &RayResultCallbackBase;
     fn has_hit(&self) -> bool {
         self.get_base().collision_object.is_some()
     }
     fn needs_collision(&self, proxy0: &BroadphaseProxy) -> bool {
         let base = self.get_base();
-        let collides = proxy0.collision_filter_group & base.collision_filter_mask != 0
-            && base.collision_filter_group & proxy0.collision_filter_mask != 0;
-        if let Some(ignore_obj) = base.ignore_object.as_ref()
-            && let Some(client_obj) = proxy0.client_object.as_ref()
-            && Rc::ptr_eq(client_obj, ignore_obj)
+        if let Some(ignore_object_world_index) = base.ignore_object_world_index
+            && let Some(client_obj) = proxy0.client_object_world_index
+            && ignore_object_world_index == client_obj
         {
             return false;
         }
 
-        collides
+        proxy0.collision_filter_group & base.collision_filter_mask != 0
+            && base.collision_filter_group & proxy0.collision_filter_mask != 0
     }
     fn add_single_result(&mut self, ray_result: LocalRayResult, normal_in_world_space: bool)
     -> f32;
 }
 
-pub struct ClosestRayResultCallback<'a> {
-    pub base: RayResultCallbackBase<'a>,
+pub struct ClosestRayResultCallback {
+    pub base: RayResultCallbackBase,
     ray_from_world: Vec3A,
     ray_to_world: Vec3A,
     pub hit_normal_world: Vec3A,
     pub hit_point_world: Vec3A,
 }
 
-impl<'a> ClosestRayResultCallback<'a> {
+impl ClosestRayResultCallback {
     pub fn new(
         ray_from_world: Vec3A,
         ray_to_world: Vec3A,
-        ignore_object: &'a Rc<RefCell<CollisionObject>>,
+        ignore_object: &CollisionObject,
     ) -> Self {
         Self {
             base: RayResultCallbackBase {
-                ignore_object: Some(ignore_object),
+                ignore_object_world_index: Some(ignore_object.get_world_array_index()),
                 ..Default::default()
             },
             ray_from_world,
@@ -103,8 +102,8 @@ impl<'a> ClosestRayResultCallback<'a> {
     }
 }
 
-impl RayResultCallback for ClosestRayResultCallback<'_> {
-    fn get_base(&self) -> &RayResultCallbackBase<'_> {
+impl RayResultCallback for ClosestRayResultCallback {
+    fn get_base(&self) -> &RayResultCallbackBase {
         &self.base
     }
 
@@ -228,6 +227,11 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
     }
 
     pub fn report_hit(&mut self, hit_normal_local: Vec3A, hit_fraction: f32) {
+        if hit_fraction >= self.hit_fraction {
+            return;
+        }
+
+        self.hit_fraction = hit_fraction;
         let hit_normal_world =
             self.collision_object.borrow().get_world_transform().matrix3 * hit_normal_local;
 
@@ -281,10 +285,7 @@ impl<'a, T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallbac
         }
 
         let hit_fraction = t / self.dist;
-        if hit_fraction < self.hit_fraction {
-            self.hit_fraction = hit_fraction;
-            self.report_hit(triangle.normal, hit_fraction);
-        }
+        self.report_hit(triangle.normal, hit_fraction);
 
         true
     }
@@ -317,7 +318,7 @@ impl CollisionWorld {
     ) {
         object
             .borrow_mut()
-            .set_world_array_index(self.collision_objects.len() as i32);
+            .set_world_array_index(self.collision_objects.len());
 
         let obj = object.borrow();
         let trans = obj.get_world_transform();
@@ -384,7 +385,7 @@ impl CollisionWorld {
     fn update_aabbs(&mut self) {
         for i in 0..self.collision_objects.len() {
             let col_obj = &self.collision_objects[i];
-            debug_assert!(col_obj.borrow().get_world_array_index() as usize == i);
+            debug_assert_eq!(col_obj.borrow().get_world_array_index(), i);
 
             if self.force_update_all_aabbs || col_obj.borrow().is_active() {
                 self.update_single_aabb(i);

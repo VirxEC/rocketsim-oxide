@@ -72,15 +72,18 @@ impl DiscreteDynamicsWorld {
             .get_collision_shape()
             .is_some()
         {
-            let co = body.borrow().collision_object.clone();
-            if co.borrow().is_static_object() {
-                co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+            let co_ref = body.borrow().collision_object.clone();
+            let mut co = co_ref.borrow_mut();
+            if co.is_static_object() {
+                co.set_activation_state(ISLAND_SLEEPING);
+                co.set_rigid_body_world_index(self.static_rigid_bodies.len());
                 self.static_rigid_bodies.push(body);
             } else {
+                co.set_rigid_body_world_index(self.non_static_rigid_bodies.len());
                 self.non_static_rigid_bodies.push(body);
             }
 
-            let (group, mask) = if co.borrow().is_static_or_kinematic_object() {
+            let (group, mask) = if co.is_static_or_kinematic_object() {
                 (
                     CollisionFilterGroups::StaticFilter as i32,
                     CollisionFilterGroups::AllFilter as i32
@@ -93,7 +96,8 @@ impl DiscreteDynamicsWorld {
                 )
             };
 
-            self.add_collision_object(co, group, mask);
+            drop(co);
+            self.add_collision_object(co_ref, group, mask);
         }
     }
 
@@ -115,15 +119,19 @@ impl DiscreteDynamicsWorld {
             .get_collision_shape()
             .is_some()
         {
-            let co = body.borrow().collision_object.clone();
-            if co.borrow().is_static_object() {
-                co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+            let co_ref = body.borrow().collision_object.clone();
+            let mut co = co_ref.borrow_mut();
+            if co.is_static_object() {
+                co.set_activation_state(ISLAND_SLEEPING);
+                co.set_rigid_body_world_index(self.static_rigid_bodies.len());
                 self.static_rigid_bodies.push(body);
             } else {
+                co.set_rigid_body_world_index(self.non_static_rigid_bodies.len());
                 self.non_static_rigid_bodies.push(body);
             }
 
-            self.add_collision_object(co, group, mask);
+            drop(co);
+            self.add_collision_object(co_ref, group, mask);
         }
     }
 

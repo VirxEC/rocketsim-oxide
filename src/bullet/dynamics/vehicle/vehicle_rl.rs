@@ -228,14 +228,11 @@ impl VehicleRL {
     fn ray_cast(&mut self, collision_world: &DiscreteDynamicsWorld, wheel_idx: usize) -> f32 {
         let up = self.get_up_vector();
         let num_wheels = self.get_num_wheels();
+
+        let cb = self.chassis_body.borrow();
+        let cb_co = cb.collision_object.borrow();
         let wheel = &mut self.wheel_info[wheel_idx];
-        wheel.update_wheel_transform_ws(
-            self.chassis_body
-                .borrow()
-                .collision_object
-                .borrow()
-                .get_world_transform(),
-        );
+        wheel.update_wheel_transform_ws(cb_co.get_world_transform());
 
         let mut depth = -1.0;
 
@@ -250,12 +247,10 @@ impl VehicleRL {
         wheel.wheel_info.raycast_info.contact_point_ws = target;
         wheel.wheel_info.raycast_info.ground_object = None;
 
-        let Some(ray_results) = self.raycaster.cast_ray(
-            collision_world,
-            source,
-            target,
-            &self.chassis_body.borrow().collision_object,
-        ) else {
+        let Some(ray_results) = self
+            .raycaster
+            .cast_ray(collision_world, source, target, &cb_co)
+        else {
             wheel.wheel_info.raycast_info.suspension_length =
                 wheel.wheel_info.suspension_rest_length_1 + suspension_travel;
             wheel.wheel_info.suspension_relative_velcity = 0.0;
@@ -291,12 +286,8 @@ impl VehicleRL {
             .suspension_length
             .clamp(min_suspension_len, max_suspension_len);
 
-        let cb = self.chassis_body.borrow();
         let rel_pos = wheel.wheel_info.raycast_info.contact_point_ws
-            - cb.collision_object
-                .borrow()
-                .get_world_transform()
-                .translation;
+            - cb_co.get_world_transform().translation;
         wheel.vel_at_contact_point = cb.get_velocity_in_local_point(rel_pos);
 
         let proj_vel = wheel
