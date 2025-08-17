@@ -244,8 +244,7 @@ impl Car {
             suspension_compression: WHEELS_DAMPING_COMPRESSION,
             suspension_damping: WHEELS_DAMPING_RELAXATION,
             max_suspension_travel_cm: MAX_SUSPENSION_TRAVEL * UU_TO_BT * 100.0,
-            max_suspension_force: f32::MAX,
-            ..Default::default()
+            // max_suspension_force: f32::MAX,
         };
         let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32) };
         let mut bullet_vehicle = VehicleRL::new(rigid_body.clone(), raycaster);
@@ -278,7 +277,7 @@ impl Car {
                 suspension_rest_length * UU_TO_BT,
                 radius * UU_TO_BT,
                 &tuning,
-                front,
+                // front,
             );
 
             bullet_vehicle.wheel_info[i].suspsension_force_scale = if front {

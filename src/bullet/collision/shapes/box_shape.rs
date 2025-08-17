@@ -34,7 +34,7 @@ impl BoxShape {
                         }
                     },
                 },
-                polyhedron: None,
+                // polyhedron: None,
             },
         }
     }

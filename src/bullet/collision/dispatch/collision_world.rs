@@ -14,7 +14,7 @@ use crate::bullet::{
     },
     linear_math::{aabb_util_2::Aabb, interpolate_3},
 };
-use glam::{BVec3A, Vec3A};
+use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
 
 // struct LocalShapeInfo {
@@ -35,7 +35,7 @@ pub struct RayResultCallbackBase {
     pub ignore_object_world_index: Option<usize>,
     pub collision_filter_group: i32,
     pub collision_filter_mask: i32,
-    pub flags: u32,
+    // pub flags: u32,
 }
 
 impl Default for RayResultCallbackBase {
@@ -46,7 +46,7 @@ impl Default for RayResultCallbackBase {
             collision_filter_group: CollisionFilterGroups::DefaultFilter as i32,
             collision_filter_mask: CollisionFilterGroups::AllFilter as i32,
             ignore_object_world_index: None,
-            flags: 0,
+            // flags: 0,
         }
     }
 }
@@ -135,12 +135,8 @@ impl RayResultCallback for ClosestRayResultCallback {
 }
 
 struct SingleRayCallback<'a, T: RayResultCallback> {
-    ray_direction_inverse: Vec3A,
-    signs: BVec3A,
-    lambda_max: f32,
     ray_from_world: Vec3A,
     ray_to_world: Vec3A,
-    hit_normal: Vec3A,
     world: &'a CollisionWorld,
     result_callback: &'a mut T,
 }
@@ -152,19 +148,11 @@ impl<'a, T: RayResultCallback> SingleRayCallback<'a, T> {
         world: &'a CollisionWorld,
         result_callback: &'a mut T,
     ) -> Self {
-        let ray_dir = (ray_to_world - ray_from_world).normalize();
-        let ray_direction_inverse = 1.0 / ray_dir;
-        debug_assert!(!ray_direction_inverse.is_nan());
-
         Self {
-            hit_normal: Vec3A::ZERO,
-            signs: ray_direction_inverse.cmplt(Vec3A::ZERO),
-            lambda_max: ray_dir.dot(ray_to_world - ray_from_world),
             ray_from_world,
             ray_to_world,
             world,
             result_callback,
-            ray_direction_inverse,
         }
     }
 }
@@ -194,7 +182,6 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
 
 pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
     from: Vec3A,
-    to: Vec3A,
     dir: Vec3A,
     dist: f32,
     hit_fraction: f32,
@@ -214,7 +201,6 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
 
         Self {
             from,
-            to,
             dist,
             result_callback,
             collision_object,

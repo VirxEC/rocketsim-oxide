@@ -35,7 +35,7 @@ pub struct TriangleInfoMap {
     pub equal_vertex_threshold: f32,
     pub edge_distance_threshold: f32,
     pub max_edge_angle_threshold: f32,
-    pub zero_area_threshold: f32,
+    // pub zero_area_threshold: f32,
 }
 
 impl Default for TriangleInfoMap {
@@ -46,7 +46,7 @@ impl Default for TriangleInfoMap {
             planar_epsilon: 0.0001,
             equal_vertex_threshold: 0.0001,
             edge_distance_threshold: 0.1,
-            zero_area_threshold: 0.0001 * 0.0001,
+            // zero_area_threshold: 0.0001 * 0.0001,
             max_edge_angle_threshold: PI * 2.0,
         }
     }

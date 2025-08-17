@@ -93,7 +93,6 @@ pub struct RsBroadphase {
     cell_size: f32,
     cell_size_sq: f32,
     num_cells: USizeVec3,
-    total_cells: usize,
     num_dyn_proxies: u32,
     cells: Vec<Cell>,
     pub handles: Vec<RsBroadphaseProxy>,
@@ -131,7 +130,6 @@ impl RsBroadphase {
             .as_usizevec3()
             .max(USizeVec3::ONE);
         let total_cells = num_cells.element_product();
-
         let cells = vec![Cell::default(); total_cells];
 
         Self {
@@ -143,7 +141,6 @@ impl RsBroadphase {
             cell_size,
             cell_size_sq: cell_size * cell_size,
             num_cells,
-            total_cells,
             num_dyn_proxies: 0,
             cells,
             handles,

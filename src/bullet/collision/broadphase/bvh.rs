@@ -1,5 +1,8 @@
 use crate::bullet::{
-    collision::shapes::{triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh},
+    collision::shapes::{
+        triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
+        triangle_shape::TriangleShape,
+    },
     linear_math::aabb_util_2::{Aabb, ray_aabb_2, test_aabb_against_aabb},
 };
 use glam::Vec3A;
@@ -10,29 +13,28 @@ pub trait NodeOverlapCallback {
 }
 
 pub struct MyNodeOverlapCallback<'a, T: TriangleCallback> {
-    mesh_interface: &'a TriangleMesh,
+    tris: &'a [TriangleShape],
+    aabbs: &'a [Aabb],
     callback: &'a mut T,
-    num_overlap: usize,
 }
 
 impl<'a, T: TriangleCallback> MyNodeOverlapCallback<'a, T> {
-    pub const fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
+    pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
+        let (tris, aabbs) = mesh_interface.get_tris_aabbs();
+
         Self {
-            mesh_interface,
+            tris,
+            aabbs,
             callback,
-            num_overlap: 0,
         }
     }
 }
 
 impl<T: TriangleCallback> NodeOverlapCallback for MyNodeOverlapCallback<'_, T> {
     fn process_node(&mut self, node_triangle_index: usize) {
-        self.num_overlap += 1;
-
-        let (tris, aabbs) = self.mesh_interface.get_tris_aabbs();
         self.callback.process_triangle(
-            &tris[node_triangle_index],
-            &aabbs[node_triangle_index],
+            &self.tris[node_triangle_index],
+            &self.aabbs[node_triangle_index],
             node_triangle_index,
         );
     }

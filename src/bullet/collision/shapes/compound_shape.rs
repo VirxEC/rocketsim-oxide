@@ -8,7 +8,7 @@ pub struct CompoundShapeChild {
     pub transform: Affine3A,
     pub child_shape: BoxShape,
     // child_shape_type: BroadphaseNativeTypes,
-    pub child_margin: f32,
+    // pub child_margin: f32,
 }
 
 pub struct CompoundShape {
@@ -41,10 +41,10 @@ impl CompoundShape {
 
         self.child = Some(CompoundShapeChild {
             transform: local_transform,
-            child_margin: shape
-                .polyhedral_convex_shape
-                .convex_internal_shape
-                .collision_margin,
+            // child_margin: shape
+            //     .polyhedral_convex_shape
+            //     .convex_internal_shape
+            //     .collision_margin,
             child_shape: shape,
         });
     }

@@ -10,7 +10,7 @@ pub const DISABLE_SIMULATION: i32 = 5;
 pub const FIXED_BASE_MULTI_BODY: i32 = 6;
 
 pub enum CollisionFlags {
-    DynamicObject = 0,
+    // DynamicObject = 0,
     StaticObject = 1,
     KinematicObject = 2,
     NoContactResponse = 4,
@@ -81,8 +81,8 @@ pub struct CollisionObject {
     pub restitution: f32,
     // pub rolling_friction: f32,
     // pub spinning_friction: f32,
-    pub contact_damping: f32,
-    pub contact_stiffness: f32,
+    // pub contact_damping: f32,
+    // pub contact_stiffness: f32,
     pub no_rot: bool,
     pub internal_type: i32,
     // void* m_userObjectPointer;
@@ -123,8 +123,8 @@ impl Default for CollisionObject {
             restitution: 0.0,
             // rolling_friction: 0.0,
             // spinning_friction: 0.0,
-            contact_damping: 0.1,
-            contact_stiffness: f32::MAX,
+            // contact_damping: 0.1,
+            // contact_stiffness: f32::MAX,
             no_rot: false,
             internal_type: CollisionObjectTypes::CollisionObject as i32,
             user_pointer: 0,

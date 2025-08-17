@@ -184,7 +184,6 @@ impl SequentialImpulseConstraintSolver {
                 // setupContactConstraint
                 let relaxation = info.sor;
                 let inv_time_step = 1.0 / info.time_step;
-                debug_assert_eq!(info.global_cfm, 0.0);
                 let erp = info.erp_2;
 
                 let torque_axis_0 = rel_pos1.cross(cp.normal_world_on_b);
@@ -482,7 +481,6 @@ impl SequentialImpulseConstraintSolver {
         let rb0 = solver_body_a.original_body.as_ref();
 
         let inv_time_step = 1.0 / info.time_step;
-        debug_assert_eq!(info.global_cfm, 0.0);
         let erp = info.erp_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);

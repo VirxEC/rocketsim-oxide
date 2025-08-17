@@ -60,8 +60,8 @@ pub struct VehicleTuning {
     pub suspension_compression: f32,
     pub suspension_damping: f32,
     pub max_suspension_travel_cm: f32,
-    pub friction_slip: f32,
-    pub max_suspension_force: f32,
+    // pub friction_slip: f32,
+    // pub max_suspension_force: f32,
 }
 
 impl Default for VehicleTuning {
@@ -71,20 +71,20 @@ impl Default for VehicleTuning {
             suspension_compression: 0.83,
             suspension_damping: 0.88,
             max_suspension_travel_cm: 500.0,
-            friction_slip: 10.5,
-            max_suspension_force: 6000.0,
+            // friction_slip: 10.5,
+            // max_suspension_force: 6000.0,
         }
     }
 }
 
 pub struct VehicleRL {
-    forward_ws: Vec<Vec3A>,
-    axle: Vec<Vec3A>,
-    forward_impulse: Vec<f32>,
-    side_impulse: Vec<f32>,
+    // forward_ws: Vec<Vec3A>,
+    // axle: Vec<Vec3A>,
+    // forward_impulse: Vec<f32>,
+    // side_impulse: Vec<f32>,
     raycaster: VehicleRaycaster,
-    pitch_control: f32,
-    steering_value: f32,
+    // pitch_control: f32,
+    // steering_value: f32,
     chassis_body: Rc<RefCell<RigidBody>>,
     index_right_axis: usize,
     index_up_axis: usize,
@@ -97,26 +97,17 @@ impl VehicleRL {
         Self {
             raycaster,
             chassis_body,
-            forward_ws: Vec::new(),
-            axle: Vec::new(),
-            forward_impulse: Vec::new(),
-            side_impulse: Vec::new(),
-            pitch_control: 0.0,
-            steering_value: 0.0,
+            // forward_ws: Vec::new(),
+            // axle: Vec::new(),
+            // forward_impulse: Vec::new(),
+            // side_impulse: Vec::new(),
+            // pitch_control: 0.0,
+            // steering_value: 0.0,
             index_right_axis: 1,
             index_up_axis: 2,
             index_forward_axis: 0,
             wheel_info: ArrayVec::new(),
         }
-    }
-
-    pub fn get_chassis_world_transform(&self) -> Affine3A {
-        *self
-            .chassis_body
-            .borrow()
-            .collision_object
-            .borrow()
-            .get_world_transform()
     }
 
     pub fn get_up_vector(&self) -> Vec3A {
@@ -199,7 +190,7 @@ impl VehicleRL {
         suspension_rest_length: f32,
         wheel_radius: f32,
         tuning: &VehicleTuning,
-        is_front_wheel: bool,
+        // is_front_wheel: bool,
     ) {
         let ci = WheelInfoConstructionInfo {
             chassis_connection_cs: connection_point_cs,
@@ -210,10 +201,10 @@ impl VehicleRL {
             suspension_stiffness: tuning.suspension_stiffness,
             wheels_damping_compression: tuning.suspension_compression,
             wheels_damping_relaxation: tuning.suspension_damping,
-            friction_slip: tuning.friction_slip,
-            is_front_wheel,
+            // friction_slip: tuning.friction_slip,
+            // is_front_wheel,
             max_suspension_travel_cm: tuning.max_suspension_travel_cm,
-            max_suspension_force: tuning.max_suspension_force,
+            // max_suspension_force: tuning.max_suspension_force,
         };
 
         let wheel_idx = self.wheel_info.len();

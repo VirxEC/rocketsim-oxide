@@ -7,10 +7,10 @@ pub struct DispatcherInfo {
     // pub enable_sat_convex: bool,
     // pub enable_spu: bool,
     // pub use_epa: bool,
-    pub allowed_ccd_penetration: f32,
+    // pub allowed_ccd_penetration: f32,
     // pub use_convex_conservative_distance_util: bool,
-    pub convex_conservative_distance_threshold: f32,
-    pub deterministic_overlapping_pairs: bool,
+    // pub convex_conservative_distance_threshold: f32,
+    // pub deterministic_overlapping_pairs: bool,
 }
 
 impl Default for DispatcherInfo {
@@ -24,10 +24,10 @@ impl Default for DispatcherInfo {
             // enable_sat_convex: false,
             // enable_spu: true,
             // use_epa: true,
-            allowed_ccd_penetration: 0.04,
+            // allowed_ccd_penetration: 0.04,
             // use_convex_conservative_distance_util: false,
-            convex_conservative_distance_threshold: 0.0,
-            deterministic_overlapping_pairs: false,
+            // convex_conservative_distance_threshold: 0.0,
+            // deterministic_overlapping_pairs: false,
         }
     }
 }

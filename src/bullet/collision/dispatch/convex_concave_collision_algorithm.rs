@@ -19,7 +19,7 @@ use std::{cell::RefCell, rc::Rc};
 struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
     pub aabb: &'a Aabb,
-    is_swapped: bool,
+    // is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
@@ -34,7 +34,7 @@ impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
         Self {
             manifold: PersistentManifold::new(convex_obj, tri_obj, is_swapped),
             aabb,
-            is_swapped,
+            // is_swapped,
             contact_added_callback,
         }
     }
