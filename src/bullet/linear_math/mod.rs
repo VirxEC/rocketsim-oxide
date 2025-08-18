@@ -169,6 +169,7 @@ impl QuatExt for Quat {
     }
 }
 
+#[inline]
 pub fn interpolate_3(v0: Vec3A, v1: Vec3A, rt: f32) -> Vec3A {
     let s = 1.0 - rt;
     s * v0 + rt * v1

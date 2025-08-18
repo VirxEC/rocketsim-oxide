@@ -12,7 +12,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
         shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
     },
-    linear_math::{aabb_util_2::Aabb, interpolate_3},
+    linear_math::{AffineExt, aabb_util_2::Aabb, interpolate_3},
 };
 use glam::Vec3A;
 use std::{cell::RefCell, rc::Rc};
@@ -22,10 +22,11 @@ use std::{cell::RefCell, rc::Rc};
 //     triangle_index: usize,
 // }
 
-pub struct LocalRayResult {
-    collision_object: Rc<RefCell<CollisionObject>>,
+pub struct LocalRayResult<'a> {
+    collision_object: &'a CollisionObject,
+    collision_object_ref: Rc<RefCell<CollisionObject>>,
     // local_shape_info: LocalShapeInfo,
-    hit_normal_local: Vec3A,
+    hit_normal_world: Vec3A,
     hit_fraction: f32,
 }
 
@@ -65,8 +66,7 @@ pub trait RayResultCallback {
         proxy0.collision_filter_group & base.collision_filter_mask != 0
             && base.collision_filter_group & proxy0.collision_filter_mask != 0
     }
-    fn add_single_result(&mut self, ray_result: LocalRayResult, normal_in_world_space: bool)
-    -> f32;
+    fn add_single_result(&mut self, ray_result: LocalRayResult) -> f32;
 }
 
 pub struct ClosestRayResultCallback {
@@ -102,26 +102,13 @@ impl RayResultCallback for ClosestRayResultCallback {
         &self.base
     }
 
-    fn add_single_result(
-        &mut self,
-        ray_result: LocalRayResult,
-        normal_in_world_space: bool,
-    ) -> f32 {
+    fn add_single_result(&mut self, ray_result: LocalRayResult) -> f32 {
         debug_assert!(ray_result.hit_fraction <= self.base.closest_hit_fraction);
 
         self.base.closest_hit_fraction = ray_result.hit_fraction;
-        self.hit_normal_world = if normal_in_world_space {
-            ray_result.hit_normal_local
-        } else {
-            ray_result
-                .collision_object
-                .borrow()
-                .get_world_transform()
-                .matrix3
-                * ray_result.hit_normal_local
-        };
+        self.hit_normal_world = ray_result.hit_normal_world;
 
-        self.base.collision_object = Some(ray_result.collision_object);
+        self.base.collision_object = Some(ray_result.collision_object_ref);
         self.hit_point_world = interpolate_3(
             self.ray_from_world,
             self.ray_to_world,
@@ -161,15 +148,17 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
             return false;
         }
 
-        let co = proxy.client_object.as_ref().unwrap();
-        let handle_idx = co.borrow().get_broadphase_handle().unwrap();
+        let co_ref = proxy.client_object.as_ref().unwrap();
+        let co = co_ref.borrow();
+        let handle_idx = co.get_broadphase_handle().unwrap();
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
 
         if self.result_callback.needs_collision(handle) {
             CollisionWorld::ray_test_single(
                 self.ray_from_world,
                 self.ray_to_world,
-                co,
+                &co,
+                co_ref,
                 self.result_callback,
             );
         }
@@ -198,15 +187,16 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
     ) -> Self {
         let delta = from - to;
         let dist = delta.length();
+        let hit_fraction = result_callback.get_base().closest_hit_fraction;
 
         Self {
             from,
             dist,
+            hit_fraction,
             result_callback,
             collision_object,
             collision_object_ref,
             dir: delta / dist,
-            hit_fraction: 1.0,
         }
     }
 
@@ -220,13 +210,12 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
             self.collision_object.get_world_transform().matrix3 * hit_normal_local;
 
         let ray_result = LocalRayResult {
-            collision_object: self.collision_object_ref.clone(),
             hit_fraction,
-            hit_normal_local: hit_normal_world,
+            hit_normal_world,
+            collision_object: self.collision_object,
+            collision_object_ref: self.collision_object_ref.clone(),
         };
-        let normal_in_world_space = true;
-        self.result_callback
-            .add_single_result(ray_result, normal_in_world_space);
+        self.result_callback.add_single_result(ray_result);
     }
 }
 
@@ -388,24 +377,21 @@ impl CollisionWorld {
     fn ray_test_single<T: RayResultCallback>(
         ray_from: Vec3A,
         ray_to: Vec3A,
-        collision_object: &Rc<RefCell<CollisionObject>>,
+        co: &CollisionObject,
+        collision_object_ref: &Rc<RefCell<CollisionObject>>,
         result_callback: &mut T,
     ) {
-        let co = collision_object.borrow();
-
-        let world_to_co = co.get_world_transform().inverse();
+        let world_to_co = co.get_world_transform().transpose();
         let ray_from_local = world_to_co.transform_point3a(ray_from);
         let ray_to_local = world_to_co.transform_point3a(ray_to);
 
-        let hit_fraction = result_callback.get_base().closest_hit_fraction;
         let mut rcb = BridgeTriangleRaycastCallback::new(
             ray_from_local,
             ray_to_local,
             result_callback,
-            &co,
-            collision_object,
+            co,
+            collision_object_ref,
         );
-        rcb.hit_fraction = hit_fraction;
         co.get_collision_shape()
             .unwrap()
             .perform_raycast(&mut rcb, ray_from_local, ray_to_local);
