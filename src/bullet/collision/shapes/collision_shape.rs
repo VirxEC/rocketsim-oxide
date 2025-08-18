@@ -6,6 +6,7 @@ use crate::bullet::{
     collision::{
         broadphase::broadphase_proxy::BroadphaseNativeTypes,
         dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+        shapes::sphere_shape::SPHERE_RADIUS_MARGIN,
     },
     linear_math::aabb_util_2::Aabb,
 };
@@ -83,7 +84,7 @@ impl CollisionShapes {
 
     fn get_bounding_sphere(&self) -> (Vec3A, f32) {
         if let Self::Sphere(sphere) = self {
-            (Vec3A::ZERO, sphere.get_radius() + 0.08)
+            (Vec3A::ZERO, sphere.get_radius() + SPHERE_RADIUS_MARGIN)
         } else {
             let aabb = self.get_aabb(&Affine3A::IDENTITY);
             let center = (aabb.min + aabb.max) * 0.5;

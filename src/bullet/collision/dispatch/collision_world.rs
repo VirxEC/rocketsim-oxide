@@ -278,6 +278,7 @@ pub struct CollisionWorld {
     pub dispatcher1: CollisionDispatcher,
     pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
+    num_skippable_statics: usize,
     // force_update_all_aabbs: bool,
 }
 
@@ -288,6 +289,7 @@ impl CollisionWorld {
             dispatcher1: dispatcher,
             dispatcher_info: DispatcherInfo::default(),
             broadphase_pair_cache: pair_cache,
+            num_skippable_statics: 0,
             // force_update_all_aabbs: true,
         }
     }
@@ -322,9 +324,22 @@ impl CollisionWorld {
     fn update_aabbs(&mut self) {
         const CBT: Vec3A = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
 
-        for (i, col_obj_ref) in self.collision_objects.iter().enumerate() {
+        let mut prev_is_static = true;
+        for (i, col_obj_ref) in self
+            .collision_objects
+            .iter()
+            .enumerate()
+            .skip(self.num_skippable_statics)
+        {
             let col_obj = col_obj_ref.borrow();
             debug_assert_eq!(col_obj.get_world_array_index(), i);
+
+            if prev_is_static && col_obj.is_static_object() {
+                // static objects only need their aabbs set the first time
+                self.num_skippable_statics += 1;
+            } else {
+                prev_is_static = false;
+            }
 
             let mut aabb = col_obj
                 .get_collision_shape()

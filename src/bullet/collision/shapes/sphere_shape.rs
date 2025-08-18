@@ -12,6 +12,8 @@ use crate::bullet::{
 use glam::{Affine3A, Vec3A};
 use std::mem;
 
+pub const SPHERE_RADIUS_MARGIN: f32 = 0.08;
+
 pub struct SphereShape {
     pub convex_internal_shape: ConvexInternalShape,
 }
@@ -48,7 +50,7 @@ impl SphereShape {
     #[must_use]
     pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
         let center = t.translation;
-        let margin = self.get_margin() + 0.08;
+        let margin = self.get_margin() + SPHERE_RADIUS_MARGIN;
         let extent = Vec3A::splat(margin);
 
         Aabb {
