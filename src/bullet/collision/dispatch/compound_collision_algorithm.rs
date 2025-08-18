@@ -115,8 +115,8 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
 
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
         let compound_obj = self.compound_obj.borrow();
-        let compound_col_shape = compound_obj.get_collision_shape().unwrap().borrow();
-        let CollisionShapes::Compound(compound_shape) = &*compound_col_shape else {
+        let Some(CollisionShapes::Compound(compound_shape)) = compound_obj.get_collision_shape()
+        else {
             unreachable!()
         };
 
@@ -130,7 +130,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
         let other_obj = self.other_obj.borrow();
-        let other_col_shape = other_obj.get_collision_shape().unwrap().borrow();
+        let other_col_shape = other_obj.get_collision_shape().unwrap();
         let aabb2 = other_col_shape.get_aabb(other_obj.get_world_transform());
 
         if !test_aabb_against_aabb(&aabb1, &aabb2) {
@@ -142,7 +142,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
             world_transform: new_child_world_trans,
         };
 
-        match &*other_col_shape {
+        match other_col_shape {
             CollisionShapes::TriangleMesh(tri_mesh) => {
                 let xform1 = other_obj.get_world_transform().transpose();
                 let xform2 = new_child_world_trans;

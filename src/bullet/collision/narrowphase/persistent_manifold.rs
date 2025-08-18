@@ -34,35 +34,36 @@ pub struct PersistentManifold {
 
 impl PersistentManifold {
     pub fn new(
-        body0: Rc<RefCell<CollisionObject>>,
-        body1: Rc<RefCell<CollisionObject>>,
+        body0_ref: Rc<RefCell<CollisionObject>>,
+        body1_ref: Rc<RefCell<CollisionObject>>,
         is_swapped: bool,
     ) -> Self {
+        let body0 = body0_ref.borrow();
+        let body1 = body1_ref.borrow();
+
         let body0_cbt = body0
-            .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let body1_cbt = body1
-            .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let contact_breaking_threshold = body0_cbt.min(body1_cbt);
         let contact_processing_threshold = body0
-            .borrow()
             .contact_processing_threshold
-            .min(body1.borrow().contact_processing_threshold);
+            .min(body1.contact_processing_threshold);
+
+        drop(body0);
+        drop(body1);
 
         Self {
-            body0,
-            body1,
+            body0: body0_ref,
+            body1: body1_ref,
             contact_breaking_threshold,
             contact_processing_threshold,
             // object_type: ContactManifoldTypes::PersistentManifoldType as i32,
-            point_cache: const { ArrayVec::new_const() },
+            point_cache: ArrayVec::new(),
             // companion_id_a: 0,
             // companion_id_b: 0,
             // index_1a: 0,

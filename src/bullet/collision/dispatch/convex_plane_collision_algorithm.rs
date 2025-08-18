@@ -45,10 +45,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let mut manifold =
             PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);
 
-        let col_shape = convex_obj.get_collision_shape().unwrap().borrow();
-
-        let plane_col_shape = plane_obj.get_collision_shape().unwrap().borrow();
-        let CollisionShapes::StaticPlane(plane_shape) = &*plane_col_shape else {
+        let col_shape = convex_obj.get_collision_shape().unwrap();
+        let Some(CollisionShapes::StaticPlane(plane_shape)) = plane_obj.get_collision_shape()
+        else {
             unreachable!()
         };
 

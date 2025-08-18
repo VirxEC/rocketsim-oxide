@@ -97,13 +97,11 @@ impl CollisionDispatcher {
             .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_shape_type();
         let shape1 = col_obj_1
             .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_shape_type();
 
         match shape0 {

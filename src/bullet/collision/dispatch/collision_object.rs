@@ -1,6 +1,5 @@
 use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
 use glam::{Affine3A, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 pub const ACTIVE_TAG: i32 = 1;
 pub const ISLAND_SLEEPING: i32 = 2;
@@ -67,9 +66,9 @@ pub struct CollisionObject {
     // pub has_anisotropic_friction: bool,
     pub contact_processing_threshold: f32,
     broadphase_handle: Option<usize>,
-    collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
+    collision_shape: Option<CollisionShapes>,
     // void* m_extensionPointer;
-    pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
+    // pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
     pub collision_flags: i32,
     // pub island_tag_1: i32,
     pub companion_id: Option<usize>,
@@ -111,7 +110,7 @@ impl Default for CollisionObject {
             contact_processing_threshold: f32::MAX,
             broadphase_handle: None,
             collision_shape: None,
-            root_collision_shape: None,
+            // root_collision_shape: None,
             collision_flags: 0,
             // island_tag_1: -1,
             companion_id: None,
@@ -154,13 +153,17 @@ impl CollisionObject {
 
     pub fn set_collision_shape(&mut self, collision_shape: CollisionShapes) {
         // self.update_revision += 1;
-        let collision_shape = Rc::new(RefCell::new(collision_shape));
-        self.collision_shape = Some(collision_shape.clone());
-        self.root_collision_shape = Some(collision_shape);
+        self.collision_shape = Some(collision_shape);
+        // self.root_collision_shape = Some(collision_shape);
     }
 
     #[must_use]
-    pub const fn get_collision_shape(&self) -> Option<&Rc<RefCell<CollisionShapes>>> {
+    pub const fn get_collision_shape_mut(&mut self) -> Option<&mut CollisionShapes> {
+        self.collision_shape.as_mut()
+    }
+
+    #[must_use]
+    pub const fn get_collision_shape(&self) -> Option<&CollisionShapes> {
         self.collision_shape.as_ref()
     }
 

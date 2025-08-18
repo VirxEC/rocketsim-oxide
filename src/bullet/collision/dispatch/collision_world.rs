@@ -58,10 +58,7 @@ pub trait RayResultCallback {
     }
     fn needs_collision(&self, proxy0: &BroadphaseProxy) -> bool {
         let base = self.get_base();
-        if let Some(ignore_object_world_index) = base.ignore_object_world_index
-            && let Some(client_obj) = proxy0.client_object_world_index
-            && ignore_object_world_index == client_obj
-        {
+        if base.ignore_object_world_index == proxy0.client_object_world_index {
             return false;
         }
 
@@ -100,6 +97,7 @@ impl ClosestRayResultCallback {
 }
 
 impl RayResultCallback for ClosestRayResultCallback {
+    #[inline]
     fn get_base(&self) -> &RayResultCallbackBase {
         &self.base
     }
@@ -186,7 +184,8 @@ pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
     dist: f32,
     hit_fraction: f32,
     result_callback: &'a mut T,
-    collision_object: &'a Rc<RefCell<CollisionObject>>,
+    collision_object: &'a CollisionObject,
+    collision_object_ref: &'a Rc<RefCell<CollisionObject>>,
 }
 
 impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
@@ -194,7 +193,8 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
         from: Vec3A,
         to: Vec3A,
         result_callback: &'a mut T,
-        collision_object: &'a Rc<RefCell<CollisionObject>>,
+        collision_object: &'a CollisionObject,
+        collision_object_ref: &'a Rc<RefCell<CollisionObject>>,
     ) -> Self {
         let delta = from - to;
         let dist = delta.length();
@@ -204,6 +204,7 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
             dist,
             result_callback,
             collision_object,
+            collision_object_ref,
             dir: delta / dist,
             hit_fraction: 1.0,
         }
@@ -216,10 +217,10 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
 
         self.hit_fraction = hit_fraction;
         let hit_normal_world =
-            self.collision_object.borrow().get_world_transform().matrix3 * hit_normal_local;
+            self.collision_object.get_world_transform().matrix3 * hit_normal_local;
 
         let ray_result = LocalRayResult {
-            collision_object: self.collision_object.clone(),
+            collision_object: self.collision_object_ref.clone(),
             hit_fraction,
             hit_normal_local: hit_normal_world,
         };
@@ -297,27 +298,24 @@ impl CollisionWorld {
         filter_group: i32,
         filter_mask: i32,
     ) {
-        object
-            .borrow_mut()
-            .set_world_array_index(self.collision_objects.len());
+        {
+            let mut obj = object.borrow_mut();
+            obj.set_world_array_index(self.collision_objects.len());
 
-        let obj = object.borrow();
-        let trans = obj.get_world_transform();
+            let trans = obj.get_world_transform();
+            let aabb = obj.get_collision_shape().unwrap().get_aabb(trans);
 
-        let shape = obj.get_collision_shape().unwrap().borrow_mut();
-        let aabb = shape.get_aabb(trans);
+            let proxy = self.broadphase_pair_cache.create_proxy(
+                aabb,
+                &obj,
+                object.clone(),
+                filter_group,
+                filter_mask,
+            );
 
-        drop(shape);
-        drop(obj);
+            obj.set_broadphase_handle(proxy);
+        }
 
-        let proxy = self.broadphase_pair_cache.create_proxy(
-            aabb,
-            object.clone(),
-            filter_group,
-            filter_mask,
-        );
-
-        object.borrow_mut().set_broadphase_handle(proxy);
         self.collision_objects.push(object);
     }
 
@@ -327,7 +325,6 @@ impl CollisionWorld {
             .get_collision_shape()
             .as_ref()
             .unwrap()
-            .borrow()
             .get_aabb(col_obj.get_world_transform());
 
         let contact_threshold = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
@@ -342,7 +339,6 @@ impl CollisionWorld {
                 .get_collision_shape()
                 .as_ref()
                 .unwrap()
-                .borrow()
                 .get_aabb(&col_obj.interpolation_world_transform);
             aabb2.min -= contact_threshold;
             aabb2.max += contact_threshold;
@@ -396,14 +392,13 @@ impl CollisionWorld {
             ray_from_local,
             ray_to_local,
             result_callback,
+            &co,
             collision_object,
         );
         rcb.hit_fraction = hit_fraction;
-        co.get_collision_shape().unwrap().borrow().perform_raycast(
-            &mut rcb,
-            ray_from_local,
-            ray_to_local,
-        );
+        co.get_collision_shape()
+            .unwrap()
+            .perform_raycast(&mut rcb, ray_from_local, ray_to_local);
     }
 
     pub fn ray_test<T: RayResultCallback>(

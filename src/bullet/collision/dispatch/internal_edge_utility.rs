@@ -234,14 +234,13 @@ pub fn adjust_internal_edge_contacts(
     tri_mesh_col_obj: &CollisionObject,
     index: usize,
 ) {
-    let tri_col_shape = tri_mesh_col_obj.get_collision_shape().unwrap().borrow();
-    let CollisionShapes::TriangleMesh(tri_mesh) = &*tri_col_shape else {
+    let Some(CollisionShapes::TriangleMesh(tri_mesh)) = tri_mesh_col_obj.get_collision_shape()
+    else {
         return;
     };
 
     let info_map = tri_mesh.get_triangle_info_map();
-
-    let info = info_map.internal_map[index];
+    let info = &info_map.internal_map[index];
 
     let front_facing = 1.0;
     let tri = tri_mesh.get_mesh_interface().get_triangle(index);

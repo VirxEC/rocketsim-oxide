@@ -280,7 +280,7 @@ impl Car {
                 // front,
             );
 
-            bullet_vehicle.wheel_info[i].suspsension_force_scale = if front {
+            bullet_vehicle.wheels[i].suspsension_force_scale = if front {
                 SUSPENSION_FORCE_SCALE_FRONT
             } else {
                 SUSPENSION_FORCE_SCALE_BACK
@@ -405,7 +405,7 @@ impl Car {
         let abs_forward_speed_uu = forward_speed_uu.abs();
 
         let mut wheels_have_world_contact = false;
-        for wheel in &self.bullet_vehicle.wheel_info {
+        for wheel in &self.bullet_vehicle.wheels {
             wheels_have_world_contact |= wheel.is_in_contact_with_world;
         }
 
@@ -454,7 +454,7 @@ impl Car {
         let drive_engine_force =
             engine_throttle * const { THROTTLE_TORQUE_AMOUNT * UU_TO_BT } * drive_speed_scale;
         let drive_brake_force = real_brake * const { BRAKE_TORQUE_AMOUNT * UU_TO_BT };
-        for wheel in &mut self.bullet_vehicle.wheel_info {
+        for wheel in &mut self.bullet_vehicle.wheels {
             wheel.wheel_info.engine_force = drive_engine_force;
             wheel.wheel_info.brake = drive_brake_force;
         }
@@ -472,10 +472,10 @@ impl Car {
         }
 
         steer_angle *= self.controls.steer;
-        self.bullet_vehicle.wheel_info[0].steer_angle = steer_angle;
-        self.bullet_vehicle.wheel_info[1].steer_angle = steer_angle;
+        self.bullet_vehicle.wheels[0].steer_angle = steer_angle;
+        self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
-        for wheel in &mut self.bullet_vehicle.wheel_info {
+        for wheel in &mut self.bullet_vehicle.wheels {
             let Some(ground_rb_ref) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
                 continue;
             };
@@ -484,7 +484,7 @@ impl Car {
             let vel = ground_rb.linear_velocity;
             let angular_vel = ground_rb.angular_velocity;
 
-            let lat_dir = wheel.wheel_info.world_transform.matrix3.col(1);
+            let lat_dir = wheel.wheel_info.world_transform.matrix3.y_axis;
             let long_dir = lat_dir.cross(wheel.wheel_info.raycast_info.contact_normal_ws);
 
             let wheel_delta = wheel.wheel_info.raycast_info.hard_point_ws
@@ -952,7 +952,7 @@ impl Car {
         let mut num_wheels_in_contact = 0u8;
         for (wheel, has_contact) in self
             .bullet_vehicle
-            .wheel_info
+            .wheels
             .iter()
             .zip(&mut self.internal_state.wheels_with_contact)
         {

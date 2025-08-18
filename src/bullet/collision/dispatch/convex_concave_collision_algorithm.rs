@@ -53,8 +53,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
 
         let (center, radius) = {
             let sphere_ref = self.manifold.body0.borrow();
-            let sphere_col_shape = sphere_ref.get_collision_shape().unwrap().borrow();
-            let CollisionShapes::Sphere(sphere_shape) = &*sphere_col_shape else {
+            let Some(CollisionShapes::Sphere(sphere_shape)) = sphere_ref.get_collision_shape()
+            else {
                 unreachable!()
             };
 
@@ -118,13 +118,11 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
             (body0, body1)
         };
 
-        let sphere_col_shape = sphere_obj.get_collision_shape().unwrap().borrow();
-        let CollisionShapes::Sphere(sphere_shape) = &*sphere_col_shape else {
+        let Some(CollisionShapes::Sphere(sphere_shape)) = sphere_obj.get_collision_shape() else {
             unreachable!()
         };
 
-        let tri_col_shape = tris_obj.get_collision_shape().unwrap().borrow();
-        let CollisionShapes::TriangleMesh(tri_mesh) = &*tri_col_shape else {
+        let Some(CollisionShapes::TriangleMesh(tri_mesh)) = tris_obj.get_collision_shape() else {
             unreachable!()
         };
 

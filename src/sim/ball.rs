@@ -103,7 +103,6 @@ impl BallState {
 pub struct Ball {
     pub(crate) internal_state: BallState,
     pub(crate) rigid_body: Rc<RefCell<RigidBody>>,
-    pub(crate) collision_shape: Rc<RefCell<CollisionShapes>>,
     pub(crate) ground_stick_applied: bool,
     pub(crate) velocity_impulse_cache: Vec3A,
 }
@@ -158,17 +157,8 @@ impl Ball {
             CollisionFilterGroups::AllFilter as i32,
         );
 
-        let collision_shape = rigid_body
-            .borrow()
-            .collision_object
-            .borrow()
-            .get_collision_shape()
-            .unwrap()
-            .clone();
-
         Self {
             internal_state: BallState::DEFAULT,
-            collision_shape,
             rigid_body,
             ground_stick_applied: false,
             velocity_impulse_cache: Vec3A::ZERO,
