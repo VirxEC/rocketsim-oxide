@@ -181,7 +181,6 @@ impl Bvh {
         end_node_index: usize,
     ) {
         let mut cur_index = start_node_index;
-
         while cur_index < end_node_index {
             let root_node = &self.contiguous_nodes[cur_index];
             let aabb_overlap = test_aabb_against_aabb(aabb, &root_node.aabb);
@@ -211,24 +210,23 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.contiguous_nodes[cur_index];
-            let overlap = if test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb) {
-                ray_aabb_2(
-                    ray_info.source,
-                    ray_info.direction_inverse,
-                    &ray_info.sign,
-                    &[root_node.aabb.min, root_node.aabb.max],
-                    0.0,
-                    ray_info.lambda_max,
-                )
-            } else {
-                false
-            };
+            let overlap = test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
-                    if overlap {
+                    if overlap
+                        && ray_aabb_2(
+                            ray_info.source,
+                            ray_info.direction_inverse,
+                            &ray_info.sign,
+                            &[root_node.aabb.min, root_node.aabb.max],
+                            0.0,
+                            ray_info.lambda_max,
+                        )
+                    {
                         node_callback.process_node(triangle_index);
                     }
+
                     cur_index += 1;
                 }
                 NodeType::Branch { escape_index } => {
@@ -244,30 +242,27 @@ impl Bvh {
         ray_source: Vec3A,
         ray_target: Vec3A,
     ) {
-        let ray_direction = (ray_target - ray_source).normalize_or_zero();
-        let lambda_max = ray_direction.dot(ray_target - ray_source);
+        let aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
+        if test_aabb_against_aabb(&aabb, &self.aabb) {
+            let ray_direction = (ray_target - ray_source).normalize();
+            let lambda_max = ray_direction.dot(ray_target - ray_source);
 
-        let mut ray_dir_inv = 1.0 / ray_direction;
+            let mut ray_dir_inv = 1.0 / ray_direction;
+            // replace -inf and inf with LARGE_FLOAT
+            ray_dir_inv = Vec3A::select(
+                ray_dir_inv.is_finite_mask(),
+                ray_dir_inv,
+                const { Vec3A::splat(LARGE_FLOAT) },
+            );
 
-        let finite = ray_dir_inv.is_finite_mask();
-        if !finite.all() {
-            let finite: [bool; 3] = finite.into();
-            for i in 0..3 {
-                if !finite[i] {
-                    ray_dir_inv[i] = LARGE_FLOAT;
-                }
-            }
-        }
+            let ray_info = RayInfo {
+                aabb,
+                sign: <[bool; 3]>::from(ray_direction.cmplt(Vec3A::ZERO)).map(usize::from),
+                source: ray_source,
+                direction_inverse: ray_dir_inv,
+                lambda_max,
+            };
 
-        let ray_info = RayInfo {
-            aabb: Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target)),
-            sign: <[bool; 3]>::from(ray_direction.cmplt(Vec3A::ZERO)).map(usize::from),
-            source: ray_source,
-            direction_inverse: ray_dir_inv,
-            lambda_max,
-        };
-
-        if test_aabb_against_aabb(&ray_info.aabb, &self.aabb) {
             self.walk_stackless_tree_against_ray(node_callback, &ray_info, 0, self.cur_node_index);
         }
     }
