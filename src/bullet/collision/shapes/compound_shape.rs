@@ -90,15 +90,23 @@ impl CompoundShape {
         let mut texit = dist;
         let mut hit_axis = 0usize;
 
-        for axis in 0..3 {
-            let origin = ray_source[axis];
-            let dir_i = dir[axis];
-            let min = self.local_aabb.min[axis];
-            let max = self.local_aabb.max[axis];
+        let inv = 1.0 / dir;
+        let t1 = (self.local_aabb.min - ray_source) * inv;
+        let t2 = (self.local_aabb.max - ray_source) * inv;
 
-            if dir_i.abs() < 1e-8 {
+        let tmin = t1.min(t2);
+        let tmax = t1.max(t2);
+
+        let is_neg = tmax.is_negative_bitmask();
+        let is_finite: [bool; 3] = inv.is_finite_mask().into();
+        for axis in 0..3 {
+            if !is_finite[axis] {
+                let origin = ray_source[axis];
+                let min = self.local_aabb.min[axis];
+                let max = self.local_aabb.max[axis];
+
                 // parallel - if the origin not within slab, no hit
-                if origin < min || origin > max {
+                if min > origin || origin > max {
                     return;
                 }
 
@@ -106,25 +114,21 @@ impl CompoundShape {
                 continue;
             }
 
-            let inv = 1.0 / dir_i;
-            let mut t1 = (min - origin) * inv;
-            let mut t2 = (max - origin) * inv;
-            if t1 > t2 {
-                mem::swap(&mut t1, &mut t2);
+            if is_neg & (1 << axis) != 0 {
+                return;
             }
 
-            texit = texit.min(t2);
-            if t1 > tenter {
-                tenter = t1;
+            texit = texit.min(tmax[axis]);
+            if tmin[axis] > tenter {
+                tenter = tmin[axis];
                 hit_axis = axis;
             }
 
-            if tenter > texit || texit < 0.0 {
+            if tenter > texit {
                 return;
             }
         }
 
-        tenter = tenter.max(0.0);
         if tenter > dist {
             return;
         }
@@ -132,7 +136,7 @@ impl CompoundShape {
         let mut hit_normal = Vec3A::ZERO;
         hit_normal[hit_axis] = -dir[hit_axis].signum();
 
-        let hit_fraction = tenter / dist;
+        let hit_fraction = tenter.max(0.0) / dist;
         result_callback.report_hit(hit_normal, hit_fraction);
     }
 }
