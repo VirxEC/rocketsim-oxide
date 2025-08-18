@@ -22,7 +22,6 @@ pub struct RsBroadphaseProxy {
     pub(crate) is_static: bool,
     pub(crate) cell_idx: usize,
     pub(crate) indices: USizeVec3,
-    pub(crate) next_free: usize,
 }
 
 #[derive(Clone)]
@@ -221,12 +220,9 @@ impl CellGrid {
 }
 
 pub struct RsBroadphase {
-    num_handles: usize,
-    max_handles: usize,
-    last_handle_index: usize,
     cell_grid: CellGrid,
+    min_dyn_handle_index: usize,
     pub handles: Vec<RsBroadphaseProxy>,
-    first_free_handle: usize,
     pair_cache: HashedOverlappingPairCache,
 }
 
@@ -237,22 +233,8 @@ impl RsBroadphase {
         max_pos: Vec3A,
         cell_size: f32,
         pair_cache: HashedOverlappingPairCache,
-        max_handles: usize,
     ) -> Self {
         debug_assert!(min_pos.cmple(max_pos).all(), "Invalid min/max pos");
-
-        let mut handles: Vec<_> = (0..max_handles)
-            .map(|i| RsBroadphaseProxy {
-                broadphase_proxy: BroadphaseProxy {
-                    unique_id: i as u32 + 2,
-                    ..Default::default()
-                },
-                next_free: i + 1,
-                ..Default::default()
-            })
-            .collect();
-
-        handles.last_mut().unwrap().next_free = 0;
 
         let range = max_pos - min_pos;
         let num_cells = (range / cell_size)
@@ -263,9 +245,7 @@ impl RsBroadphase {
         let cells = vec![Cell::default(); total_cells];
 
         Self {
-            num_handles: 0,
-            max_handles,
-            last_handle_index: 0,
+            min_dyn_handle_index: 0,
             cell_grid: CellGrid {
                 max_pos,
                 min_pos,
@@ -275,28 +255,9 @@ impl RsBroadphase {
                 num_dyn_proxies: 0,
                 cells,
             },
-            handles,
-            first_free_handle: 0,
+            handles: Vec::with_capacity(32),
             pair_cache,
         }
-    }
-
-    fn alloc_handle(&mut self) -> usize {
-        debug_assert!(self.num_handles < self.max_handles);
-
-        let free_handle = self.first_free_handle;
-        self.first_free_handle = self.handles[free_handle].next_free;
-        self.num_handles += 1;
-
-        if free_handle > self.last_handle_index {
-            self.last_handle_index = free_handle;
-        }
-
-        free_handle
-    }
-
-    fn aabb_overlap(proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) -> bool {
-        test_aabb_against_aabb(&proxy0.broadphase_proxy.aabb, &proxy1.broadphase_proxy.aabb)
     }
 
     pub fn set_aabb(&mut self, proxy_idx: usize, aabb: Aabb) {
@@ -349,7 +310,7 @@ impl RsBroadphase {
         let is_static = co.is_static_object();
         let world_index = co.get_world_array_index();
 
-        let new_handle_idx = self.alloc_handle();
+        let new_handle_idx = self.handles.len();
         let indices = self.cell_grid.get_cell_indices(aabb.min);
         let cell_idx = self.cell_grid.cell_indices_to_index(indices);
 
@@ -360,15 +321,18 @@ impl RsBroadphase {
                 client_object: Some(collision_object_ref),
                 collision_filter_group,
                 collision_filter_mask,
-                unique_id: self.handles[new_handle_idx].broadphase_proxy.unique_id,
+                unique_id: new_handle_idx + 2,
             },
             is_static,
             cell_idx,
             indices,
-            next_free: 0,
         };
 
         if is_static {
+            if self.cell_grid.num_dyn_proxies == 0 {
+                self.min_dyn_handle_index = new_handle_idx + 1;
+            }
+
             self.cell_grid
                 .update_cells_static::<true>(&new_handle, co, new_handle_idx);
         } else {
@@ -379,35 +343,31 @@ impl RsBroadphase {
             self.cell_grid.num_dyn_proxies += 1;
         }
 
-        self.handles[new_handle_idx] = new_handle;
+        self.handles.push(new_handle);
         new_handle_idx
     }
 
     pub fn calculate_overlapping_pairs(&mut self) {
         debug_assert!(self.pair_cache.is_empty());
-        if self.num_handles == 0 {
+        if self.cell_grid.num_dyn_proxies == 0 {
             return;
         }
 
-        let mut new_largest_index = 0;
-        for (i, proxy) in self.handles[..=self.last_handle_index].iter().enumerate() {
-            if proxy.is_static {
-                continue; // todo: use separate list
-            }
-
-            new_largest_index = i;
-
+        for (i, proxy) in self
+            .handles
+            .iter()
+            .enumerate()
+            .skip(self.min_dyn_handle_index)
+            .filter(|(_, proxy)| !proxy.is_static)
+        {
             let cell = &self.cell_grid.cells[proxy.cell_idx];
-
             for &other_proxy_idx in &cell.static_handles {
-                if i == other_proxy_idx {
-                    continue;
-                }
-
                 let other_proxy = &self.handles[other_proxy_idx];
 
-                if Self::aabb_overlap(proxy, other_proxy)
-                    && !self.pair_cache.contains_pair(proxy, other_proxy)
+                if test_aabb_against_aabb(
+                    &proxy.broadphase_proxy.aabb,
+                    &other_proxy.broadphase_proxy.aabb,
+                ) && !self.pair_cache.contains_pair(proxy, other_proxy)
                 {
                     self.pair_cache
                         .add_overlapping_pair(proxy, i, other_proxy, other_proxy_idx);
@@ -421,9 +381,10 @@ impl RsBroadphase {
                     }
 
                     let other_proxy = &self.handles[other_proxy_idx];
-
-                    if Self::aabb_overlap(proxy, other_proxy)
-                        && !self.pair_cache.contains_pair(proxy, other_proxy)
+                    if test_aabb_against_aabb(
+                        &proxy.broadphase_proxy.aabb,
+                        &other_proxy.broadphase_proxy.aabb,
+                    ) && !self.pair_cache.contains_pair(proxy, other_proxy)
                     {
                         self.pair_cache.add_overlapping_pair(
                             proxy,
@@ -435,8 +396,6 @@ impl RsBroadphase {
                 }
             }
         }
-
-        self.last_handle_index = new_largest_index;
     }
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(

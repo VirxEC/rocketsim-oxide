@@ -46,7 +46,6 @@ pub struct ArenaConfig {
     max_pos: Vec3A,
     max_aabb_len: f32,
     no_ball_rot: bool,
-    max_objects: usize,
     /// Use a custom list of boost pads (`custom_boost_pads`) instead of the normal one
     /// NOTE: This will disable the boost pad grid and will thus worsen performance
     use_custom_boost_pads: bool,
@@ -67,7 +66,6 @@ impl ArenaConfig {
         max_pos: Vec3A::new(5600., 6000., 2200.),
         max_aabb_len: 370.,
         no_ball_rot: true,
-        max_objects: 512,
         use_custom_boost_pads: false,
         custom_boost_pads: Vec::new(),
     };
@@ -181,7 +179,6 @@ impl Arena {
             config.max_pos * UU_TO_BT,
             config.max_aabb_len * UU_TO_BT * cell_size_multiplier,
             overlapping_pair_cache,
-            config.max_objects,
         );
 
         let mut bullet_world =

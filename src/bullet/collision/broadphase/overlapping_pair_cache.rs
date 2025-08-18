@@ -8,7 +8,7 @@ use std::mem;
 
 pub struct HashedOverlappingPairCache {
     overlapping_pair_array: Vec<BroadphasePair>,
-    hash_table: AHashMap<(u32, u32), usize>,
+    hash_table: AHashMap<(usize, usize), usize>,
 }
 
 impl Default for HashedOverlappingPairCache {
@@ -26,9 +26,9 @@ impl Default for HashedOverlappingPairCache {
 impl HashedOverlappingPairCache {
     fn internal_add_pair(
         &mut self,
-        mut proxy0_id: u32,
+        mut proxy0_id: usize,
         mut proxy0_idx: usize,
-        mut proxy1_id: u32,
+        mut proxy1_id: usize,
         mut proxy1_idx: usize,
     ) {
         if proxy0_id > proxy1_id {
