@@ -7,7 +7,7 @@ use crate::{
         collision::dispatch::collision_object::CollisionObject,
         dynamics::{
             constraint_solver::contact_constraint::{
-                resolve_single_bilateral, resolve_single_collision,
+                ContactBody, resolve_single_bilateral, resolve_single_collision,
             },
             discrete_dynamics_world::DiscreteDynamicsWorld,
             rigid_body::RigidBody,
@@ -79,12 +79,11 @@ impl WheelInfoRL {
 
     fn ray_cast(
         &mut self,
-        cb: &RigidBody,
-        cb_co: &CollisionObject,
+        chassis: &ContactBody,
         raycaster: &VehicleRaycaster,
         collision_world: &DiscreteDynamicsWorld,
     ) {
-        self.update_wheel_transform_ws(cb_co.get_world_transform());
+        self.update_wheel_transform_ws(chassis.co.get_world_transform());
 
         let suspension_travel = self.wheel_info.max_suspension_travel_cm / 100.0;
         let real_ray_length = self.wheel_info.suspension_rest_length_1
@@ -97,7 +96,8 @@ impl WheelInfoRL {
         self.wheel_info.raycast_info.contact_point_ws = target;
         self.wheel_info.raycast_info.ground_object = None;
 
-        let Some(ray_results) = raycaster.cast_ray(collision_world, source, target, cb_co) else {
+        let Some(ray_results) = raycaster.cast_ray(collision_world, source, target, chassis.co)
+        else {
             self.wheel_info.raycast_info.suspension_length =
                 self.wheel_info.suspension_rest_length_1 + suspension_travel;
             self.wheel_info.suspension_relative_velcity = 0.0;
@@ -117,7 +117,7 @@ impl WheelInfoRL {
 
         self.wheel_info.raycast_info.ground_object = Some(ray_results.rigid_body.clone());
 
-        let up = cb_co.get_world_transform().matrix3.z_axis;
+        let up = chassis.co.get_world_transform().matrix3.z_axis;
         let wheel_trace_len_sq = (self.wheel_info.raycast_info.hard_point_ws
             - self.wheel_info.raycast_info.contact_point_ws)
             .dot(up);
@@ -132,9 +132,9 @@ impl WheelInfoRL {
             .suspension_length
             .clamp(min_suspension_len, max_suspension_len);
 
-        let rel_pos =
-            self.wheel_info.raycast_info.contact_point_ws - cb_co.get_world_transform().translation;
-        self.vel_at_contact_point = cb.get_velocity_in_local_point(rel_pos);
+        let rel_pos = self.wheel_info.raycast_info.contact_point_ws
+            - chassis.co.get_world_transform().translation;
+        self.vel_at_contact_point = chassis.rb.get_velocity_in_local_point(rel_pos);
 
         let proj_vel = self
             .wheel_info
@@ -158,11 +158,11 @@ impl WheelInfoRL {
                 - SUSPENSION_SUBTRACTION;
             if wheel_trace_len_sq < ray_pushback_thresh {
                 let wheel_trace_dist_delta = wheel_trace_len_sq - ray_pushback_thresh;
+                let ground_cb = ContactBody { rb: &rb, co: &co };
+
                 let collision_result = resolve_single_collision(
-                    cb,
-                    cb_co,
-                    &rb,
-                    &co,
+                    chassis,
+                    &ground_cb,
                     ray_results.hit_point_in_world,
                     ray_results.hit_normal_in_world,
                     &collision_world.dynamics_world.solver_info,
@@ -176,8 +176,7 @@ impl WheelInfoRL {
 
     fn calc_friction_impulses(
         &mut self,
-        cb: &RigidBody,
-        cb_co: &CollisionObject,
+        chassis: &ContactBody,
         friction_scale: f32,
         time_step: f32,
     ) {
@@ -195,12 +194,15 @@ impl WheelInfoRL {
 
         let forward_dir = surf_normal_ws.cross(axle_dir).normalize_or_zero();
 
+        let ground_cb = ContactBody {
+            rb: &ground_rb,
+            co: &ground_rb.collision_object.borrow(),
+        };
+
         let side_impulse = resolve_single_bilateral(
-            cb,
-            cb_co,
+            chassis,
+            &ground_cb,
             self.wheel_info.raycast_info.contact_point_ws,
-            &ground_rb,
-            &ground_rb.collision_object.borrow(),
             self.wheel_info.raycast_info.contact_point_ws,
             axle_dir,
         );
@@ -212,9 +214,12 @@ impl WheelInfoRL {
                 const ROLLING_FRICTION_SCALE: f32 = 113.73963;
 
                 let contact_point = self.wheel_info.raycast_info.contact_point_ws;
-                let car_rel_contact_point = contact_point - cb_co.get_world_transform().translation;
+                let car_rel_contact_point =
+                    contact_point - chassis.co.get_world_transform().translation;
 
-                let v1 = cb.get_velocity_in_local_point(car_rel_contact_point);
+                let v1 = chassis
+                    .rb
+                    .get_velocity_in_local_point(car_rel_contact_point);
                 let v2 = ground_rb.get_velocity_in_local_point(car_rel_contact_point);
                 let contact_vel = v1 - v2;
                 let mut rel_vel = contact_vel.dot(forward_dir);
@@ -423,11 +428,16 @@ impl VehicleRL {
         let cb = self.chassis_body.borrow();
         let cb_co = self.chassis_col_obj.borrow();
 
+        let contact_body = ContactBody {
+            rb: &cb,
+            co: &cb_co,
+        };
+
         let friction_scale = cb.get_mass() / 3.0;
         for wheel in &mut self.wheels {
             wheel.update_wheel_transform(&cb_co);
-            wheel.ray_cast(&cb, &cb_co, &self.raycaster, collision_world);
-            wheel.calc_friction_impulses(&cb, &cb_co, friction_scale, step);
+            wheel.ray_cast(&contact_body, &self.raycaster, collision_world);
+            wheel.calc_friction_impulses(&contact_body, friction_scale, step);
         }
     }
 

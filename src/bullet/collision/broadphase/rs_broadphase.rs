@@ -260,24 +260,18 @@ impl RsBroadphase {
         }
     }
 
-    pub fn set_aabb(&mut self, proxy_idx: usize, aabb: Aabb) {
+    pub fn set_aabb(&mut self, col_obj: &CollisionObject, proxy_idx: usize, aabb: Aabb) {
         let sbp = &mut self.handles[proxy_idx];
 
         if sbp.broadphase_proxy.aabb.min != aabb.min || sbp.broadphase_proxy.aabb.max != aabb.max {
             if sbp.is_static {
-                let col_obj = sbp
-                    .broadphase_proxy
-                    .client_object
-                    .as_ref()
-                    .unwrap()
-                    .borrow();
                 self.cell_grid
-                    .update_cells_static::<false>(sbp, &col_obj, proxy_idx);
+                    .update_cells_static::<false>(sbp, col_obj, proxy_idx);
 
                 sbp.broadphase_proxy.aabb = aabb;
 
                 self.cell_grid
-                    .update_cells_static::<true>(sbp, &col_obj, proxy_idx);
+                    .update_cells_static::<true>(sbp, col_obj, proxy_idx);
             } else {
                 let old_index = sbp.cell_idx;
                 sbp.broadphase_proxy.aabb = aabb;

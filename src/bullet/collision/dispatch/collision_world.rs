@@ -351,8 +351,11 @@ impl CollisionWorld {
             debug_assert!(
                 col_obj.is_static_object() || (aabb.max - aabb.min).length_squared() < 1e12
             );
-            self.broadphase_pair_cache
-                .set_aabb(col_obj.get_broadphase_handle().unwrap(), aabb);
+            self.broadphase_pair_cache.set_aabb(
+                &col_obj,
+                col_obj.get_broadphase_handle().unwrap(),
+                aabb,
+            );
         }
     }
 
