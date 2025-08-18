@@ -124,8 +124,12 @@ impl CollisionShapes {
         ray_to_local: Vec3A,
     ) {
         match self {
-            Self::Compound(_) => todo!("compound ray test"),
-            Self::Sphere(_) => todo!("sphere ray test"),
+            Self::Compound(compound) => {
+                compound.perform_raycast(result_callback, ray_from_local, ray_to_local);
+            }
+            Self::Sphere(sphere) => {
+                sphere.perform_raycast(result_callback, ray_from_local, ray_to_local);
+            }
             Self::StaticPlane(plane) => {
                 plane.perform_raycast(result_callback, ray_from_local, ray_to_local);
             }

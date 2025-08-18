@@ -502,10 +502,6 @@ impl Arena {
                     continue;
                 };
 
-                if !is_blue {
-                    spawn_state.physics.pos *= Vec3A::new(-1.0, -1.0, 1.0);
-                }
-
                 spawn_state.physics.rot_mat = Mat3A::from_euler(
                     EulerRot::YZX,
                     0.0,

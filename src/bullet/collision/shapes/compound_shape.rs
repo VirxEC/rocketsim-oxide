@@ -1,6 +1,12 @@
+use std::{f32, mem};
+
 use super::{box_shape::BoxShape, collision_shape::CollisionShape};
 use crate::bullet::{
-    collision::broadphase::broadphase_proxy::BroadphaseNativeTypes, linear_math::aabb_util_2::Aabb,
+    collision::{
+        broadphase::broadphase_proxy::BroadphaseNativeTypes,
+        dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+    },
+    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
 use glam::{Affine3A, Vec3A};
 
@@ -62,5 +68,71 @@ impl CompoundShape {
             min: center - extent,
             max: center + extent,
         }
+    }
+
+    pub fn perform_raycast<T: RayResultCallback>(
+        &self,
+        result_callback: &mut BridgeTriangleRaycastCallback<T>,
+        ray_source: Vec3A,
+        ray_target: Vec3A,
+    ) {
+        let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
+        if !test_aabb_against_aabb(&ray_aabb, &self.local_aabb) {
+            return;
+        }
+
+        let delta = ray_target - ray_source;
+        let dist = delta.length();
+        let dir = delta / dist;
+
+        // implementation of the slab method to handle `dir` potentially having elements that are `0`
+        let mut tenter = 0f32;
+        let mut texit = dist;
+        let mut hit_axis = 0usize;
+
+        for axis in 0..3 {
+            let origin = ray_source[axis];
+            let dir_i = dir[axis];
+            let min = self.local_aabb.min[axis];
+            let max = self.local_aabb.max[axis];
+
+            if dir_i.abs() < 1e-8 {
+                // parallel - if the origin not within slab, no hit
+                if origin < min || origin > max {
+                    return;
+                }
+
+                // Axis does not clip the interval
+                continue;
+            }
+
+            let inv = 1.0 / dir_i;
+            let mut t1 = (min - origin) * inv;
+            let mut t2 = (max - origin) * inv;
+            if t1 > t2 {
+                mem::swap(&mut t1, &mut t2);
+            }
+
+            texit = texit.min(t2);
+            if t1 > tenter {
+                tenter = t1;
+                hit_axis = axis;
+            }
+
+            if tenter > texit || texit < 0.0 {
+                return;
+            }
+        }
+
+        tenter = tenter.max(0.0);
+        if tenter > dist {
+            return;
+        }
+
+        let mut hit_normal = Vec3A::ZERO;
+        hit_normal[hit_axis] = -dir[hit_axis].signum();
+
+        let hit_fraction = tenter / dist;
+        result_callback.report_hit(hit_normal, hit_fraction);
     }
 }

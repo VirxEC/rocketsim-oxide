@@ -190,6 +190,17 @@ impl Team {
     }
 }
 
+impl TryFrom<u8> for Team {
+    type Error = ();
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Blue),
+            1 => Ok(Self::Orange),
+            _ => Err(()),
+        }
+    }
+}
+
 pub struct Car {
     pub team: Team,
     /// The controls to simulate the car with

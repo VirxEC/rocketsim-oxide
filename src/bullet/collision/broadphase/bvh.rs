@@ -3,7 +3,10 @@ use crate::bullet::{
         triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
         triangle_shape::TriangleShape,
     },
-    linear_math::aabb_util_2::{Aabb, ray_aabb_2, test_aabb_against_aabb},
+    linear_math::{
+        LARGE_FLOAT,
+        aabb_util_2::{Aabb, ray_aabb_2, test_aabb_against_aabb},
+    },
 };
 use glam::Vec3A;
 use std::mem;
@@ -244,8 +247,17 @@ impl Bvh {
         let ray_direction = (ray_target - ray_source).normalize_or_zero();
         let lambda_max = ray_direction.dot(ray_target - ray_source);
 
-        let ray_dir_inv = 1.0 / ray_direction;
-        debug_assert!(!ray_dir_inv.is_nan());
+        let mut ray_dir_inv = 1.0 / ray_direction;
+
+        let finite = ray_dir_inv.is_finite_mask();
+        if !finite.all() {
+            let finite: [bool; 3] = finite.into();
+            for i in 0..3 {
+                if !finite[i] {
+                    ray_dir_inv[i] = LARGE_FLOAT;
+                }
+            }
+        }
 
         let ray_info = RayInfo {
             aabb: Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target)),

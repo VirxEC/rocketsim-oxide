@@ -16,7 +16,6 @@ fn main() {
 
     let mut ball_state = arena.objects.ball.get_state();
     ball_state.physics.pos.z += 1000.;
-    // ball_state.physics.vel.z = -10.;
     arena.objects.ball.set_state(ball_state);
 
     let state = {
