@@ -20,7 +20,7 @@ fn main() {
     }
     let elapsed = Instant::now().duration_since(start).as_secs_f32();
     println!(
-        "Elapsed: {elapsed}\nSPS: {}",
+        "Elapsed: {elapsed}\nTPS: {}",
         (20_000 * 720) as f32 / elapsed
     );
 }
