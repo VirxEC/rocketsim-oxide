@@ -278,7 +278,7 @@ pub struct CollisionWorld {
     pub dispatcher1: CollisionDispatcher,
     pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
-    force_update_all_aabbs: bool,
+    // force_update_all_aabbs: bool,
 }
 
 impl CollisionWorld {
@@ -288,7 +288,7 @@ impl CollisionWorld {
             dispatcher1: dispatcher,
             dispatcher_info: DispatcherInfo::default(),
             broadphase_pair_cache: pair_cache,
-            force_update_all_aabbs: true,
+            // force_update_all_aabbs: true,
         }
     }
 
@@ -319,48 +319,40 @@ impl CollisionWorld {
         self.collision_objects.push(object);
     }
 
-    fn update_single_aabb(&mut self, col_obj_idx: usize) {
-        let col_obj = self.collision_objects[col_obj_idx].borrow();
-        let mut aabb = col_obj
-            .get_collision_shape()
-            .as_ref()
-            .unwrap()
-            .get_aabb(col_obj.get_world_transform());
+    fn update_aabbs(&mut self) {
+        const CBT: Vec3A = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
 
-        let contact_threshold = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
-        aabb.min -= contact_threshold;
-        aabb.max += contact_threshold;
+        for (i, col_obj_ref) in self.collision_objects.iter().enumerate() {
+            let col_obj = col_obj_ref.borrow();
+            debug_assert_eq!(col_obj.get_world_array_index(), i);
 
-        if self.dispatcher_info.use_continuous
-            && col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
-            && !col_obj.is_static_or_kinematic_object()
-        {
-            let mut aabb2 = col_obj
+            let mut aabb = col_obj
                 .get_collision_shape()
                 .as_ref()
                 .unwrap()
-                .get_aabb(&col_obj.interpolation_world_transform);
-            aabb2.min -= contact_threshold;
-            aabb2.max += contact_threshold;
-            aabb += aabb2;
-        }
+                .get_aabb(col_obj.get_world_transform());
 
-        if col_obj.is_static_object() || (aabb.max - aabb.min).length_squared() < 1e12 {
+            aabb.min -= CBT;
+            aabb.max += CBT;
+
+            if col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
+                && !col_obj.is_static_or_kinematic_object()
+            {
+                let mut aabb2 = col_obj
+                    .get_collision_shape()
+                    .as_ref()
+                    .unwrap()
+                    .get_aabb(&col_obj.interpolation_world_transform);
+                aabb2.min -= CBT;
+                aabb2.max += CBT;
+                aabb += aabb2;
+            }
+
+            debug_assert!(
+                col_obj.is_static_object() || (aabb.max - aabb.min).length_squared() < 1e12
+            );
             self.broadphase_pair_cache
                 .set_aabb(col_obj.get_broadphase_handle().unwrap(), aabb);
-        } else {
-            unreachable!()
-        }
-    }
-
-    fn update_aabbs(&mut self) {
-        for i in 0..self.collision_objects.len() {
-            let col_obj = &self.collision_objects[i];
-            debug_assert_eq!(col_obj.borrow().get_world_array_index(), i);
-
-            if self.force_update_all_aabbs || col_obj.borrow().is_active() {
-                self.update_single_aabb(i);
-            }
         }
     }
 
