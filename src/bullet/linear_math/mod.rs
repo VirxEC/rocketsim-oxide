@@ -1,4 +1,4 @@
-use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec4, Vec4Swizzles};
+use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec3Swizzles, Vec4, Vec4Swizzles};
 use std::f32::consts::FRAC_1_SQRT_2;
 
 pub mod aabb_util_2;
@@ -30,6 +30,7 @@ pub trait Mat3AExt {
     fn cofac(&self, r1: usize, c1: usize, r2: usize, c2: usize) -> f32;
     fn bullet_inverse(&self) -> Self;
     fn bullet_from_quat(q: Quat) -> Self;
+    fn from_quat_simd(rotation: Quat) -> Self;
 }
 
 impl Mat3AExt for Mat3A {
@@ -110,11 +111,30 @@ impl Mat3AExt for Mat3A {
         )
         .transpose()
     }
+
+    /// An implementation of Mat3A::from_quat that leverages simd
+    fn from_quat_simd(rotation: Quat) -> Self {
+        let rotation = Vec4::from(rotation);
+        let rotation_w = rotation.w;
+        let rotation = Vec3A::from_vec4(rotation);
+
+        let r2 = rotation * 2.0;
+        let x = rotation.x * r2;
+        let yz = rotation.yyz() * r2.yzz();
+        let w = rotation_w * r2;
+
+        Self::from_cols(
+            Vec3A::new(1.0 - (yz.x + yz.z), x.y + w.z, x.z - w.y),
+            Vec3A::new(x.y - w.z, 1.0 - (x.x + yz.z), yz.y + w.x),
+            Vec3A::new(x.z + w.y, yz.y - w.x, 1.0 - (x.x + yz.x)),
+        )
+    }
 }
 
 pub trait QuatExt {
     fn bullet_mul_quat(self, q2: Self) -> Self;
     fn bullet_normalize(self) -> Self;
+    fn from_axis_angle_simd(axis: Vec3A, angle: f32) -> Self;
 }
 
 impl QuatExt for Quat {
@@ -138,6 +158,14 @@ impl QuatExt for Quat {
         let vec: Vec4 = self.into();
         let q = vec * vec.length().recip();
         Self::from_vec4(q)
+    }
+
+    #[inline]
+    /// An implementation of Quat::from_axis_angle that leverages simd
+    fn from_axis_angle_simd(axis: Vec3A, angle: f32) -> Self {
+        let (s, c) = f32::sin_cos(angle * 0.5);
+        let v = axis * s;
+        Self::from_xyzw(v.x, v.y, v.z, c)
     }
 }
 

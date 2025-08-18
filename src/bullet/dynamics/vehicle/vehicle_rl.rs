@@ -12,6 +12,7 @@ use crate::{
             discrete_dynamics_world::DiscreteDynamicsWorld,
             rigid_body::RigidBody,
         },
+        linear_math::{Mat3AExt, QuatExt},
     },
     consts::btvehicle::SUSPENSION_SUBTRACTION,
 };
@@ -65,8 +66,8 @@ impl WheelInfoRL {
         let right = self.wheel_info.raycast_info.wheel_axle_ws;
         let fwd = up.cross(right).normalize();
 
-        let steering_orn = Quat::from_axis_angle(up.into(), self.steer_angle);
-        let steering_mat = Mat3A::from_quat(steering_orn);
+        let steering_orn = Quat::from_axis_angle_simd(up, self.steer_angle);
+        let steering_mat = Mat3A::from_quat_simd(steering_orn);
 
         let basis2 = Mat3A::from_cols(fwd, -right, up);
         self.wheel_info.world_transform = Affine3A {

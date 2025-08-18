@@ -15,7 +15,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, aabb_util_2::Aabb},
+    linear_math::{AffineExt, QuatExt, aabb_util_2::Aabb},
 };
 use glam::{Quat, Vec3, Vec3A};
 use std::{f32::consts::PI, mem};
@@ -120,7 +120,7 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
             match sum_verts_a {
                 1 => {
                     let edge = (-self.shape.edges[0]).normalize();
-                    let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
+                    let orn = Quat::from_axis_angle_simd(edge, -corrected_angle);
                     let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
@@ -134,7 +134,7 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 }
                 2 => {
                     let edge = (-self.shape.edges[2]).normalize();
-                    let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
+                    let orn = Quat::from_axis_angle_simd(edge, -corrected_angle);
                     let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
@@ -148,7 +148,7 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 }
                 3 => {
                     let edge = (-self.shape.edges[1]).normalize();
-                    let orn = Quat::from_axis_angle(edge.into(), -corrected_angle);
+                    let orn = Quat::from_axis_angle_simd(edge, -corrected_angle);
                     let mut computed_normal_b = orn * self.shape.normal;
                     if computed_normal_b.dot(tri.normal) < 0.0 {
                         computed_normal_b *= -1.0;
@@ -215,7 +215,7 @@ fn clamp_normal(
         || (corrected_edge_angle >= 0.0 && cur_angle > corrected_edge_angle)
     {
         let diff_angle = corrected_edge_angle - cur_angle;
-        let rotation = Quat::from_axis_angle(edge.into(), diff_angle);
+        let rotation = Quat::from_axis_angle_simd(edge, diff_angle);
         Some(rotation * local_contact_normal_on_b)
     } else {
         None
@@ -295,7 +295,7 @@ pub fn adjust_internal_edge_contacts(
 
                 let edge = -tri.edges[0];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle(edge.into(), info.edge_v0_v1_angle);
+                let orn = Quat::from_axis_angle_simd(edge, info.edge_v0_v1_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V0V1_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
@@ -342,7 +342,7 @@ pub fn adjust_internal_edge_contacts(
 
                 let edge = -tri.edges[1];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle(edge.into(), info.edge_v1_v2_angle);
+                let orn = Quat::from_axis_angle_simd(edge, info.edge_v1_v2_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V1V2_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
@@ -389,7 +389,7 @@ pub fn adjust_internal_edge_contacts(
 
                 let edge = -tri.edges[2];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle(edge.into(), info.edge_v2_v0_angle);
+                let orn = Quat::from_axis_angle_simd(edge, info.edge_v2_v0_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if info.flags & TRI_INFO_V2V0_SWAP_NORMALB != 0 {
                     computed_normal_b *= -1.0;
