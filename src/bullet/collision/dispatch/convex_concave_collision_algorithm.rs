@@ -144,10 +144,10 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
 
         tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb);
 
-        convex_triangle_callback.manifold.refresh_contact_points();
         if convex_triangle_callback.manifold.point_cache.is_empty() {
             None
         } else {
+            convex_triangle_callback.manifold.refresh_contact_points();
             Some(convex_triangle_callback.manifold)
         }
     }

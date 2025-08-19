@@ -1,23 +1,34 @@
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
-        dispatch::collision_object::CollisionObject,
+        dispatch::{
+            collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
+        },
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,
     },
     linear_math::{AffineExt, aabb_util_2::Aabb},
 };
 use glam::Vec3A;
-use std::mem;
+use std::{cell::RefCell, mem, rc::Rc};
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
+    sphere_obj: Rc<RefCell<CollisionObject>>,
+    obb_obj: CollisionObjectWrapper,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
-    pub const fn new(is_swapped: bool, contact_added_callback: &'a mut T) -> Self {
+    pub const fn new(
+        sphere_obj: Rc<RefCell<CollisionObject>>,
+        obb_obj: CollisionObjectWrapper,
+        is_swapped: bool,
+        contact_added_callback: &'a mut T,
+    ) -> Self {
         Self {
+            sphere_obj,
+            obb_obj,
             is_swapped,
             contact_added_callback,
         }
@@ -52,7 +63,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
             unreachable!();
         };
 
-        let world_to_box = body1.get_world_transform().transpose();
+        let world_to_box = self.obb_obj.world_transform.transpose();
         let sphere_from_local =
             world_to_box.transform_point3a(body0.get_world_transform().translation);
         let sphere_radius = sphere_ref.get_radius();

@@ -8,11 +8,11 @@ use crate::bullet::{
     linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
 
-pub struct AabbObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
+pub struct ObbObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
     contact_added_callback: &'a mut T,
 }
 
-impl<'a, T: ContactAddedCallback> AabbObbCollisionAlgorithm<'a, T> {
+impl<'a, T: ContactAddedCallback> ObbObbCollisionAlgorithm<'a, T> {
     pub const fn new(contact_added_callback: &'a mut T) -> Self {
         Self {
             contact_added_callback,
@@ -20,7 +20,7 @@ impl<'a, T: ContactAddedCallback> AabbObbCollisionAlgorithm<'a, T> {
     }
 }
 
-impl<T: ContactAddedCallback> CollisionAlgorithm for AabbObbCollisionAlgorithm<'_, T> {
+impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(
         self,
         body0: &'a CollisionObject,

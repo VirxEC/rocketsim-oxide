@@ -1,9 +1,12 @@
 use super::collision_object::CollisionObject;
-use crate::bullet::collision::{
-    broadphase::collision_algorithm::CollisionAlgorithm,
-    dispatch::collision_object_wrapper::CollisionObjectWrapper,
-    narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-    shapes::collision_shape::CollisionShapes,
+use crate::bullet::{
+    collision::{
+        broadphase::collision_algorithm::CollisionAlgorithm,
+        dispatch::collision_object_wrapper::CollisionObjectWrapper,
+        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
+        shapes::collision_shape::CollisionShapes,
+    },
+    linear_math::aabb_util_2::test_aabb_against_aabb,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -42,14 +45,21 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
             (body0, body1)
         };
 
-        let mut manifold =
-            PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);
-
         let col_shape = convex_obj.get_collision_shape().unwrap();
         let Some(CollisionShapes::StaticPlane(plane_shape)) = plane_obj.get_collision_shape()
         else {
             unreachable!()
         };
+
+        let convex_aabb = col_shape.get_aabb(&self.convex_obj.world_transform);
+        let plane_aabb = plane_shape
+            .concave_shape
+            .collision_shape
+            .aabb_cache
+            .unwrap();
+        if !test_aabb_against_aabb(&convex_aabb, &plane_aabb) {
+            return None;
+        }
 
         let plane_normal = plane_shape.get_plane_normal();
         let plane_constant = plane_shape.get_plane_constant();
@@ -63,29 +73,28 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);
         let distance = plane_normal.dot(vtx_in_plane) - plane_constant;
 
-        if distance < manifold.contact_breaking_threshold {
-            let vtx_in_plane_projected = vtx_in_plane - distance * plane_normal;
-            let vtx_in_plane_world = plane_obj
-                .get_world_transform()
-                .transform_point3a(vtx_in_plane_projected);
-            let normal_on_surface_b = plane_obj.get_world_transform().matrix3 * plane_normal;
-
-            manifold.add_contact_point(
-                normal_on_surface_b,
-                vtx_in_plane_world,
-                distance,
-                -1,
-                -1,
-                self.contact_added_callback,
-            );
+        let mut manifold =
+            PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);
+        if distance >= manifold.contact_breaking_threshold {
+            return None;
         }
+
+        let vtx_in_plane_projected = vtx_in_plane - distance * plane_normal;
+        let vtx_in_plane_world = plane_obj
+            .get_world_transform()
+            .transform_point3a(vtx_in_plane_projected);
+        let normal_on_surface_b = plane_obj.get_world_transform().matrix3 * plane_normal;
+
+        manifold.add_contact_point(
+            normal_on_surface_b,
+            vtx_in_plane_world,
+            distance,
+            -1,
+            -1,
+            self.contact_added_callback,
+        );
 
         manifold.refresh_contact_points();
-
-        if manifold.point_cache.is_empty() {
-            None
-        } else {
-            Some(manifold)
-        }
+        Some(manifold)
     }
 }
