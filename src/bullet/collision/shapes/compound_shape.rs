@@ -70,14 +70,23 @@ impl CompoundShape {
         }
     }
 
+    pub fn get_ident_aabb(&self) -> Aabb {
+        let margin = Vec3A::splat(self.collision_margin);
+        Aabb {
+            min: self.local_aabb.min - margin,
+            max: self.local_aabb.max + margin,
+        }
+    }
+
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastCallback<T>,
         ray_source: Vec3A,
         ray_target: Vec3A,
     ) {
+        let box_aabb = self.get_ident_aabb();
         let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
-        if !test_aabb_against_aabb(&ray_aabb, &self.local_aabb) {
+        if !test_aabb_against_aabb(&ray_aabb, &box_aabb) {
             return;
         }
 
@@ -91,8 +100,8 @@ impl CompoundShape {
         let mut hit_axis = 0usize;
 
         let inv = 1.0 / dir;
-        let t1 = (self.local_aabb.min - ray_source) * inv;
-        let t2 = (self.local_aabb.max - ray_source) * inv;
+        let t1 = (box_aabb.min - ray_source) * inv;
+        let t2 = (box_aabb.max - ray_source) * inv;
 
         let tmin = t1.min(t2);
         let tmax = t1.max(t2);
@@ -102,8 +111,8 @@ impl CompoundShape {
         for axis in 0..3 {
             if !is_finite[axis] {
                 let origin = ray_source[axis];
-                let min = self.local_aabb.min[axis];
-                let max = self.local_aabb.max[axis];
+                let min = box_aabb.min[axis];
+                let max = box_aabb.max[axis];
 
                 // parallel - if the origin not within slab, no hit
                 if min > origin || origin > max {
