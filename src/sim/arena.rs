@@ -450,8 +450,8 @@ impl Arena {
             ),
         };
 
-        let mut blue_cars = Vec::with_capacity(self.objects.cars.len() / 2);
-        let mut orange_cars = Vec::with_capacity(self.objects.cars.len() / 2);
+        let mut blue_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
+        let mut orange_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
 
         for (_, car) in &mut self.objects.cars {
             if car.team == Team::Blue {
@@ -491,7 +491,7 @@ impl Arena {
                 ..Default::default()
             };
 
-            for (i, is_blue) in [true, false].into_iter().enumerate() {
+            for is_blue in [true, false] {
                 let team_cars = if is_blue {
                     blue_cars.as_mut_slice()
                 } else {
