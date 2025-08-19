@@ -1,3 +1,4 @@
+pub mod aabb_obb_collision_algorithm;
 pub mod collision_dispatcher;
 pub mod collision_object;
 pub mod collision_object_wrapper;
@@ -6,3 +7,4 @@ pub mod compound_collision_algorithm;
 pub mod convex_concave_collision_algorithm;
 pub mod convex_plane_collision_algorithm;
 pub mod internal_edge_utility;
+pub mod sphere_obb_collision_algorithm;
