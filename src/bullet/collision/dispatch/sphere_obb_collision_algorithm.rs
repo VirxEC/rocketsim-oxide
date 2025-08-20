@@ -56,7 +56,6 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let world_to_box = self.obb_obj.world_transform.transpose();
         let sphere_from_local =
             world_to_box.transform_point3a(body0.get_world_transform().translation);
-        let sphere_radius = sphere_ref.get_radius();
 
         let box_aabb = compound_ref.get_ident_aabb();
 
@@ -64,22 +63,33 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let delta = sphere_from_local - closest;
         let dist_sq = delta.length_squared();
 
-        let radius_with_threshold = sphere_radius + SPHERE_RADIUS_MARGIN;
+        let radius = sphere_ref.get_radius();
+        let radius_with_threshold = radius + SPHERE_RADIUS_MARGIN;
         if dist_sq >= radius_with_threshold * radius_with_threshold {
             return None;
         }
 
         let dist = dist_sq.sqrt();
-        let depth = sphere_radius - dist;
+        let depth = radius - dist;
         let normal = if dist > f32::EPSILON {
             delta / dist
         } else {
             Vec3A::X
         };
 
+        let normal_in_world = self.obb_obj.world_transform.transform_vector3a(normal);
+        let point_in_world = self.obb_obj.world_transform.transform_point3a(closest);
+
         let mut manifold =
             PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);
-        manifold.add_contact_point(normal, closest, depth, -1, -1, self.contact_added_callback);
+        manifold.add_contact_point(
+            normal_in_world,
+            point_in_world,
+            depth,
+            -1,
+            -1,
+            self.contact_added_callback,
+        );
         manifold.refresh_contact_points();
 
         Some(manifold)
