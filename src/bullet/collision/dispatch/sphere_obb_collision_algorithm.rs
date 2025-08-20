@@ -7,7 +7,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{collision_shape::CollisionShapes, sphere_shape::SPHERE_RADIUS_MARGIN},
     },
-    linear_math::AffineExt,
+    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
 use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, mem, rc::Rc};
@@ -54,7 +54,15 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
             unreachable!();
         };
 
-        let org_trans = *compound_obj.get_world_transform();
+        let sphere_trans = sphere_obj.get_world_transform();
+        let aabb_1 = sphere_ref.get_aabb(sphere_trans);
+
+        let org_trans = compound_obj.get_world_transform();
+        let aabb_2 = compound_shape.get_aabb(org_trans);
+
+        if !test_aabb_against_aabb(&aabb_1, &aabb_2) {
+            return None;
+        }
 
         let child = compound_shape.child.as_ref().unwrap();
         let child_trans = child.transform;
@@ -63,8 +71,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let box_shape = &child.child_shape;
         let box_aabb = box_shape.get_aabb(&Affine3A::IDENTITY);
 
-        let sphere_from_local =
-            new_child_world_trans.inv_x_form(sphere_obj.get_world_transform().translation);
+        let sphere_from_local = new_child_world_trans.inv_x_form(sphere_trans.translation);
 
         let closest = sphere_from_local.clamp(box_aabb.min, box_aabb.max);
         let delta = sphere_from_local - closest;
