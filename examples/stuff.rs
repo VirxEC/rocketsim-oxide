@@ -21,22 +21,22 @@ fn main() {
     let car = arena.objects.cars.get_mut(&id).unwrap();
     println!("pos: {}", car.get_state().physics.pos);
     car.controls.throttle = 1.0;
-    car.controls.boost = true;
+    car.controls.boost = false;
 
     let start = Instant::now();
-    arena.step(720);
+    arena.step(120);
     println!(
         "Stepped Arena in {}s!",
         Instant::now().duration_since(start).as_secs_f32()
     );
 
     let state = arena.objects.cars.get(&id).unwrap().get_state();
-    println!("pos: {}", state.physics.pos);
+    println!("\npos: {}", state.physics.pos);
     println!("vel: {}", state.physics.vel);
     println!("ang_vel: {}", state.physics.ang_vel);
 
     let ball = arena.objects.ball.get_state();
-    println!("pos: {}", ball.physics.pos);
+    println!("\npos: {}", ball.physics.pos);
     println!("vel: {}", ball.physics.vel);
     println!("ang_vel: {}", ball.physics.ang_vel);
 }

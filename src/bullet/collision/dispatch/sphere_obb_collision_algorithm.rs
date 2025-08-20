@@ -5,9 +5,9 @@ use crate::bullet::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
         },
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::collision_shape::CollisionShapes,
+        shapes::{collision_shape::CollisionShapes, sphere_shape::SPHERE_RADIUS_MARGIN},
     },
-    linear_math::{AffineExt, aabb_util_2::Aabb},
+    linear_math::AffineExt,
 };
 use glam::Vec3A;
 use std::{cell::RefCell, mem, rc::Rc};
@@ -35,16 +35,6 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
     }
 }
 
-fn sq_dist_point_aabb(p: Vec3A, b: Aabb) -> f32 {
-    let min = b.min - p;
-    let sq_dist_1 = Vec3A::select(p.cmplt(b.min), min * min, Vec3A::ZERO);
-
-    let max = p - b.max;
-    let sq_dist_2 = Vec3A::select(p.cmpgt(b.max), max * max, Vec3A::ZERO);
-
-    sq_dist_1.element_sum() + sq_dist_2.element_sum()
-}
-
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(
         self,
@@ -70,11 +60,28 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
 
         let box_aabb = compound_ref.get_ident_aabb();
 
-        let dist_sq = sq_dist_point_aabb(sphere_from_local, box_aabb);
-        if dist_sq > sphere_radius * sphere_radius {
+        let closest = sphere_from_local.clamp(box_aabb.min, box_aabb.max);
+        let delta = sphere_from_local - closest;
+        let dist_sq = delta.length_squared();
+
+        let radius_with_threshold = sphere_radius + SPHERE_RADIUS_MARGIN;
+        if dist_sq >= radius_with_threshold * radius_with_threshold {
             return None;
         }
 
-        todo!("sphere/aabb collision")
+        let dist = dist_sq.sqrt();
+        let depth = sphere_radius - dist;
+        let normal = if dist > f32::EPSILON {
+            delta / dist
+        } else {
+            Vec3A::X
+        };
+
+        let mut manifold =
+            PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);
+        manifold.add_contact_point(normal, closest, depth, -1, -1, self.contact_added_callback);
+        manifold.refresh_contact_points();
+
+        Some(manifold)
     }
 }

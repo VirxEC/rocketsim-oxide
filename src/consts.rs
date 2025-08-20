@@ -183,11 +183,53 @@ pub const CAR_RESPAWN_LOCATIONS_DROPSHOT: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMO
 ];
 
 #[derive(Clone, Copy, Debug)]
+struct LinearPiece {
+    pub base_x: f32,
+    pub base_y: f32,
+    pub max_x: f32,
+    pub max_y: f32,
+    pub x_diff: f32,
+    pub y_diff: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct LinearPieceCurve<const N: usize> {
-    pub value_mappings: [(f32, f32); N],
+    curve: [LinearPiece; N],
 }
 
 impl<const N: usize> LinearPieceCurve<N> {
+    /// A mapping of `(x, y)` pairs that make up the continuous linear piecewise function
+    pub const fn new(value_mappings: [(f32, f32); N]) -> Self {
+        let mut curve = [LinearPiece {
+            base_x: 0.0,
+            base_y: 0.0,
+            max_x: 0.0,
+            max_y: 0.0,
+            x_diff: 0.0,
+            y_diff: 0.0,
+        }; N];
+
+        curve[0].max_x = value_mappings[0].0;
+        curve[0].max_y = value_mappings[0].1;
+
+        let mut i = 1;
+        while i < N {
+            let prev = &value_mappings[i - 1];
+            let this = &value_mappings[i];
+
+            curve[i].base_x = prev.0;
+            curve[i].base_y = prev.1;
+            curve[i].max_x = this.0;
+            curve[i].max_y = this.1;
+            curve[i].x_diff = this.0 - prev.0;
+            curve[i].y_diff = this.1 - prev.1;
+
+            i += 1;
+        }
+
+        Self { curve }
+    }
+
     /// Returns the output of the curve
     ///
     /// # Arguments
@@ -197,75 +239,50 @@ impl<const N: usize> LinearPieceCurve<N> {
     pub fn get_output(&self, input: f32) -> f32 {
         debug_assert!(N != 0);
 
-        let first_val_pair = self.value_mappings[0];
-
-        if input <= first_val_pair.0 {
-            return first_val_pair.1;
+        let first_val_pair = self.curve[0];
+        if input <= first_val_pair.max_x {
+            return first_val_pair.max_y;
         }
 
-        for i in 1..N {
-            let after_pair = self.value_mappings[i];
-            let before_pair = self.value_mappings[i - 1];
+        let Some(pair) = self.curve.iter().skip(1).find(|pair| pair.max_x > input) else {
+            return self.curve[N - 1].max_y;
+        };
 
-            if after_pair.0 > input {
-                let range_between = after_pair.0 - before_pair.0;
-                let val_diff_between = after_pair.1 - before_pair.1;
-                let linear_interp_factor = (input - before_pair.0) / range_between;
-                return val_diff_between * linear_interp_factor + before_pair.1;
-            }
-        }
-
-        self.value_mappings[N - 1].1
+        let linear_interp_factor = (input - pair.base_x) / pair.x_diff;
+        pair.y_diff * linear_interp_factor + pair.base_y
     }
 }
 
-pub const STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<6> = LinearPieceCurve {
-    value_mappings: [
-        (0., 0.53356),
-        (500., 0.31930),
-        (1000., 0.18203),
-        (1500., 0.10570),
-        (1750., 0.08507),
-        (3000., 0.03454),
-    ],
-};
-pub const STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.342_473), (2300., 0.034_837)],
-};
-pub const POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.39235), (2500., 0.12610)],
-};
-pub const DRIVE_SPEED_TORQUE_FACTOR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., 1.0), (1400., 0.1), (1410., 0.0)],
-};
-pub const NON_STICKY_FRICTION_FACTOR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., 0.1), (0.7075, 0.5), (1., 1.0)],
-};
-pub const LAT_FRICTION_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 1.0), (1., 0.2)],
-};
-pub const LAT_FRICTION_CURVE_THREEWHEEL: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.30), (1., 0.25)],
-};
-pub const LONG_FRICTION_CURVE: LinearPieceCurve<0> = LinearPieceCurve { value_mappings: [] };
-pub const HANDBRAKE_LAT_FRICTION_FACTOR_CURVE: LinearPieceCurve<1> = LinearPieceCurve {
-    value_mappings: [(0., 0.1)],
-};
-pub const HANDBRAKE_LONG_FRICTION_FACTOR_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.5), (1., 0.9)],
-};
-pub const BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE: LinearPieceCurve<4> = LinearPieceCurve {
-    value_mappings: [(0., 0.65), (500., 0.65), (2300., 0.55), (4600., 0.30)],
-};
-pub const BUMP_VEL_AMOUNT_GROUND_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (5. / 6.)), (1400., 1100.), (2200., 1530.)],
-};
-pub const BUMP_VEL_AMOUNT_AIR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (5. / 6.)), (1400., 1390.), (2200., 1945.)],
-};
-pub const BUMP_UPWARD_VEL_AMOUNT_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (2. / 6.)), (1400., 278.), (2200., 417.)],
-};
+pub const STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<6> = LinearPieceCurve::new([
+    (0., 0.53356),
+    (500., 0.31930),
+    (1000., 0.18203),
+    (1500., 0.10570),
+    (1750., 0.08507),
+    (3000., 0.03454),
+]);
+pub const STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.342_473), (2300., 0.034_837)]);
+pub const POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.39235), (2500., 0.12610)]);
+pub const DRIVE_SPEED_TORQUE_FACTOR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., 1.0), (1400., 0.1), (1410., 0.0)]);
+pub const NON_STICKY_FRICTION_FACTOR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., 0.1), (0.7075, 0.5), (1., 1.0)]);
+pub const LAT_FRICTION_CURVE: LinearPieceCurve<2> = LinearPieceCurve::new([(0., 1.0), (1., 0.2)]);
+pub const LAT_FRICTION_CURVE_THREEWHEEL: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.30), (1., 0.25)]);
+pub const HANDBRAKE_LAT_FRICTION_FACTOR_CURVE: f32 = 0.9;
+pub const HANDBRAKE_LONG_FRICTION_FACTOR_CURVE: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.5), (1., 0.9)]);
+pub const BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE: LinearPieceCurve<4> =
+    LinearPieceCurve::new([(0., 0.65), (500., 0.65), (2300., 0.55), (4600., 0.30)]);
+pub const BUMP_VEL_AMOUNT_GROUND_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (5. / 6.)), (1400., 1100.), (2200., 1530.)]);
+pub const BUMP_VEL_AMOUNT_AIR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (5. / 6.)), (1400., 1390.), (2200., 1945.)]);
+pub const BUMP_UPWARD_VEL_AMOUNT_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (2. / 6.)), (1400., 278.), (2200., 417.)]);
 
 pub mod btvehicle {
     pub const SUSPENSION_FORCE_SCALE_FRONT: f32 = 36. - (1. / 4.);
@@ -327,9 +344,8 @@ pub mod snowday {
 }
 
 pub mod dropshot {
+    use crate::BT_TO_UU;
     use glam::Vec3A;
-
-    const BT_TO_UU: f32 = 50.0;
 
     pub const BALL_LAUNCH_Z_VEL: f32 = 985.;
     pub const BALL_LAUNCH_DELAY: f32 = 0.26;

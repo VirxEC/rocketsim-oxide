@@ -413,18 +413,8 @@ impl Car {
     }
 
     fn update_wheels(&mut self, tick_time: f32, num_wheels_in_contact: u8, forward_speed_uu: f32) {
-        let abs_forward_speed_uu = forward_speed_uu.abs();
-
-        let mut wheels_have_world_contact = false;
-        for wheel in &self.bullet_vehicle.wheels {
-            wheels_have_world_contact |= wheel.is_in_contact_with_world;
-        }
-
-        self.internal_state.handbrake_val += if self.controls.handbrake {
-            POWERSLIDE_RISE_RATE * tick_time
-        } else {
-            -POWERSLIDE_FALL_RATE * tick_time
-        };
+        self.internal_state.handbrake_val +=
+            (f32::from(self.controls.handbrake) * 2.0 - 1.0) * POWERSLIDE_FALL_RATE * tick_time;
         self.internal_state.handbrake_val = self.internal_state.handbrake_val.clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
@@ -434,6 +424,7 @@ impl Car {
             self.controls.throttle
         };
 
+        let abs_forward_speed_uu = forward_speed_uu.abs();
         let mut engine_throttle = real_throttle;
         if !self.controls.handbrake {
             if real_throttle.abs() >= THROTTLE_DEADZONE {
@@ -522,17 +513,11 @@ impl Car {
             let mut long_friction = 1.0;
 
             if self.internal_state.handbrake_val != 0.0 {
-                long_friction = LONG_FRICTION_CURVE.get_output(friction_curve_input);
-
                 let handbrake_amount = self.internal_state.handbrake_val;
-                lat_friction *=
-                    (HANDBRAKE_LAT_FRICTION_FACTOR_CURVE.get_output(friction_curve_input) - 1.0)
-                        * handbrake_amount
-                        + 1.0;
-                long_friction *=
-                    (HANDBRAKE_LONG_FRICTION_FACTOR_CURVE.get_output(friction_curve_input) - 1.0)
-                        * handbrake_amount
-                        + 1.0;
+                lat_friction *= 1.0 - HANDBRAKE_LAT_FRICTION_FACTOR_CURVE * handbrake_amount;
+                long_friction *= 1.0
+                    + (HANDBRAKE_LONG_FRICTION_FACTOR_CURVE.get_output(friction_curve_input) - 1.0)
+                        * handbrake_amount;
             }
 
             if real_throttle == 0.0 {
@@ -547,11 +532,16 @@ impl Car {
             wheel.long_friction = long_friction;
         }
 
+        let wheels_have_world_contact = self
+            .bullet_vehicle
+            .wheels
+            .iter()
+            .any(|wheel| wheel.is_in_contact_with_world);
         if wheels_have_world_contact {
             let upwards_dir = self.bullet_vehicle.get_upwards_dir_from_wheel_contacts();
 
             let full_stick = real_throttle != 0.0 || abs_forward_speed_uu > STOPPING_FORWARD_VEL;
-            let mut sticky_force_scale = if self.config.three_wheels { 0.0 } else { 0.5 };
+            let mut sticky_force_scale = f32::from(!self.config.three_wheels) * 0.5;
             if full_stick {
                 sticky_force_scale += 1.0 - upwards_dir.z.abs();
             }

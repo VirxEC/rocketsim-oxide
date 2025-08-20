@@ -100,7 +100,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for Algorithms<'_, T> {
             Self::ConvexConcave(alg) => alg.process_collision(body0, body1),
             Self::SphereObb(alg) => alg.process_collision(body0, body1),
             Self::Compound(alg) => alg.process_collision(body0, body1),
-            Algorithms::ObbObb(alg) => alg.process_collision(body0, body1),
+            Self::ObbObb(alg) => alg.process_collision(body0, body1),
         }
     }
 }

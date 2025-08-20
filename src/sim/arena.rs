@@ -72,12 +72,41 @@ impl ArenaConfig {
 }
 
 pub struct Objects {
-    mutator_config: MutatorConfig,
     pub ball: Ball,
+    /// Do NOT add/remove cars by adding/removing them from the hashmap.
     pub cars: AHashMap<u64, Car>,
+    tick_count: u64,
+    game_mode: GameMode,
+    mutator_config: MutatorConfig,
+    boost_pads: Vec<BoostPad>,
 }
 
 impl Objects {
+    fn on_car_ball_collision(
+        &mut self,
+        car_id: u64,
+        manifold_point: &mut ManifoldPoint,
+        ball_is_body_a: bool,
+    ) {
+        manifold_point.combined_friction = CARBALL_COLLISION_FRICTION;
+        manifold_point.combined_restitution = CARBALL_COLLISION_RESTITUTION;
+
+        let rel_ball_pos = if ball_is_body_a {
+            manifold_point.local_point_a
+        } else {
+            manifold_point.local_point_b
+        };
+
+        let car = self.cars.get_mut(&car_id).unwrap();
+        self.ball.on_hit(
+            car,
+            rel_ball_pos,
+            self.game_mode,
+            &self.mutator_config,
+            self.tick_count,
+        );
+    }
+
     fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &mut ManifoldPoint) {
         let car = self.cars.get_mut(&car_id).unwrap();
         car.internal_state.world_contact_normal = Some(manifold_point.normal_world_on_b);
@@ -113,7 +142,9 @@ impl ContactAddedCallback for Objects {
 
         if user_index_a == UserInfoTypes::Car {
             match user_index_b {
-                UserInfoTypes::Ball => todo!(),
+                UserInfoTypes::Ball => {
+                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap)
+                }
                 UserInfoTypes::Car => todo!(),
                 _ => self.on_car_world_collision(body_a.user_pointer, contact_point),
             }
@@ -140,14 +171,11 @@ impl ContactAddedCallback for Objects {
 }
 
 pub struct Arena {
-    game_mode: GameMode,
-    config: ArenaConfig,
     tick_time: f32,
-    pub tick_count: u64,
-    bullet_world: DiscreteDynamicsWorld,
     last_car_id: u64,
+    config: ArenaConfig,
+    bullet_world: DiscreteDynamicsWorld,
     pub objects: Objects,
-    boost_pads: Vec<BoostPad>,
 }
 
 impl Arena {
@@ -238,18 +266,18 @@ impl Arena {
         }
 
         Self {
-            game_mode,
-            tick_count: 0,
-            tick_time: 1. / tick_rate,
             config,
             bullet_world,
             last_car_id: 0,
+            tick_time: 1. / tick_rate,
             objects: Objects {
-                mutator_config,
                 ball,
+                game_mode,
+                boost_pads,
+                mutator_config,
+                tick_count: 0,
                 cars: AHashMap::new(),
             },
-            boost_pads,
         }
     }
 
@@ -400,7 +428,7 @@ impl Arena {
             .translation
             * BT_TO_UU;
 
-        match self.game_mode {
+        match self.objects.game_mode {
             GameMode::Soccar | GameMode::Heatseeker | GameMode::Snowday => {
                 ball_pos.y.abs()
                     > self.objects.mutator_config.goal_base_threshold_y
@@ -427,28 +455,29 @@ impl Arena {
         let mut kickoff_order: [usize; CAR_SPAWN_LOCATION_AMOUNT] = from_fn(|i| i);
         fastrand::shuffle(&mut kickoff_order);
 
-        let (location_amount, car_spawn_locations, car_respawn_locations) = match self.game_mode {
-            GameMode::Hoops => (
-                CAR_SPAWN_LOCATION_AMOUNT,
-                CAR_SPAWN_LOCATIONS_HOOPS.as_slice(),
-                CAR_RESPAWN_LOCATIONS_HOOPS,
-            ),
-            GameMode::Heatseeker => (
-                CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER,
-                CAR_SPAWN_LOCATIONS_HEATSEEKER.as_slice(),
-                CAR_RESPAWN_LOCATIONS_SOCCAR,
-            ),
-            GameMode::Dropshot => (
-                CAR_SPAWN_LOCATION_AMOUNT,
-                CAR_SPAWN_LOCATIONS_DROPSHOT.as_slice(),
-                CAR_RESPAWN_LOCATIONS_DROPSHOT,
-            ),
-            _ => (
-                CAR_SPAWN_LOCATION_AMOUNT,
-                CAR_SPAWN_LOCATIONS_SOCCAR.as_slice(),
-                CAR_RESPAWN_LOCATIONS_SOCCAR,
-            ),
-        };
+        let (location_amount, car_spawn_locations, car_respawn_locations) =
+            match self.objects.game_mode {
+                GameMode::Hoops => (
+                    CAR_SPAWN_LOCATION_AMOUNT,
+                    CAR_SPAWN_LOCATIONS_HOOPS.as_slice(),
+                    CAR_RESPAWN_LOCATIONS_HOOPS,
+                ),
+                GameMode::Heatseeker => (
+                    CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER,
+                    CAR_SPAWN_LOCATIONS_HEATSEEKER.as_slice(),
+                    CAR_RESPAWN_LOCATIONS_SOCCAR,
+                ),
+                GameMode::Dropshot => (
+                    CAR_SPAWN_LOCATION_AMOUNT,
+                    CAR_SPAWN_LOCATIONS_DROPSHOT.as_slice(),
+                    CAR_RESPAWN_LOCATIONS_DROPSHOT,
+                ),
+                _ => (
+                    CAR_SPAWN_LOCATION_AMOUNT,
+                    CAR_SPAWN_LOCATIONS_SOCCAR.as_slice(),
+                    CAR_RESPAWN_LOCATIONS_SOCCAR,
+                ),
+            };
 
         let mut blue_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
         let mut orange_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
@@ -519,7 +548,7 @@ impl Arena {
         }
 
         let mut ball_state = BallState::DEFAULT;
-        match self.game_mode {
+        match self.objects.game_mode {
             GameMode::Heatseeker => {
                 let next_rand = fastrand::bool();
                 let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
@@ -549,7 +578,7 @@ impl Arena {
             config,
         );
         car.respawn(
-            self.game_mode,
+            self.objects.game_mode,
             self.objects.mutator_config.car_spawn_boost_amount,
         );
 
@@ -580,14 +609,14 @@ impl Arena {
         for car in self.objects.cars.values_mut() {
             car.pre_tick_update(
                 &self.bullet_world,
-                self.game_mode,
+                self.objects.game_mode,
                 self.tick_time,
                 &self.objects.mutator_config,
             );
         }
 
         let ball_only = self.objects.cars.is_empty();
-        let has_arena_stuff = self.game_mode != GameMode::TheVoid;
+        let has_arena_stuff = self.objects.game_mode != GameMode::TheVoid;
 
         if has_arena_stuff && !ball_only {
             // todo: boostpad pretickupdate
@@ -595,7 +624,7 @@ impl Arena {
 
         self.objects
             .ball
-            .pre_tick_update(self.game_mode, self.tick_time);
+            .pre_tick_update(self.objects.game_mode, self.tick_time);
 
         self.bullet_world
             .step_simulation(self.tick_time, &mut self.objects);
@@ -617,18 +646,38 @@ impl Arena {
             .ball
             .finish_physics_tick(&self.objects.mutator_config);
 
-        if self.game_mode == GameMode::Dropshot {
+        if self.objects.game_mode == GameMode::Dropshot {
             todo!("dropshot tile state sync")
         }
 
         // todo: goalscorecallback
 
-        self.tick_count += 1;
+        self.objects.tick_count += 1;
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
         for _ in 0..ticks_to_simulate {
             self.internal_step();
         }
+    }
+
+    #[inline]
+    pub fn tick_count(&self) -> u64 {
+        self.objects.tick_count
+    }
+
+    #[inline]
+    pub fn game_mode(&self) -> GameMode {
+        self.objects.game_mode
+    }
+
+    #[inline]
+    pub fn mutator_config(&self) -> MutatorConfig {
+        self.objects.mutator_config
+    }
+
+    #[inline]
+    pub fn boost_pads(&self) -> &[BoostPad] {
+        &self.objects.boost_pads
     }
 }
