@@ -9,7 +9,7 @@ use crate::bullet::{
     },
     linear_math::AffineExt,
 };
-use glam::Vec3A;
+use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, mem, rc::Rc};
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -38,26 +38,33 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(
         self,
-        mut body0: &'a CollisionObject,
-        mut body1: &'a CollisionObject,
+        mut sphere_obj: &'a CollisionObject,
+        mut compound_obj: &'a CollisionObject,
     ) -> Option<PersistentManifold> {
         if self.is_swapped {
-            mem::swap(&mut body0, &mut body1);
+            mem::swap(&mut sphere_obj, &mut compound_obj);
         }
 
-        let Some(CollisionShapes::Sphere(sphere_ref)) = body0.get_collision_shape() else {
+        let Some(CollisionShapes::Sphere(sphere_ref)) = sphere_obj.get_collision_shape() else {
             unreachable!();
         };
 
-        let Some(CollisionShapes::Compound(compound_ref)) = body1.get_collision_shape() else {
+        let Some(CollisionShapes::Compound(compound_shape)) = compound_obj.get_collision_shape()
+        else {
             unreachable!();
         };
 
-        let world_to_box = self.obb_obj.world_transform.transpose();
+        let org_trans = *compound_obj.get_world_transform();
+
+        let child = compound_shape.child.as_ref().unwrap();
+        let child_trans = child.transform;
+        let new_child_world_trans = org_trans * child_trans;
+
+        let box_shape = &child.child_shape;
+        let box_aabb = box_shape.get_aabb(&Affine3A::IDENTITY);
+
         let sphere_from_local =
-            world_to_box.transform_point3a(body0.get_world_transform().translation);
-
-        let box_aabb = compound_ref.get_ident_aabb();
+            new_child_world_trans.inv_x_form(sphere_obj.get_world_transform().translation);
 
         let closest = sphere_from_local.clamp(box_aabb.min, box_aabb.max);
         let delta = sphere_from_local - closest;
@@ -70,15 +77,15 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         }
 
         let dist = dist_sq.sqrt();
-        let depth = radius - dist;
+        let depth = radius_with_threshold - dist;
         let normal = if dist > f32::EPSILON {
             delta / dist
         } else {
             Vec3A::X
         };
 
-        let normal_in_world = self.obb_obj.world_transform.transform_vector3a(normal);
-        let point_in_world = self.obb_obj.world_transform.transform_point3a(closest);
+        let normal_in_world = new_child_world_trans.transform_vector3a(normal);
+        let point_in_world = new_child_world_trans.transform_point3a(closest);
 
         let mut manifold =
             PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);
