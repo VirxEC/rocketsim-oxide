@@ -283,12 +283,11 @@ impl WheelInfoRL {
         cb_co: &CollisionObject,
         time_step: f32,
     ) {
-        let trans = cb_co.get_world_transform();
-
         if self.impulse == Vec3A::ZERO {
             return;
         }
 
+        let trans = cb_co.get_world_transform();
         let wheel_contact_offset =
             self.wheel_info.raycast_info.contact_point_ws - trans.translation;
         let contact_up_dot = trans.matrix3.z_axis.dot(wheel_contact_offset);
@@ -448,6 +447,10 @@ impl VehicleRL {
 
         for wheel in &mut self.wheels {
             wheel.update_suspension(&mut cb, &cb_co, step);
+        }
+
+        // note: all suspension MUST be updated before impulses are applied
+        for wheel in &mut self.wheels {
             wheel.apply_friction_impulses(&mut cb, &cb_co, step);
         }
     }
