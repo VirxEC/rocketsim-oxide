@@ -737,6 +737,8 @@ impl Car {
             return;
         }
 
+        let tick_time_scale = tick_time / const { 1. / 120. };
+
         self.internal_state.air_time += tick_time;
 
         if self.internal_state.has_jumped && !self.internal_state.is_jumping {
@@ -774,7 +776,7 @@ impl Car {
                     );
 
                     self.internal_state.flip_rel_torque =
-                        Vec3A::new(-dodge_dir.y, dodge_dir.x, 0.0);
+                        Vec3A::new(-dodge_dir.y, dodge_dir.x, 0.0) / tick_time_scale;
 
                     if dodge_dir.x.abs() < 0.1 {
                         dodge_dir.x = 0.0;
@@ -830,7 +832,7 @@ impl Car {
                 && self.internal_state.flip_time >= FLIP_Z_DAMP_START
                 && (rb.linear_velocity.z < 0.0 || self.internal_state.flip_time < FLIP_Z_DAMP_END)
             {
-                rb.linear_velocity.z *= (1. - FLIP_Z_DAMP_120).powf(tick_time / (1. / 120.));
+                rb.linear_velocity.z *= (1. - FLIP_Z_DAMP_120).powf(tick_time_scale);
             }
         } else if self.internal_state.has_flipped {
             self.internal_state.flip_time += tick_time;
