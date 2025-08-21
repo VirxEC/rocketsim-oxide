@@ -67,7 +67,7 @@ impl WheelInfoRL {
         let fwd = up.cross(right).normalize();
 
         let steering_orn = Quat::from_axis_angle_simd(up, self.steer_angle);
-        let steering_mat = Mat3A::from_quat_simd(steering_orn);
+        let steering_mat = Mat3A::bullet_from_quat(steering_orn);
 
         let basis2 = Mat3A::from_cols(fwd, -right, up);
         self.wheel_info.world_transform = Affine3A {

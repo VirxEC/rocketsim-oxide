@@ -84,7 +84,6 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         }
 
         let dist = dist_sq.sqrt();
-        let depth = radius_with_threshold - dist;
         let normal = if dist > f32::EPSILON {
             delta / dist
         } else {
@@ -93,6 +92,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
 
         let normal_in_world = new_child_world_trans.transform_vector3a(normal);
         let point_in_world = new_child_world_trans.transform_point3a(closest);
+        let depth = radius_with_threshold - dist;
 
         let mut manifold =
             PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);

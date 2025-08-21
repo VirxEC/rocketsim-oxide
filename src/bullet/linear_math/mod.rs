@@ -30,7 +30,6 @@ pub trait Mat3AExt {
     fn cofac(&self, r1: usize, c1: usize, r2: usize, c2: usize) -> f32;
     fn bullet_inverse(&self) -> Self;
     fn bullet_from_quat(q: Quat) -> Self;
-    fn from_quat_simd(rotation: Quat) -> Self;
 }
 
 impl Mat3AExt for Mat3A {
@@ -110,24 +109,6 @@ impl Mat3AExt for Mat3A {
             Vec3A::from_vec4(v3),
         )
         .transpose()
-    }
-
-    /// An implementation of Mat3A::from_quat that leverages simd
-    fn from_quat_simd(rotation: Quat) -> Self {
-        let rotation = Vec4::from(rotation);
-        let rotation_w = rotation.w;
-        let rotation = Vec3A::from_vec4(rotation);
-
-        let r2 = rotation * 2.0;
-        let x = rotation.x * r2;
-        let yz = rotation.yyz() * r2.yzz();
-        let w = rotation_w * r2;
-
-        Self::from_cols(
-            Vec3A::new(1.0 - (yz.x + yz.z), x.y + w.z, x.z - w.y),
-            Vec3A::new(x.y - w.z, 1.0 - (x.x + yz.z), yz.y + w.x),
-            Vec3A::new(x.z + w.y, yz.y - w.x, 1.0 - (x.x + yz.x)),
-        )
     }
 }
 

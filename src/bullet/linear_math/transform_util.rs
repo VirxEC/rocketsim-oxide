@@ -4,6 +4,7 @@ use std::f32::consts::FRAC_PI_4;
 
 const ANGULAR_MOTION_THRESHOLD: f32 = FRAC_PI_4;
 
+#[inline]
 pub fn integrate_transform_no_rot(cur_trans: &mut Affine3A, lin_vel: Vec3A, time_step: f32) {
     cur_trans.translation += lin_vel * time_step;
 }
