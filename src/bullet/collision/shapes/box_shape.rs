@@ -7,7 +7,7 @@ use crate::bullet::{
     collision::broadphase::broadphase_proxy::BroadphaseNativeTypes,
     linear_math::aabb_util_2::{Aabb, transform_aabb},
 };
-use glam::{Affine3A, Vec3A};
+use glam::{Affine3A, Vec3A, Vec3Swizzles};
 
 pub struct BoxShape {
     pub(crate) polyhedral_convex_shape: PolyhedralConvexShape,
@@ -34,9 +34,19 @@ impl BoxShape {
                         }
                     },
                 },
-                // polyhedron: None,
             },
         }
+    }
+
+    #[inline]
+    pub fn get_half_extents(&self) -> Vec3A {
+        self.polyhedral_convex_shape
+            .convex_internal_shape
+            .implicit_shape_dimensions
+            + self
+                .polyhedral_convex_shape
+                .convex_internal_shape
+                .collision_margin
     }
 
     pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
@@ -52,34 +62,15 @@ impl BoxShape {
     }
 
     pub fn calculate_local_intertia(&self, mass: f32) -> Vec3A {
-        let half_extents = self
-            .polyhedral_convex_shape
-            .convex_internal_shape
-            .implicit_shape_dimensions
-            + self
-                .polyhedral_convex_shape
-                .convex_internal_shape
-                .collision_margin;
+        let l = 2.0 * self.get_half_extents();
+        let yxx = l.yxx();
+        let zzy = l.zzy();
 
-        let l = 2.0 * half_extents;
-        mass / 12.0
-            * Vec3A::new(
-                l.y * l.y + l.z * l.z,
-                l.x * l.x + l.z * l.z,
-                l.x * l.x + l.y * l.y,
-            )
+        mass / 12.0 * (yxx * yxx + zzy * zzy)
     }
 
     pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
-        let mut half_extents = self
-            .polyhedral_convex_shape
-            .convex_internal_shape
-            .implicit_shape_dimensions;
-        half_extents += self
-            .polyhedral_convex_shape
-            .convex_internal_shape
-            .collision_margin;
-
+        let half_extents = self.get_half_extents();
         Vec3A::select(vec.cmpge(Vec3A::splat(0.0)), half_extents, -half_extents)
     }
 }

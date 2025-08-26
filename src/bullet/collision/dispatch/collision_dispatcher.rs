@@ -70,8 +70,16 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
         ))
     }
 
-    const fn new_obb_obb(contact_added_callback: &'a mut T) -> Self {
-        Self::ObbObb(ObbObbCollisionAlgorithm::new(contact_added_callback))
+    const fn new_obb_obb(
+        compound_0_obj: CollisionObjectWrapper,
+        compound_1_obj: CollisionObjectWrapper,
+        contact_added_callback: &'a mut T,
+    ) -> Self {
+        Self::ObbObb(ObbObbCollisionAlgorithm::new(
+            compound_0_obj,
+            compound_1_obj,
+            contact_added_callback,
+        ))
     }
 
     const fn new_compound(
@@ -220,7 +228,19 @@ impl CollisionDispatcher {
                     contact_added_callback,
                 ),
                 BroadphaseNativeTypes::CompoundShapeProxytype => {
-                    Algorithms::new_obb_obb(contact_added_callback)
+                    let world_transform_0 = *col_obj_0.get_world_transform();
+                    let world_transform_1 = *col_obj_1.get_world_transform();
+                    Algorithms::new_obb_obb(
+                        CollisionObjectWrapper {
+                            object: col_obj_0_ref,
+                            world_transform: world_transform_0,
+                        },
+                        CollisionObjectWrapper {
+                            object: col_obj_1_ref,
+                            world_transform: world_transform_1,
+                        },
+                        contact_added_callback,
+                    )
                 }
                 _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },

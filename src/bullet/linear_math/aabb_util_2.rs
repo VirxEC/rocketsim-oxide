@@ -42,7 +42,7 @@ pub fn test_aabb_against_aabb(aabb_1: &Aabb, aabb_2: &Aabb) -> bool {
 }
 
 pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> Aabb {
-    let half_extents_with_margin = half_extents + Vec3A::splat(margin);
+    let half_extents_with_margin = half_extents + margin;
     let abs_b = t.matrix3.abs();
     let center = t.translation;
     let extent = abs_b * half_extents_with_margin;

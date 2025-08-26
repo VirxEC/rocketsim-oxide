@@ -24,7 +24,7 @@ fn main() {
     car.controls.boost = false;
 
     let start = Instant::now();
-    arena.step(120);
+    arena.step(468);
     println!(
         "Stepped Arena in {}s!",
         Instant::now().duration_since(start).as_secs_f32()
