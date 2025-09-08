@@ -292,9 +292,10 @@ impl Ball {
                 * const { 1.0 - BALL_CAR_EXTRA_IMPULSE_FORWARD_SCALE };
             hit_dir = (hit_dir - forward_dir_adjustment).normalize();
 
-            let added_vel =
-                hit_dir * rel_speed * BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE.get_output(rel_speed)
-                    - mutator_config.ball_hit_extra_force_scale;
+            let added_vel = hit_dir
+                * rel_speed
+                * BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE.get_output(rel_speed)
+                * mutator_config.ball_hit_extra_force_scale;
             ball_hit_info.extra_hit_vel = added_vel;
 
             self.velocity_impulse_cache += added_vel * UU_TO_BT;
