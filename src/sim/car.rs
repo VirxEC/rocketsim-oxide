@@ -33,7 +33,7 @@ use std::{cell::RefCell, f32::consts::PI, rc::Rc};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CarContact {
-    pub other_car_id: u32,
+    pub other_car_id: u64,
     pub cooldown_timer: f32,
 }
 
@@ -92,7 +92,7 @@ pub struct CarState {
     pub auto_flip_timer: f32,
     pub auto_flip_torque_scale: f32,
     pub world_contact_normal: Option<Vec3A>,
-    pub car_contact: CarContact,
+    pub car_contact: Option<CarContact>,
     pub is_demoed: bool,
     pub demo_respawn_timer: f32,
     pub ball_hit_info: Option<BallHitInfo>,
@@ -138,10 +138,7 @@ impl CarState {
         auto_flip_timer: 0.0,
         auto_flip_torque_scale: 0.0,
         world_contact_normal: None,
-        car_contact: CarContact {
-            other_car_id: 0,
-            cooldown_timer: 0.0,
-        },
+        car_contact: None,
         is_demoed: false,
         demo_respawn_timer: 0.0,
         ball_hit_info: None,
@@ -1018,9 +1015,16 @@ impl Car {
             self.internal_state.supersonic_time = 0.0;
         }
 
-        if self.internal_state.car_contact.cooldown_timer > 0.0 {
-            self.internal_state.car_contact.cooldown_timer =
-                (self.internal_state.car_contact.cooldown_timer - tick_time).max(0.0);
+        if let Some(car_contact) = &mut self.internal_state.car_contact {
+            car_contact.cooldown_timer -= tick_time;
+        }
+
+        if self
+            .internal_state
+            .car_contact
+            .is_some_and(|car_contact| car_contact.cooldown_timer <= 0.0)
+        {
+            self.internal_state.car_contact = None;
         }
 
         self.internal_state.last_controls = self.controls;

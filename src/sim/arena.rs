@@ -26,7 +26,7 @@ use crate::{
         heatseeker::{BALL_START_POS, BALL_START_VEL},
         *,
     },
-    sim::{BallState, BoostPad, CollisionMasks},
+    sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode, mutator_config},
 };
 use ahash::AHashMap;
 use fastrand::Rng;
@@ -119,6 +119,115 @@ impl Objects {
         manifold_point.combined_friction = self.mutator_config.car_world_friction;
         manifold_point.combined_restitution = self.mutator_config.car_world_restitution;
     }
+
+    fn on_car_car_collision(
+        &mut self,
+        car_1_id: u64,
+        car_2_id: u64,
+        manifold_point: &mut ManifoldPoint,
+    ) {
+        manifold_point.combined_friction = CARCAR_COLLISION_FRICTION;
+        manifold_point.combined_restitution = CARCAR_COLLISION_RESTITUTION;
+
+        // SAFETY: car_1_id and car_2_id are guaranteed to be different;
+        // a car cannot collide with itself.
+        let [car_1, car_2] =
+            unsafe { self.cars.get_disjoint_unchecked_mut([&car_1_id, &car_2_id]) };
+        let car_1 = car_1.unwrap();
+        let car_2 = car_2.unwrap();
+
+        let mut state_1 = car_1.get_state();
+        let mut state_2 = car_2.get_state();
+
+        if state_1.is_demoed || state_2.is_demoed {
+            return;
+        }
+
+        // Test collision both ways
+        for is_swapped in [false, true] {
+            if is_swapped {
+                mem::swap(car_1, car_2);
+                mem::swap(&mut state_1, &mut state_2);
+            }
+
+            if let Some(car_contact) = state_1.car_contact
+                && car_contact.other_car_id == car_2_id
+                && car_contact.cooldown_timer > 0.0
+            {
+                // In cooldown
+                continue;
+            }
+
+            let delta_pos = state_2.physics.pos - state_1.physics.pos;
+            if state_1.physics.vel.dot(delta_pos) < 0.0 {
+                // Moving away from the other car
+                continue;
+            }
+
+            let vel_dir = state_1.physics.vel.normalize();
+            let dir_to_other_car = delta_pos.normalize();
+
+            let speed_towards_other_car = state_1.physics.vel.dot(dir_to_other_car);
+            let other_car_away_speed = state_2.physics.vel.dot(vel_dir);
+            if speed_towards_other_car <= other_car_away_speed {
+                // Going towards other car slower than they're going away
+                continue;
+            }
+
+            let local_point = if is_swapped {
+                manifold_point.local_point_b
+            } else {
+                manifold_point.local_point_a
+            };
+
+            let hit_with_bumper = local_point.x * BT_TO_UU > BUMP_MIN_FORWARD_DIST;
+            if !hit_with_bumper {
+                // Didn't hit with bumper
+                continue;
+            }
+
+            let mut is_demo = match self.mutator_config.demo_mode {
+                DemoMode::OnContact => true,
+                DemoMode::Disabled => false,
+                DemoMode::Normal => state_1.is_supersonic,
+            };
+            if is_demo && !self.mutator_config.enable_team_demos {
+                is_demo = car_1.team != car_2.team;
+            }
+
+            if is_demo {
+                car_2.demolish(self.mutator_config.respawn_delay);
+            } else {
+                let ground_hit = state_2.is_on_ground;
+                let base_scale = if ground_hit {
+                    BUMP_VEL_AMOUNT_GROUND_CURVE
+                } else {
+                    BUMP_VEL_AMOUNT_AIR_CURVE
+                }
+                .get_output(speed_towards_other_car);
+
+                let hit_up_dir = if state_2.is_on_ground {
+                    state_2.physics.rot_mat.z_axis
+                } else {
+                    Vec3A::Z
+                };
+
+                let bump_impulse = vel_dir * base_scale
+                    + hit_up_dir
+                        * BUMP_UPWARD_VEL_AMOUNT_CURVE.get_output(speed_towards_other_car)
+                        * self.mutator_config.bump_force_scale;
+
+                car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
+            }
+
+            car_1.internal_state.car_contact = Some(CarContact {
+                other_car_id: car_2_id,
+                cooldown_timer: self.mutator_config.bump_cooldown_time,
+            });
+
+            // TODO: car bump callback
+        }
+    }
 }
 
 impl ContactAddedCallback for Objects {
@@ -150,7 +259,11 @@ impl ContactAddedCallback for Objects {
                 UserInfoTypes::Ball => {
                     self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap)
                 }
-                UserInfoTypes::Car => todo!(),
+                UserInfoTypes::Car => self.on_car_car_collision(
+                    body_a.user_pointer,
+                    body_b.user_pointer,
+                    contact_point,
+                ),
                 _ => self.on_car_world_collision(body_a.user_pointer, contact_point),
             }
         } else if user_index_a == UserInfoTypes::Ball {
@@ -669,7 +782,7 @@ impl Arena {
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
         for i in 0..ticks_to_simulate {
-            // println!("i: {i}");
+            println!("i: {i}");
             self.internal_step();
         }
     }
