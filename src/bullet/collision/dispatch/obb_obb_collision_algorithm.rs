@@ -4,59 +4,24 @@ use crate::bullet::{
         dispatch::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
         },
-        narrowphase::persistent_manifold::{
-            ContactAddedCallback, MANIFOLD_CACHE_SIZE, PersistentManifold,
-        },
+        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,
     },
-    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
+    linear_math::aabb_util_2::test_aabb_against_aabb,
 };
 use arrayvec::ArrayVec;
-use glam::{Affine3A, Mat3A, Vec3A};
+use glam::{Mat3A, Vec3A};
 
-#[derive(Debug)]
 struct Obb {
     center: Vec3A,
     axis: Mat3A,
     extent: Vec3A,
 }
 
-#[derive(Debug)]
 struct Hit {
     depth: f32,
     normal: Vec3A,
     axis_idx: usize,
-}
-
-/// check if there's a separating plane in between the selected axes
-fn get_separating_plane(rpos: Vec3A, plane: Vec3A, a: &Obb, b: &Obb) -> bool {
-    (rpos * plane).element_sum().abs()
-        > (a.axis.x_axis * a.extent.x * plane).element_sum().abs()
-            + (a.axis.y_axis * a.extent.y * plane).element_sum().abs()
-            + (a.axis.z_axis * a.extent.z * plane).element_sum().abs()
-            + (b.axis.x_axis * b.extent.x * plane).element_sum().abs()
-            + (b.axis.y_axis * b.extent.y * plane).element_sum().abs()
-            + (b.axis.z_axis * b.extent.z * plane).element_sum().abs()
-}
-
-fn check_collision_sat(a: &Obb, b: &Obb) -> bool {
-    let rpos = b.center - a.center;
-
-    !(get_separating_plane(rpos, a.axis.x_axis, a, b)
-        || get_separating_plane(rpos, a.axis.y_axis, a, b)
-        || get_separating_plane(rpos, a.axis.z_axis, a, b)
-        || get_separating_plane(rpos, b.axis.x_axis, a, b)
-        || get_separating_plane(rpos, b.axis.y_axis, a, b)
-        || get_separating_plane(rpos, b.axis.z_axis, a, b)
-        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.x_axis), a, b)
-        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.y_axis), a, b)
-        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.z_axis), a, b)
-        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.x_axis), a, b)
-        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.y_axis), a, b)
-        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.z_axis), a, b)
-        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.x_axis), a, b)
-        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.y_axis), a, b)
-        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.z_axis), a, b))
 }
 
 /// Project an OBB onto an axis, returning the “radius” (half-projection length)
@@ -326,7 +291,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         };
 
         // solve for hit normal/depth
-        let mut hit = collide_obb_sat(&obb0, &obb1)?;
+        let hit = collide_obb_sat(&obb0, &obb1)?;
         let normal_on_b_in_world = child_1_trans.transform_vector3a(hit.normal);
 
         let mut manifold = PersistentManifold::new(
