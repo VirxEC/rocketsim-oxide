@@ -17,7 +17,7 @@ codegen-units = 1
 panic = "abort"
 
 [lints.rust]
-dead_code = "allow"
+unused = "allow"
 
 [lints.clippy]
 all = "warn"

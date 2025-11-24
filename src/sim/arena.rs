@@ -29,6 +29,7 @@ use crate::{
     sim::{BallState, BoostPad, CollisionMasks},
 };
 use ahash::AHashMap;
+use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 use std::{array::from_fn, cell::RefCell, f32::consts::PI, mem, rc::Rc};
 
@@ -51,6 +52,9 @@ pub struct ArenaConfig {
     use_custom_boost_pads: bool,
     /// Custom boost pads to use, if `use_custom_boost_pads`
     custom_boost_pads: Vec<BoostPadConfig>,
+    /// Optional RNG seed for deterministic behavior
+    /// If None, a random seed will be used
+    rng_seed: Option<u64>,
 }
 
 impl Default for ArenaConfig {
@@ -68,6 +72,7 @@ impl ArenaConfig {
         no_ball_rot: true,
         use_custom_boost_pads: false,
         custom_boost_pads: Vec::new(),
+        rng_seed: None,
     };
 }
 
@@ -171,6 +176,7 @@ impl ContactAddedCallback for Objects {
 }
 
 pub struct Arena {
+    rng: Rng,
     tick_time: f32,
     last_car_id: u64,
     config: ArenaConfig,
@@ -265,7 +271,13 @@ impl Arena {
             }
         }
 
+        let rng = match config.rng_seed {
+            Some(seed) => Rng::with_seed(seed),
+            None => Rng::new(),
+        };
+
         Self {
+            rng,
             config,
             bullet_world,
             last_car_id: 0,
@@ -453,7 +465,7 @@ impl Arena {
 
     pub fn reset_to_random_kickoff(&mut self) {
         let mut kickoff_order: [usize; CAR_SPAWN_LOCATION_AMOUNT] = from_fn(|i| i);
-        fastrand::shuffle(&mut kickoff_order);
+        self.rng.shuffle(&mut kickoff_order);
 
         let (location_amount, car_spawn_locations, car_respawn_locations) =
             match self.objects.game_mode {
@@ -550,7 +562,7 @@ impl Arena {
         let mut ball_state = BallState::DEFAULT;
         match self.objects.game_mode {
             GameMode::Heatseeker => {
-                let next_rand = fastrand::bool();
+                let next_rand = self.rng.bool();
                 let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
                 ball_state.physics.pos = BALL_START_POS * scale;
                 ball_state.physics.vel = BALL_START_VEL * scale;
@@ -656,7 +668,8 @@ impl Arena {
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
-        for _ in 0..ticks_to_simulate {
+        for i in 0..ticks_to_simulate {
+            // println!("i: {i}");
             self.internal_step();
         }
     }
