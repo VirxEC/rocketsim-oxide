@@ -267,7 +267,10 @@ impl CollisionDispatcher {
             .unwrap()
             .borrow();
 
-        if !col_obj_0.is_active() && !col_obj_1.is_active() {
+        if !col_obj_0.is_active() && !col_obj_1.is_active()
+            || !col_obj_0.has_contact_response()
+            || !col_obj_1.has_contact_response()
+        {
             return;
         }
 

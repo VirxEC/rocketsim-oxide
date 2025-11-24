@@ -222,7 +222,7 @@ fn clip_polygon_with_plane<const CAP: usize>(
     let mut out = ArrayVec::new();
 
     for (i, &a) in polygon.iter().enumerate() {
-        let b = polygon[(i + 1) % CAP];
+        let b = polygon[(i + 1) % polygon.len()];
 
         let da = plane_normal.dot(a) - plane_offset;
         let db = plane_normal.dot(b) - plane_offset;
@@ -230,20 +230,31 @@ fn clip_polygon_with_plane<const CAP: usize>(
         let inside_a = da <= 0.0;
         let inside_b = db <= 0.0;
 
+        // if inside_a && inside_b {
+        //     // both inside
+        //     out.push(b);
+        // } else if inside_a && !inside_b {
+        //     // a inside, b outside -> compute intersection, add that
+        //     let t = da / (da - db);
+        //     let i_pt = a + (b - a) * t;
+        //     out.push(i_pt);
+        // } else if !inside_a && inside_b {
+        //     // a outside, b inside -> intersection + b
+        //     let t = da / (da - db);
+        //     let i_pt = a + (b - a) * t;
+        //     out.push(i_pt);
+        //     out.push(b);
+        // }
         if inside_a && inside_b {
-            // both inside
             out.push(b);
-        } else if inside_a && !inside_b {
-            // a inside, b outside -> compute intersection, add that
+        } else if inside_a ^ inside_b {
             let t = da / (da - db);
             let i_pt = a + (b - a) * t;
             out.push(i_pt);
-        } else if !inside_a && inside_b {
-            // a outside, b inside -> intersection + b
-            let t = da / (da - db);
-            let i_pt = a + (b - a) * t;
-            out.push(i_pt);
-            out.push(b);
+            
+            if !inside_a {
+                out.push(b);
+            }
         }
     }
 
@@ -316,6 +327,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
 
         // solve for hit normal/depth
         let mut hit = collide_obb_sat(&obb0, &obb1)?;
+        // dbg!("hit!");
         let normal_on_b_in_world = child_1_trans.transform_vector3a(hit.normal);
 
         let mut manifold = PersistentManifold::new(
@@ -327,10 +339,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         // solve for manifold points
         if hit.axis_idx > 5 {
             // edge-edge contact
-            let pt_on_a =
-                closest_point_on_obb_edge(&obb0, obb1.center + hit.normal * hit.depth * 0.5);
-            let pt_on_b =
-                closest_point_on_obb_edge(&obb1, obb0.center - hit.normal * hit.depth * 0.5);
+            let extent = hit.normal * hit.depth * 0.5;
+            let pt_on_a = closest_point_on_obb_edge(&obb0, obb1.center + extent);
+            let pt_on_b = closest_point_on_obb_edge(&obb1, obb0.center - extent);
             let contact_point = (pt_on_a + pt_on_b) * 0.5;
             let depth = (pt_on_b - pt_on_a).dot(hit.normal);
 
@@ -356,7 +367,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         let ref_face_verts = get_face_verts(ref_box, axis_idx, side_sign);
         let inc_face_verts = find_face_verts(inc_box, ref_normal);
 
-        let mut clipped_polygon = ArrayVec::<Vec3A, 4>::from(inc_face_verts);
+        let mut clipped_polygon = ArrayVec::<Vec3A, 8>::new();
+        clipped_polygon.extend(inc_face_verts);
+
         // clip against 4 side planes of ref face
         for (i, va) in ref_face_verts.into_iter().enumerate() {
             let vb = ref_face_verts[(i + 1) % 4];
@@ -367,8 +380,10 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             clipped_polygon = clip_polygon_with_plane(&clipped_polygon, plane_normal, plane_offset);
         }
 
+        // dbg!(clipped_polygon.len());
         for p in clipped_polygon {
             let depth = ref_normal.dot(p - ref_box.center) - ref_box.extent[axis_idx] * side_sign;
+            // dbg!(normal_on_b_in_world, p, depth);
             if depth >= 0.0 {
                 manifold.add_contact_point(
                     normal_on_b_in_world,
