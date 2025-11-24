@@ -251,7 +251,7 @@ fn clip_polygon_with_plane<const CAP: usize>(
             let t = da / (da - db);
             let i_pt = a + (b - a) * t;
             out.push(i_pt);
-            
+
             if !inside_a {
                 out.push(b);
             }
@@ -327,7 +327,6 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
 
         // solve for hit normal/depth
         let mut hit = collide_obb_sat(&obb0, &obb1)?;
-        // dbg!("hit!");
         let normal_on_b_in_world = child_1_trans.transform_vector3a(hit.normal);
 
         let mut manifold = PersistentManifold::new(
@@ -378,9 +377,11 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             let plane_offset = plane_normal.dot(va);
 
             clipped_polygon = clip_polygon_with_plane(&clipped_polygon, plane_normal, plane_offset);
+            if clipped_polygon.is_empty() {
+                return None;
+            }
         }
 
-        // dbg!(clipped_polygon.len());
         for p in clipped_polygon {
             let depth = ref_normal.dot(p - ref_box.center) - ref_box.extent[axis_idx] * side_sign;
             // dbg!(normal_on_b_in_world, p, depth);
@@ -388,7 +389,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
                 manifold.add_contact_point(
                     normal_on_b_in_world,
                     p,
-                    -depth,
+                    depth,
                     -1,
                     -1,
                     self.contact_added_callback,

@@ -32,15 +32,15 @@ fn main() {
 
         let car2 = arena.objects.cars.get_mut(&id2).unwrap();
         let mut state2 = car2.get_state();
-        state2.physics.pos.y = -1000.0;
-        state2.physics.vel.y = -2300.0;
+        state2.physics.pos.y = -1500.0;
+        state2.physics.vel.y = -1500.0;
         dbg!(state2.physics.pos);
         car2.set_state(state2);
         car2.controls.throttle = 1.0;
     };
 
     let start = Instant::now();
-    arena.step(120);
+    arena.step(60);
     println!(
         "Stepped Arena in {}s!",
         Instant::now().duration_since(start).as_secs_f32()
@@ -51,6 +51,8 @@ fn main() {
     println!("vel: {}", state.physics.vel);
     println!("ang_vel: {}", state.physics.ang_vel);
     println!("rot_mat: {}", state.physics.rot_mat);
+    println!("is_demoed: {:?}", state.is_demoed);
+    println!("car_contact: {:?}", state.car_contact);
     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
 
     let state = arena.objects.cars.get(&id2).unwrap().get_state();
@@ -58,5 +60,7 @@ fn main() {
     println!("vel: {}", state.physics.vel);
     println!("ang_vel: {}", state.physics.ang_vel);
     println!("rot_mat: {}", state.physics.rot_mat);
+    println!("is_demoed: {:?}", state.is_demoed);
+    println!("car_contact: {:?}", state.car_contact);
     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
 }
