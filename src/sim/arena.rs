@@ -481,6 +481,8 @@ impl Arena {
             let aabb = plane_shape.get_aabb(&trans);
             plane_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
             plane_shape.concave_shape.collision_shape.aabb_cache_trans = trans;
+            plane_shape.concave_shape.collision_shape.aabb_ident_cache =
+                Some(plane_shape.get_aabb(&Affine3A::IDENTITY));
 
             Self::add_static_collision_shape(
                 bullet_world,

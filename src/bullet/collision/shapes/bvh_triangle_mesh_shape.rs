@@ -28,6 +28,10 @@ impl BvhTriangleMeshShape {
         // pre-calculate the aabb
         let trans = Affine3A::IDENTITY;
         let aabb = triangle_mesh_shape.get_aabb(&trans);
+        triangle_mesh_shape
+            .concave_shape
+            .collision_shape
+            .aabb_ident_cache = Some(aabb);
         triangle_mesh_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
         triangle_mesh_shape
             .concave_shape

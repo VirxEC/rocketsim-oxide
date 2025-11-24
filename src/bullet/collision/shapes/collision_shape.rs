@@ -19,6 +19,7 @@ pub struct CollisionShape {
     // pub user_pointer: *mut c_void,
     // pub user_index: i32,
     // pub user_index_2: i32,
+    pub aabb_ident_cache: Option<Aabb>,
     pub aabb_cache: Option<Aabb>,
     pub aabb_cache_trans: Affine3A,
 }
@@ -29,6 +30,7 @@ impl Default for CollisionShape {
             shape_type: BroadphaseNativeTypes::InvalidShapeProxytype,
             // user_index: -1,
             // user_index_2: -1,
+            aabb_ident_cache: None,
             aabb_cache: None,
             aabb_cache_trans: Affine3A::ZERO,
         }
@@ -83,14 +85,22 @@ impl CollisionShapes {
     }
 
     fn get_bounding_sphere(&self) -> (Vec3A, f32) {
-        if let Self::Sphere(sphere) = self {
-            (Vec3A::ZERO, sphere.get_radius() + SPHERE_RADIUS_MARGIN)
-        } else {
-            let aabb = self.get_aabb(&Affine3A::IDENTITY);
-            let center = (aabb.min + aabb.max) * 0.5;
-            let radius = (aabb.max - aabb.min).length() * 0.5;
+        match self {
+            Self::Sphere(sphere) => (Vec3A::ZERO, sphere.get_radius() + SPHERE_RADIUS_MARGIN),
+            Self::Compound(compound) => {
+                let aabb = compound.get_ident_aabb();
+                let center = (aabb.min + aabb.max) * 0.5;
+                let radius = (aabb.max - aabb.min).length() * 0.5;
 
-            (center, radius)
+                (center, radius)
+            }
+            _ => {
+                let aabb = self.get_collision_shape().aabb_ident_cache.unwrap();
+                let center = (aabb.min + aabb.max) * 0.5;
+                let radius = (aabb.max - aabb.min).length() * 0.5;
+
+                (center, radius)
+            }
         }
     }
 
