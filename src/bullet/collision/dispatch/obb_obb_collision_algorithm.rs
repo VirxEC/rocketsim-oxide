@@ -1,5 +1,3 @@
-use std::f32;
-
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
@@ -13,291 +11,243 @@ use crate::bullet::{
     },
     linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
-use glam::{Mat3A, Vec3A};
+use arrayvec::ArrayVec;
+use glam::{Affine3A, Mat3A, Vec3A};
 
+#[derive(Debug)]
 struct Obb {
     center: Vec3A,
     axis: Mat3A,
     extent: Vec3A,
 }
 
-struct Aabb {
-    center: Vec3A,
-    extent: Vec3A,
-}
-
-impl From<Aabb> for Obb {
-    #[inline]
-    fn from(value: Aabb) -> Self {
-        Self {
-            center: value.center,
-            extent: value.extent,
-            axis: Mat3A::IDENTITY,
-        }
-    }
-}
-
+#[derive(Debug)]
 struct Hit {
     depth: f32,
     normal: Vec3A,
-    axis_type: u8,
-    obb_axis: Option<u8>,
-    aabb_axis: Option<u8>,
+    axis_idx: usize,
+}
+
+/// check if there's a separating plane in between the selected axes
+fn get_separating_plane(rpos: Vec3A, plane: Vec3A, a: &Obb, b: &Obb) -> bool {
+    (rpos * plane).element_sum().abs()
+        > (a.axis.x_axis * a.extent.x * plane).element_sum().abs()
+            + (a.axis.y_axis * a.extent.y * plane).element_sum().abs()
+            + (a.axis.z_axis * a.extent.z * plane).element_sum().abs()
+            + (b.axis.x_axis * b.extent.x * plane).element_sum().abs()
+            + (b.axis.y_axis * b.extent.y * plane).element_sum().abs()
+            + (b.axis.z_axis * b.extent.z * plane).element_sum().abs()
+}
+
+fn check_collision_sat(a: &Obb, b: &Obb) -> bool {
+    let rpos = b.center - a.center;
+
+    !(get_separating_plane(rpos, a.axis.x_axis, a, b)
+        || get_separating_plane(rpos, a.axis.y_axis, a, b)
+        || get_separating_plane(rpos, a.axis.z_axis, a, b)
+        || get_separating_plane(rpos, b.axis.x_axis, a, b)
+        || get_separating_plane(rpos, b.axis.y_axis, a, b)
+        || get_separating_plane(rpos, b.axis.z_axis, a, b)
+        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.x_axis), a, b)
+        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.y_axis), a, b)
+        || get_separating_plane(rpos, a.axis.x_axis.cross(b.axis.z_axis), a, b)
+        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.x_axis), a, b)
+        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.y_axis), a, b)
+        || get_separating_plane(rpos, a.axis.y_axis.cross(b.axis.z_axis), a, b)
+        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.x_axis), a, b)
+        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.y_axis), a, b)
+        || get_separating_plane(rpos, a.axis.z_axis.cross(b.axis.z_axis), a, b))
+}
+
+/// Project an OBB onto an axis, returning the “radius” (half-projection length)
+fn project_obb_radius(obb: &Obb, axis: Vec3A) -> f32 {
+    // For an OBB, the radius (projection half-length) is sum over each box local axis of:
+    //   | (local_axis * extent) dot axis |
+    // We assume obb.axis.x_axis, etc. are the local axis unit vectors.
+    let x = obb.axis.x_axis * obb.extent.x;
+    let y = obb.axis.y_axis * obb.extent.y;
+    let z = obb.axis.z_axis * obb.extent.z;
+
+    axis.dot(x).abs() + axis.dot(y).abs() + axis.dot(z).abs()
 }
 
 /// Uses the Separating Axis Theorem (SAT)
 ///
 /// - two convex polytopes intersect if no separating axis exists
 /// - there are 15 axis
-fn collide_obb_aabb_sat(a: &Obb, b: &Aabb) -> Option<Hit> {
-    const B_AXIS: [Vec3A; 3] = [Vec3A::X, Vec3A::Y, Vec3A::Z];
-
-    let r = [a.axis.x_axis, a.axis.y_axis, a.axis.z_axis];
-
-    // tW/tA
-    let t_w = b.center - a.center;
-    let t_a = a.axis.transpose() * t_w;
-
-    // avoid false separations due to near-parallel axes by adding EPS
-    let abs_r = [
-        r[0].abs() + f32::EPSILON,
-        r[1].abs() + f32::EPSILON,
-        r[2].abs() + f32::EPSILON,
+fn collide_obb_sat(a: &Obb, b: &Obb) -> Option<Hit> {
+    let face_axes = [
+        a.axis.x_axis,
+        a.axis.y_axis,
+        a.axis.z_axis,
+        b.axis.x_axis,
+        b.axis.y_axis,
+        b.axis.z_axis,
     ];
 
-    let mut depth = f32::INFINITY;
-    let mut best_axis_w = Vec3A::ZERO;
-    let mut best_axis_type = 0;
-    let mut best_obb_axis = None;
-    let mut best_aabb_axis = None;
+    // Get smallest overlap
+    let mut min_overlap = f32::MAX;
+    let mut min_axis = Vec3A::ZERO;
+    let mut min_axis_index = 0;
 
-    let mut update = |dist: f32,
-                      ra: f32,
-                      rb: f32,
-                      l_w: Vec3A,
-                      orient: bool,
-                      axis_type: u8,
-                      obb_axis: Option<u8>,
-                      aabb_axis: Option<u8>| {
-        let overlap = (ra + rb) - dist;
+    let rpos = b.center - a.center;
+    for (idx, axis) in face_axes.into_iter().enumerate() {
+        // Project both boxes onto this axis
+        let ra = project_obb_radius(a, axis);
+        let rb = project_obb_radius(b, axis);
+
+        // Project the center distance onto axis
+        let distance = rpos.dot(axis).abs();
+
+        // Compute overlap
+        let overlap = ra + rb - distance;
         if overlap < 0.0 {
-            return false;
-        }
-
-        if overlap < depth {
-            depth = overlap;
-            best_axis_w = (f32::from(orient) * 2.0 - 1.0) * l_w;
-            best_axis_type = axis_type;
-            best_obb_axis = obb_axis;
-            best_aabb_axis = aabb_axis;
-        }
-
-        true
-    };
-
-    for axis in 0..3 {
-        let i = usize::from(axis);
-        let dist = t_a[i].abs();
-        let ra = a.extent[i];
-        let rb = b.extent.dot(abs_r[i]);
-        let l_w = r[i];
-
-        if !update(dist, ra, rb, l_w, t_a[i] >= 0.0, axis, Some(axis), None) {
+            // Found a separating axis — no collision
             return None;
         }
+
+        if overlap < min_overlap {
+            min_overlap = overlap;
+            min_axis = axis;
+            min_axis_index = idx;
+        }
     }
 
-    {
-        let ra = Mat3A::from_cols(abs_r[0], abs_r[1], abs_r[2]) * a.extent;
+    // cross products (edge-edge)
+    let mut axes_num = 5;
+    for ai in &face_axes[0..3] {
+        for &bj in &face_axes[3..6] {
+            axes_num += 1;
+            let Some(axis) = ai.cross(bj).try_normalize() else {
+                // Parallel edges — skip this axis
+                continue;
+            };
 
-        let tw_abs = t_w.abs();
-        let orient: [bool; 3] = t_w.cmpge(Vec3A::ZERO).into();
+            let ra = project_obb_radius(a, axis);
+            let rb = project_obb_radius(b, axis);
+            let distance = rpos.dot(axis).abs();
 
-        for axis in 0..3 {
-            let j = usize::from(axis);
-            if !update(
-                tw_abs[j],
-                ra[j],
-                b.extent[j],
-                Vec3A::X,
-                orient[j],
-                3 + axis,
-                None,
-                Some(axis),
-            ) {
+            let overlap = ra + rb - distance;
+            if overlap < 0.0 {
                 return None;
+            }
+
+            if overlap < min_overlap {
+                min_overlap = overlap;
+                min_axis = axis;
+                min_axis_index = axes_num;
             }
         }
     }
 
-    let mut test_cross = |l_w: Vec3A,
-                          ra: f32,
-                          rb: f32,
-                          axis_type: u8,
-                          obb_axis: Option<u8>,
-                          aabb_axis: Option<u8>| {
-        let Some(l) = l_w.try_normalize() else {
-            return true;
-        };
-
-        let align = t_w.dot(l);
-        let dist = align.abs();
-        let orient = align >= 0.0;
-        update(dist, ra, rb, l, orient, axis_type, obb_axis, aabb_axis)
-    };
-
-    for obb_axis in 0..3 {
-        let i = usize::from(obb_axis);
-        for aabb_axis in 0..3 {
-            let j = usize::from(aabb_axis);
-            let l_w = r[i].cross(B_AXIS[j]);
-            let ra = a.extent[(i + 1) % 3] * abs_r[(i + 2) % 3][j]
-                + a.extent[(i + 2) % 3] * abs_r[(i + 1) % 3][j];
-            let rb = b.extent[(j + 1) % 3] * abs_r[i][(j + 2) % 3]
-                + b.extent[(j + 2) % 3] * abs_r[i][(j + 1) % 3];
-
-            if !test_cross(
-                l_w,
-                ra,
-                rb,
-                6 + obb_axis * 3 + aabb_axis,
-                Some(obb_axis),
-                Some(aabb_axis),
-            ) {
-                return None;
-            }
-        }
+    // At this point, we have an overlap on all axes -> collision
+    // The axis with min overlap is our collision axis
+    let mut normal = min_axis;
+    // make normal point from A -> B
+    if rpos.dot(min_axis) < 0.0 {
+        normal = -normal;
     }
 
     Some(Hit {
-        depth,
-        normal: best_axis_w.normalize(),
-        axis_type: best_axis_type,
-        obb_axis: best_obb_axis,
-        aabb_axis: best_aabb_axis,
+        depth: min_overlap,
+        normal,
+        axis_idx: min_axis_index,
     })
+}
+
+fn closest_point_on_obb_edge(obb: &Obb, point: Vec3A) -> Vec3A {
+    let d = point - obb.center;
+    let mut q = obb.center;
+
+    for (i, axis) in [obb.axis.x_axis, obb.axis.y_axis, obb.axis.z_axis]
+        .into_iter()
+        .enumerate()
+    {
+        let dist = d.dot(axis);
+        let clamped = dist.clamp(-obb.extent[i], obb.extent[i]);
+        q += clamped * axis;
+    }
+
+    q
 }
 
 /// Returns the 4 corners of the face on the `axis_idx` (0 = X, 1 = Y, 2 = Z)
 /// and `side_sign` = +1 or -1
-fn get_face_verts(b: &Obb, axis_idx: usize, side_sign: f32) -> [Vec3A; 4] {
-    let axis = [b.axis.x_axis, b.axis.y_axis, b.axis.z_axis];
+fn get_face_verts(obb: &Obb, face_axis_idx: usize, side_sign: f32) -> [Vec3A; 4] {
+    let axis = [obb.axis.x_axis, obb.axis.y_axis, obb.axis.z_axis];
 
-    let n = side_sign * axis[axis_idx];
-    let u = axis[(axis_idx + 1) % 3];
-    let v = axis[(axis_idx + 2) % 3];
+    let u = axis[(face_axis_idx + 1) % 3];
+    let v = axis[(face_axis_idx + 2) % 3];
 
-    let eu = b.extent[(axis_idx + 1) % 3];
-    let ev = b.extent[(axis_idx + 2) % 3];
+    let eu = obb.extent[(face_axis_idx + 1) % 3];
+    let ev = obb.extent[(face_axis_idx + 2) % 3];
 
-    let center = b.center + n * b.extent[axis_idx];
-    let ueu = u * eu;
-    let vev = v * ev;
+    let center = obb.center + axis[face_axis_idx] * obb.extent[face_axis_idx] * side_sign;
 
     // CCW ordering
     [
-        center + ueu + vev,
-        center - ueu + vev,
-        center - ueu - vev,
-        center + ueu - vev,
+        center + u * eu + v * ev,
+        center + u * eu - v * ev,
+        center - u * eu - v * ev,
+        center - u * eu + v * ev,
     ]
 }
 
-/// Returns closest points between segment `P(s) = p1 + s * (p2 - p1)`,
-/// `Q(t) = q1 + t * (q2 - q1)`
-fn closest_edge_edge_points(p1: Vec3A, p2: Vec3A, q1: Vec3A, q2: Vec3A) -> (Vec3A, Vec3A) {
-    let delta_p = p2 - p1;
-    let delta_q = q2 - q1;
+/// Returns the four corners of the face on `obb` whose face normal is closest to `normal`
+fn find_face_verts(obb: &Obb, normal: Vec3A) -> [Vec3A; 4] {
+    let axes = [obb.axis.x_axis, obb.axis.y_axis, obb.axis.z_axis];
+    let (face_axis_idx, face_axis) = axes
+        .into_iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| {
+            normal
+                .dot(*a)
+                .abs()
+                .partial_cmp(&normal.dot(*b).abs())
+                .unwrap()
+        })
+        .unwrap();
 
-    let a = delta_p.length_squared();
-    let e = delta_q.length_squared();
-
-    if a <= f32::EPSILON && e <= f32::EPSILON {
-        return (p1, q1);
-    }
-
-    let r = p1 - q1;
-    let f = delta_q.dot(r);
-    let (t, s) = if a <= f32::EPSILON {
-        ((f / e).clamp(0.0, 1.0), 0.0)
-    } else {
-        let c = delta_p.dot(r);
-        if e <= f32::EPSILON {
-            (0.0, (-c / a).clamp(0.0, 1.0))
-        } else {
-            let b = delta_p.dot(delta_q);
-            let denom = a * e - b * b;
-            let s = if denom != 0.0 {
-                ((b * f - c * e) / denom).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-
-            let t = (b * s + f) / e;
-            if t < 0.0 {
-                (0.0, (-c / a).clamp(0.0, 1.0))
-            } else {
-                (1.0, ((b - c) / a).clamp(0.0, 1.0))
-            }
-        }
-    };
-
-    (p1 + delta_p * s, q1 + delta_q * t)
+    let side_sign = normal.dot(face_axis).signum();
+    get_face_verts(obb, face_axis_idx, side_sign)
 }
 
-/// Given a direction normal, find the OBB edge most aligned with that direction.
-/// Returns the closest point on that edge.
-fn closest_point_on_obb_as_edge(a: &Obb, dir: Vec3A) -> Vec3A {
-    let mut best_axis = 0;
-    let mut best = a.axis.x_axis.dot(dir).abs();
-    for i in 1..3 {
-        let val = a.axis.col(i).dot(dir).abs();
-        if val > best {
-            best = val;
-            best_axis = i;
+/// Given a plane (normal, distance) and polygon (as Vec<Vec3A>), clip the polygon with the plane.
+/// (Sutherland–Hodgman style)
+fn clip_polygon_with_plane<const CAP: usize>(
+    polygon: &ArrayVec<Vec3A, CAP>,
+    plane_normal: Vec3A,
+    plane_offset: f32,
+) -> ArrayVec<Vec3A, CAP> {
+    let mut out = ArrayVec::new();
+
+    for (i, &a) in polygon.iter().enumerate() {
+        let b = polygon[(i + 1) % CAP];
+
+        let da = plane_normal.dot(a) - plane_offset;
+        let db = plane_normal.dot(b) - plane_offset;
+
+        let inside_a = da <= 0.0;
+        let inside_b = db <= 0.0;
+
+        if inside_a && inside_b {
+            // both inside
+            out.push(b);
+        } else if inside_a && !inside_b {
+            // a inside, b outside -> compute intersection, add that
+            let t = da / (da - db);
+            let i_pt = a + (b - a) * t;
+            out.push(i_pt);
+        } else if !inside_a && inside_b {
+            // a outside, b inside -> intersection + b
+            let t = da / (da - db);
+            let i_pt = a + (b - a) * t;
+            out.push(i_pt);
+            out.push(b);
         }
     }
 
-    let a_axis = a.axis.col(best_axis);
-    let edge_dir = a_axis.cross(dir);
-    if edge_dir.length_squared() < 1e-6 {
-        // direction roughly parallel,
-        // return center projection
-        return a.center;
-    }
-
-    let extent = a_axis * a.extent[best_axis];
-    let p1 = a.center - extent;
-    let p2 = a.center + extent;
-
-    closest_edge_edge_points(p1, p2, p1 + dir, p2 + dir).0
-}
-
-/// Given a direction normal, find the AABB edge most aligned with that direction.
-/// Returns the closest point on that edge.
-fn closest_point_on_aabb_as_edge(b: &Aabb, dir: Vec3A) -> Vec3A {
-    const AXIS: [Vec3A; 3] = [Vec3A::X, Vec3A::Y, Vec3A::Z];
-    let mut best_axis = 0;
-    let mut best = AXIS[0].dot(dir).abs();
-    for (i, axis) in AXIS[1..3].iter().enumerate() {
-        let val = axis.dot(dir).abs();
-        if val > best {
-            best = val;
-            best_axis = i;
-        }
-    }
-
-    let min = b.center - b.extent;
-    let max = b.center + b.extent;
-
-    let mut pt = b.center.clamp(min, max);
-    pt[best_axis] = if dir.dot(AXIS[best_axis]) >= 0.0 {
-        max[best_axis]
-    } else {
-        min[best_axis]
-    };
-
-    pt
+    out
 }
 
 pub struct ObbObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -338,38 +288,35 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
 
         let org_0_trans = compound_0_obj.get_world_transform();
         let aabb_0 = compound_0_ref.get_aabb(org_0_trans);
-
         let org_1_trans = compound_1_obj.get_world_transform();
         let aabb_1 = compound_1_ref.get_aabb(org_1_trans);
-
         if !test_aabb_against_aabb(&aabb_0, &aabb_1) {
             return None;
         }
 
-        // B
+        let child_0 = compound_0_ref.child.as_ref().unwrap();
+        let child_0_trans = child_0.transform;
+        let child_0_world_trans = org_0_trans * child_0_trans;
+
         let child_1 = compound_1_ref.child.as_ref().unwrap();
         let child_1_trans = child_1.transform;
-        let new_child_1_world_trans = org_1_trans * child_1_trans;
+        let child_1_world_trans = org_1_trans * child_1_trans;
 
-        // A
-        // translate A into B coords, B is now an AABB in comparison
-        let child_0 = compound_0_ref.child.as_ref().unwrap();
-        let child_0_from_local = new_child_1_world_trans.transpose() * child_0.transform;
-
-        let obb = Obb {
-            center: child_0_from_local.translation,
-            axis: child_0_from_local.matrix3,
+        let obb0 = Obb {
+            center: child_0_world_trans.translation,
+            axis: child_0_world_trans.matrix3,
             extent: child_0.child_shape.get_half_extents(),
         };
 
-        let aabb = Aabb {
-            center: Vec3A::ZERO,
+        let obb1 = Obb {
+            center: child_1_world_trans.translation,
+            axis: child_1_world_trans.matrix3,
             extent: child_1.child_shape.get_half_extents(),
         };
 
         // solve for hit normal/depth
-        let mut hit = collide_obb_aabb_sat(&obb, &aabb)?;
-        let normal_on_b_in_world = new_child_1_world_trans.transform_vector3a(hit.normal);
+        let mut hit = collide_obb_sat(&obb0, &obb1)?;
+        let normal_on_b_in_world = child_1_trans.transform_vector3a(hit.normal);
 
         let mut manifold = PersistentManifold::new(
             self.compound_0_obj.object,
@@ -378,16 +325,19 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         );
 
         // solve for manifold points
-        if hit.axis_type > 5 {
-            // edge-edge fallback: approximate by 1 point along normal
-            let pt_on_a = closest_point_on_obb_as_edge(&obb, hit.normal);
-            let pt_on_b = closest_point_on_aabb_as_edge(&aabb, -hit.normal);
-            let point = (pt_on_a + pt_on_b) * 0.5;
+        if hit.axis_idx > 5 {
+            // edge-edge contact
+            let pt_on_a =
+                closest_point_on_obb_edge(&obb0, obb1.center + hit.normal * hit.depth * 0.5);
+            let pt_on_b =
+                closest_point_on_obb_edge(&obb1, obb0.center - hit.normal * hit.depth * 0.5);
+            let contact_point = (pt_on_a + pt_on_b) * 0.5;
+            let depth = (pt_on_b - pt_on_a).dot(hit.normal);
 
             manifold.add_contact_point(
                 normal_on_b_in_world,
-                new_child_1_world_trans.transform_point3a(point),
-                hit.depth,
+                contact_point,
+                depth,
                 -1,
                 -1,
                 self.contact_added_callback,
@@ -397,118 +347,38 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             return Some(manifold);
         }
 
-        // Axis is 1 of the 6 face normals
-        let obb_2 = aabb.into();
-
-        let (ref_box, inc_box, ref_axis, ref_sign) = if hit.axis_type <= 2 {
-            // A's face
-            let ref_axis = usize::from(hit.axis_type);
-            (
-                &obb,
-                &obb_2,
-                ref_axis,
-                hit.normal.dot(obb.axis.col(ref_axis)).signum(),
-            )
+        let (ref_box, inc_box, ref_normal, axis_idx, side_sign) = if hit.axis_idx < 3 {
+            (&obb0, &obb1, hit.normal, hit.axis_idx, 1.0)
         } else {
-            // B's face
-            let ref_axis = usize::from(hit.axis_type - 3);
-            hit.normal *= -1.0;
-
-            (
-                &obb_2,
-                &obb,
-                ref_axis,
-                hit.normal.dot(obb.axis.col(ref_axis)).signum(),
-            )
+            (&obb1, &obb0, -hit.normal, hit.axis_idx - 3, -1.0)
         };
 
-        let mut inc_axis = 0;
-        let mut inc_sign = 0.0;
+        let ref_face_verts = get_face_verts(ref_box, axis_idx, side_sign);
+        let inc_face_verts = find_face_verts(inc_box, ref_normal);
 
-        // choose incident face on inc_box whose normal is most anti-parallel to the normal
-        let mut best_dot = f32::INFINITY;
-        for j in 0..3 {
-            let axis = inc_box.axis.col(j);
-            let d = axis.dot(hit.normal);
+        let mut clipped_polygon = ArrayVec::<Vec3A, 4>::from(inc_face_verts);
+        // clip against 4 side planes of ref face
+        for (i, va) in ref_face_verts.into_iter().enumerate() {
+            let vb = ref_face_verts[(i + 1) % 4];
+            let edge = vb - va;
+            let plane_normal = ref_normal.cross(edge).normalize();
+            let plane_offset = plane_normal.dot(va);
 
-            let d_abs = d.abs();
-            if d_abs < best_dot {
-                best_dot = d_abs;
-                inc_axis = j;
-                inc_sign = d.signum();
-            }
+            clipped_polygon = clip_polygon_with_plane(&clipped_polygon, plane_normal, plane_offset);
         }
 
-        let inc_verts = get_face_verts(inc_box, inc_axis, inc_sign);
-
-        let ref_face_n = ref_sign * ref_box.axis.col(ref_axis);
-        let ref_u = ref_box.axis.col((ref_axis + 1) % 3);
-        let ref_v = ref_box.axis.col((ref_axis + 2) % 3);
-
-        let eu = ref_box.extent[(ref_axis + 1) % 3];
-        let ev = ref_box.extent[(ref_axis + 2) % 3];
-
-        let ref_center = ref_box.center + ref_face_n * ref_box.extent[ref_axis];
-        let ref_plane_d = ref_face_n.dot(ref_center);
-
-        // Clip incident face against reference face side planes
-        let mut poly1 = inc_verts;
-        let mut poly2 = [Vec3A::ZERO; 4];
-
-        let mut n_pts = MANIFOLD_CACHE_SIZE;
-        let mut clip = |n: Vec3A, d: f32| {
-            let mut count = 0;
-
-            for i in 0..n_pts {
-                let a = poly1[i];
-                let b = poly1[(i + 1) % n_pts];
-
-                let da = d - n.dot(a);
-                let db = d - n.dot(b);
-
-                let ina = da.is_sign_positive();
-                let inb = db.is_sign_positive();
-
-                if !ina && !inb {
-                    continue;
-                }
-
-                if ina && inb {
-                    poly2[count] = b;
-                } else if !inb {
-                    let t = da / (da - db);
-                    poly2[count] = a.lerp(b, t);
-                } else {
-                    let t = da / (da - db);
-                    poly2[count] = a.lerp(b, t);
-                    poly2[count + 1] = b;
-                    count += 1;
-                }
-
-                count += 1;
+        for p in clipped_polygon {
+            let depth = ref_normal.dot(p - ref_box.center) - ref_box.extent[axis_idx] * side_sign;
+            if depth >= 0.0 {
+                manifold.add_contact_point(
+                    normal_on_b_in_world,
+                    p,
+                    -depth,
+                    -1,
+                    -1,
+                    self.contact_added_callback,
+                );
             }
-
-            n_pts = count;
-            poly1 = poly2;
-        };
-
-        clip(ref_u, ref_u.dot(ref_center) + eu);
-        clip(-ref_u, (-ref_u).dot(ref_center) + eu);
-        clip(ref_v, ref_v.dot(ref_center) + ev);
-        clip(-ref_v, (-ref_v).dot(ref_center) + ev);
-
-        for p in poly1.into_iter().take(n_pts) {
-            let dist = ref_face_n.dot(p) - ref_plane_d;
-            let local_point = p - dist * ref_face_n;
-
-            manifold.add_contact_point(
-                normal_on_b_in_world,
-                new_child_1_world_trans.transform_point3a(local_point),
-                hit.depth,
-                -1,
-                -1,
-                self.contact_added_callback,
-            );
         }
 
         manifold.refresh_contact_points();

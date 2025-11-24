@@ -59,7 +59,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             return true;
         }
 
-        todo!();
+        todo!("car: {:?} | tri: {tri_aabb:?}", self.aabb);
         // convex-convex algorithm required
 
         // let (center, radius) = {
