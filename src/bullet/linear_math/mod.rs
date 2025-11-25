@@ -2,6 +2,7 @@ use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec4, Vec4Swizzles};
 use std::f32::consts::FRAC_1_SQRT_2;
 
 pub mod aabb_util_2;
+pub mod obb;
 pub mod transform_util;
 
 pub const LARGE_FLOAT: f32 = 1e18;

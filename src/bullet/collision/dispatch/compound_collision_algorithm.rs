@@ -14,10 +14,128 @@ use crate::bullet::{
     linear_math::{
         AffineExt,
         aabb_util_2::{Aabb, test_aabb_against_aabb},
+        obb::Obb,
     },
 };
-use glam::Affine3A;
+use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
+
+struct Hit {
+    depth: f32,
+    normal: Vec3A,
+    axis_index: usize,
+}
+
+fn project_triangle(tri: &TriangleShape, obb_center: Vec3A, axis: Vec3A) -> (f32, f32) {
+    let projections = Vec3A::new(
+        (tri.points[0] - obb_center).dot(axis),
+        (tri.points[1] - obb_center).dot(axis),
+        (tri.points[2] - obb_center).dot(axis),
+    );
+
+    (projections.min_element(), projections.max_element())
+}
+
+fn closest_point_on_segment(p: Vec3A, a: Vec3A, b: Vec3A) -> Vec3A {
+    let ab = b - a;
+    let t = (p - a).dot(ab) / ab.dot(ab);
+    a + ab * t.clamp(0.0, 1.0)
+}
+
+/// Check SAT between OBB and triangle; if collision, return penetration depth & normal
+fn obb_triangle_sat(obb: &Obb, tri: &TriangleShape) -> Option<Hit> {
+    // Prepare candidate axes
+    let mut axes = [
+        tri.normal,
+        obb.axis.x_axis,
+        obb.axis.y_axis,
+        obb.axis.z_axis,
+    ];
+
+    let mut min_overlap = f32::INFINITY;
+    let mut min_axis = Vec3A::ZERO;
+    let mut min_axis_index = 0;
+
+    for (axis_index, axis) in axes.into_iter().enumerate() {
+        // Project OBB
+        let r_obb = obb.project_obb_radius(axis);
+
+        // Project triangle
+        let (tri_min, tri_max) = project_triangle(tri, obb.center, axis);
+
+        // Compute projected interval of triangle relative to 0 (centered at obb.center): [tri_min, tri_max]
+        // Compute overlap: OBB projection is [-r_obb, +r_obb]
+        // So overlap amount = (r_obb) - distance from center to triangle interval center, but simpler:
+        // overlap = r_obb + (r_obb) - (tri_max - tri_min)? No: better to think:
+        // If projections are [-r_obb, +r_obb] and [tri_min, tri_max], the distance between centers is (tri_min + tri_max)/2,
+        // But simpler: compute overlap length = (r_obb * 2) + (tri_max - tri_min) - separation
+        // However, Eberly’s method is simpler: check if interval [tri_min, tri_max] intersects [-r_obb, +r_obb];
+        // Then compute overlap as min( r_obb - tri_min, tri_max + r_obb ) (depending on which side is penetrating).
+        // We'll compute separation:
+        let tri_center = (tri_min + tri_max) * 0.5;
+        let tri_radius = (tri_max - tri_min) * 0.5;
+        let distance = tri_center.abs(); // because OBB interval is symmetric at 0
+        let overlap = (r_obb - distance) + tri_radius;
+
+        if overlap < 0.0 {
+            // found separating axis
+            return None;
+        }
+
+        if overlap < min_overlap {
+            min_overlap = overlap;
+            min_axis = axis;
+            min_axis_index = axis_index;
+        }
+    }
+
+    // Edge-edge cross axes: edges of triangle × axes of OBB
+    let mut axis_index = 3;
+    for &tri_edge in &tri.edges {
+        for obb_axis in &[obb.axis.x_axis, obb.axis.y_axis, obb.axis.z_axis] {
+            axis_index += 1;
+            let Some(axis) = obb_axis.cross(tri_edge).try_normalize() else {
+                // Parallel edges — skip this axis
+                continue;
+            };
+
+            let r_obb = obb.project_obb_radius(axis);
+            let (tri_min, tri_max) = project_triangle(tri, obb.center, axis);
+
+            let tri_center = (tri_min + tri_max) * 0.5;
+            let tri_radius = (tri_max - tri_min) * 0.5;
+            let distance = tri_center.abs(); // because OBB interval is symmetric at 0
+            let overlap = (r_obb - distance) + tri_radius;
+
+            if overlap < 0.0 {
+                return None;
+            }
+
+            if overlap < min_overlap {
+                min_overlap = overlap;
+                min_axis = axis;
+                min_axis_index = axis_index;
+            }
+        }
+    }
+
+    // No separating axis found => collision
+    // Choose the axis of least penetration as the collision normal
+    let mut normal = min_axis;
+
+    // Relative vector from OBB center to triangle (pick one triangle point, e.g., points[0])
+    let d0 = tri.points[0] - obb.center;
+    // Make sure normal points from OBB → triangle (based on d0)
+    if d0.dot(normal) < 0.0 {
+        normal = -normal;
+    }
+
+    Some(Hit {
+        axis_index: min_axis_index,
+        depth: min_overlap,
+        normal,
+    })
+}
 
 pub struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
@@ -59,33 +177,95 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             return true;
         }
 
-        todo!("car: {:?} | tri: {tri_aabb:?}", self.aabb);
-        // convex-convex algorithm required
+        let obb = Obb {
+            center: self.convex_transform.translation,
+            axis: self.convex_transform.matrix3,
+            extent: self.box_shape.get_half_extents(),
+        };
 
-        // let (center, radius) = {
-        //     let box_ref = self.manifold.body0.borrow();
+        let Some(hit) = obb_triangle_sat(&obb, triangle) else {
+            return true;
+        };
 
-        //     (
-        //         box_ref.get_world_transform().translation,
-        //         self.box_shape.get_radius(),
-        //     )
-        // };
+        let normal_on_b_in_world = self.convex_transform.transform_vector3a(hit.normal);
 
-        // let Some(contact_info) =
-        //     triangle.intersect_sphere(center, radius, self.manifold.contact_breaking_threshold)
-        // else {
-        //     return true;
-        // };
+        match hit.axis_index {
+            0 => {
+                // Triangle normal axis
+                // Find closest point on OBB to triangle plane
+                let plane_d = -triangle.normal.dot(triangle.points[0]);
+                let dist_to_plane = triangle.normal.dot(obb.center) + plane_d;
+                let closest_point = obb.center - triangle.normal * dist_to_plane;
 
-        // self.manifold.add_contact_point(
-        //     contact_info.result_normal,
-        //     contact_info.contact_point,
-        //     contact_info.depth,
-        //     -1,
-        //     part_id as i32,
-        //     -1,
-        //     triangle_index as i32,
-        // );
+                self.manifold.add_contact_point(
+                    normal_on_b_in_world,
+                    closest_point,
+                    dist_to_plane,
+                    -1,
+                    triangle_index as i32,
+                    self.contact_added_callback,
+                );
+            }
+            1..4 => {
+                // OBB face axis — use face projection
+                let face_axis_idx = hit.axis_index - 1;
+                let face_verts = obb.get_face_verts(face_axis_idx, 1.0);
+
+                // Find closest point on triangle to face
+                let mut closest_point = face_verts[0];
+                let mut min_dist_sq = f32::INFINITY;
+                for &face_vert in &face_verts {
+                    // Project face_vert onto triangle plane
+                    let plane_d = -triangle.normal.dot(triangle.points[0]);
+                    let dist_to_plane = triangle.normal.dot(face_vert) + plane_d;
+                    let proj_point = face_vert - triangle.normal * dist_to_plane;
+
+                    let dist_sq = (proj_point - face_vert).length_squared();
+                    if dist_sq < min_dist_sq {
+                        min_dist_sq = dist_sq;
+                        closest_point = proj_point;
+                    }
+                }
+
+                self.manifold.add_contact_point(
+                    normal_on_b_in_world,
+                    closest_point,
+                    hit.depth,
+                    -1,
+                    triangle_index as i32,
+                    self.contact_added_callback,
+                );
+            }
+            axis_index => {
+                // Edge-edge axis — approximate contact point as midpoint between closest points
+                // on edges
+                let (tri_edge_idx, obb_axis_idx) = ((axis_index - 4) / 3, (axis_index - 4) % 3);
+                let tri_edge = triangle.edges[tri_edge_idx];
+                let obb_axis = obb.axis.col(obb_axis_idx);
+
+                // Get two vertices of triangle edge
+                let tri_a = triangle.points[tri_edge_idx];
+                let tri_b = triangle.points[(tri_edge_idx + 1) % 3];
+
+                // Get two points on OBB edge along obb_axis
+                let obb_extent = obb.extent[obb_axis_idx];
+                let obb_a = obb.center + obb_axis * obb_extent;
+                let obb_b = obb.center - obb_axis * obb_extent;
+
+                let pt_on_tri = closest_point_on_segment(obb.center, tri_a, tri_b);
+                let pt_on_obb = closest_point_on_segment(obb.center, obb_a, obb_b);
+                let contact_point = (pt_on_tri + pt_on_obb) * 0.5;
+
+                self.manifold.add_contact_point(
+                    normal_on_b_in_world,
+                    contact_point,
+                    hit.depth,
+                    -1,
+                    triangle_index as i32,
+                    self.contact_added_callback,
+                );
+            }
+        }
 
         true
     }

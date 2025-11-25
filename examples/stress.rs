@@ -5,7 +5,7 @@ use rocketsim::{
 };
 use std::time::Instant;
 
-const NUM_CARS: u8 = 6;
+const NUM_CARS: u8 = 8;
 
 fn main() {
     init_from_default(true).unwrap();
@@ -29,6 +29,8 @@ fn main() {
     let mut states = Vec::new();
     for &id in &ids {
         let car = arena.objects.cars.get_mut(&id).unwrap();
+        car.controls.throttle = 1.0;
+
         let mut state = car.get_state();
         state.physics.pos.z = 43.0;
         state.is_on_ground = false;
@@ -50,6 +52,17 @@ fn main() {
         }
 
         arena.step(720);
+
+        // for id in &ids {
+        //     let state = arena.objects.cars.get(id).unwrap().get_state();
+        //     println!("\npos: {}", state.physics.pos);
+        //     println!("vel: {}", state.physics.vel);
+        //     println!("ang_vel: {}", state.physics.ang_vel);
+        //     println!("rot_mat: {}", state.physics.rot_mat);
+        //     println!("is_demoed: {:?}", state.is_demoed);
+        //     println!("car_contact: {:?}", state.car_contact);
+        //     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
+        // }
     }
     let elapsed = Instant::now().duration_since(start).as_secs_f32();
     println!(

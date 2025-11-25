@@ -266,7 +266,6 @@ impl PersistentManifold {
             manifold_point.distance_1 = (manifold_point.position_world_on_a
                 - manifold_point.position_world_on_b)
                 .dot(manifold_point.normal_world_on_b);
-            manifold_point.life_time += 1;
         }
 
         drop(body0);
@@ -279,7 +278,12 @@ impl PersistentManifold {
 
             for i in (0..self.point_cache.len()).rev() {
                 let point = &self.point_cache[i];
-                assert!(point.distance_1 <= self.contact_breaking_threshold);
+                assert!(
+                    point.distance_1 <= self.contact_breaking_threshold,
+                    "{:?} | {}",
+                    point,
+                    self.contact_breaking_threshold
+                );
 
                 let projected_point =
                     point.position_world_on_a - point.normal_world_on_b * point.distance_1;
