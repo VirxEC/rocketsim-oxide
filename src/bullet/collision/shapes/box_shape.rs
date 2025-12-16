@@ -27,11 +27,7 @@ impl BoxShape {
                     implicit_shape_dimensions: box_half_extents - CONVEX_DISTANCE_MARGIN,
                     collision_margin: {
                         let safe_margin = 0.1 * box_half_extents.min_element();
-                        if safe_margin < CONVEX_DISTANCE_MARGIN {
-                            safe_margin
-                        } else {
-                            CONVEX_DISTANCE_MARGIN
-                        }
+                        safe_margin.min(CONVEX_DISTANCE_MARGIN)
                     },
                 },
             },
