@@ -42,19 +42,19 @@ pub enum ArenaMemWeightMode {
 
 #[derive(Clone, Debug)]
 pub struct ArenaConfig {
-    mem_weight_mode: ArenaMemWeightMode,
-    min_pos: Vec3A,
-    max_pos: Vec3A,
-    max_aabb_len: f32,
-    no_ball_rot: bool,
+    pub mem_weight_mode: ArenaMemWeightMode,
+    pub min_pos: Vec3A,
+    pub max_pos: Vec3A,
+    pub max_aabb_len: f32,
+    pub no_ball_rot: bool,
     /// Use a custom list of boost pads (`custom_boost_pads`) instead of the normal one
     /// NOTE: This will disable the boost pad grid and will thus worsen performance
-    use_custom_boost_pads: bool,
+    pub use_custom_boost_pads: bool,
     /// Custom boost pads to use, if `use_custom_boost_pads`
-    custom_boost_pads: Vec<BoostPadConfig>,
+    pub custom_boost_pads: Vec<BoostPadConfig>,
     /// Optional RNG seed for deterministic behavior
     /// If None, a random seed will be used
-    rng_seed: Option<u64>,
+    pub rng_seed: Option<u64>,
 }
 
 impl Default for ArenaConfig {
@@ -300,15 +300,12 @@ pub struct Arena {
 impl Arena {
     #[must_use]
     pub fn new(game_mode: GameMode) -> Self {
-        Self::new_with_config(game_mode, ArenaConfig::DEFAULT, 120.)
+        Self::new_with_config(game_mode, ArenaConfig::DEFAULT, 120)
     }
 
-    pub fn new_with_config(game_mode: GameMode, config: ArenaConfig, tick_rate: f32) -> Self {
-        assert!(tick_rate >= 15.0, "tick_rate must be at least 15.0");
-        assert!(
-            tick_rate <= 120.0,
-            "tick_rate must not be greater than 120.0"
-        );
+    pub fn new_with_config(game_mode: GameMode, config: ArenaConfig, tick_rate: u8) -> Self {
+        assert!(tick_rate >= 15, "tick_rate must be at least 15.0");
+        assert!(tick_rate <= 120, "tick_rate must not be greater than 120.0");
 
         let mutator_config = MutatorConfig::new(game_mode);
 
@@ -394,7 +391,7 @@ impl Arena {
             config,
             bullet_world,
             last_car_id: 0,
-            tick_time: 1. / tick_rate,
+            tick_time: 1. / f32::from(tick_rate),
             objects: Objects {
                 ball,
                 game_mode,
