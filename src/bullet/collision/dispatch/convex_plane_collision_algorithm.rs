@@ -8,6 +8,7 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::test_aabb_against_aabb,
 };
+use glam::Affine3A;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -66,8 +67,13 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
 
         let plane_in_convex = self.convex_obj.world_transform.matrix3.transpose()
             * plane_obj.get_world_transform().matrix3;
-        let convex_in_plane_trans =
-            self.convex_obj.world_transform * plane_obj.get_world_transform();
+        let convex_in_plane_trans = Affine3A {
+            matrix3: plane_obj.get_world_transform().matrix3
+                * self.convex_obj.world_transform.matrix3.transpose(),
+            translation: plane_obj
+                .get_world_transform()
+                .transform_point3a(self.convex_obj.world_transform.translation),
+        };
 
         let vtx = col_shape.local_get_supporting_vertex(plane_in_convex * -plane_normal);
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);
