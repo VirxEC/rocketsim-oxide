@@ -66,7 +66,6 @@ impl BoxShape {
     }
 
     pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
-        let half_extents = self.get_half_extents();
-        Vec3A::select(vec.cmpge(Vec3A::splat(0.0)), half_extents, -half_extents)
+        Vec3A::ONE.copysign(vec) * self.get_half_extents()
     }
 }

@@ -113,7 +113,7 @@ impl RigidBody {
         };
 
         let inv_inertia_local = Vec3A::select(
-            info.local_inertia.cmpeq(Vec3A::splat(0.0)),
+            info.local_inertia.cmpeq(Vec3A::ZERO),
             Vec3A::ZERO,
             1.0 / info.local_inertia,
         );
