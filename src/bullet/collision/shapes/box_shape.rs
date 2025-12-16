@@ -1,3 +1,5 @@
+use glam::{Affine3A, Vec3A, Vec3Swizzles};
+
 use super::{
     collision_margin::CONVEX_DISTANCE_MARGIN, collision_shape::CollisionShape,
     convex_internal_shape::ConvexInternalShape, convex_shape::ConvexShape,
@@ -7,7 +9,6 @@ use crate::bullet::{
     collision::broadphase::broadphase_proxy::BroadphaseNativeTypes,
     linear_math::aabb_util_2::{Aabb, transform_aabb},
 };
-use glam::{Affine3A, Vec3A, Vec3Swizzles};
 
 pub struct BoxShape {
     pub(crate) polyhedral_convex_shape: PolyhedralConvexShape,

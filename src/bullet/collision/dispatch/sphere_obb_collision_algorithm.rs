@@ -1,3 +1,7 @@
+use std::{cell::RefCell, mem, rc::Rc};
+
+use glam::{Affine3A, Vec3A};
+
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
@@ -9,8 +13,6 @@ use crate::bullet::{
     },
     linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
 };
-use glam::{Affine3A, Vec3A};
-use std::{cell::RefCell, mem, rc::Rc};
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
     sphere_obj: Rc<RefCell<CollisionObject>>,

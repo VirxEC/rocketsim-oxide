@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::Vec3A;
+
 use super::{
     contact_solver_info::ContactSolverInfo, solver_body::SolverBody,
     solver_constraint::SolverConstraint,
@@ -13,8 +17,6 @@ use crate::bullet::{
         transform_util::{integrate_transform, integrate_transform_no_rot},
     },
 };
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
 
 pub struct SequentialImpulseConstraintSolver {
     pub tmp_solver_body_pool: Vec<SolverBody>,

@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::Vec3A;
+
 use super::{
     constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
     rigid_body::{RigidBody, RigidBodyFlags},
@@ -11,8 +15,6 @@ use crate::bullet::collision::{
     },
     narrowphase::persistent_manifold::ContactAddedCallback,
 };
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
 
 pub struct DiscreteDynamicsWorld {
     pub dynamics_world: DynamicsWorld,

@@ -1,3 +1,5 @@
+use glam::{Affine3A, Vec3A};
+
 use super::concave_shape::ConcaveShape;
 use crate::bullet::{
     collision::{
@@ -10,7 +12,6 @@ use crate::bullet::{
         aabb_util_2::{Aabb, test_aabb_against_aabb},
     },
 };
-use glam::{Affine3A, Vec3A};
 
 pub struct StaticPlaneShape {
     pub concave_shape: ConcaveShape,

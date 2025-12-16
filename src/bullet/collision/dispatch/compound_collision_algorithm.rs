@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::{Affine3A, Vec3A};
+
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
@@ -17,8 +21,6 @@ use crate::bullet::{
         obb::Obb,
     },
 };
-use glam::{Affine3A, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 struct Hit {
     depth: f32,

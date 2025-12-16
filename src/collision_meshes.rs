@@ -1,10 +1,12 @@
-use crate::bullet::collision::shapes::triangle_mesh::TriangleMesh;
-use byteorder::{LittleEndian, ReadBytesExt};
-use glam::Vec3A;
 use std::{
     io::{Cursor, Result as IoResult},
     num::Wrapping,
 };
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use glam::Vec3A;
+
+use crate::bullet::collision::shapes::triangle_mesh::TriangleMesh;
 
 pub const COLLISION_MESH_BASE_PATH: &str = "./collision_meshes/";
 pub const COLLISION_MESH_FILE_EXTENSION: &str = "cmf";

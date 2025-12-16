@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::{Affine3A, Mat3A, Vec3A};
+
 use super::{CollisionMasks, MutatorConfig, PhysState};
 use crate::{
     BT_TO_UU, GameMode, UU_TO_BT, UserInfoTypes,
@@ -15,8 +19,6 @@ use crate::{
     consts::*,
     sim::{BallHitInfo, Car, Team},
 };
-use glam::{Affine3A, Mat3A, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone, Copy, Debug)]
 pub struct HeatseekerInfo {

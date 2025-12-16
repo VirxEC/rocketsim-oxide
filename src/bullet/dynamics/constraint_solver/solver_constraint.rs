@@ -1,5 +1,6 @@
-use super::solver_body::SolverBody;
 use glam::Vec3A;
+
+use super::solver_body::SolverBody;
 
 fn bullet_dot(vec0: Vec3A, vec1: Vec3A) -> f32 {
     let result = vec0 * vec1;

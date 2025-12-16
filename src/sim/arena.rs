@@ -1,3 +1,9 @@
+use std::{array::from_fn, cell::RefCell, f32::consts::PI, mem, rc::Rc};
+
+use ahash::AHashMap;
+use fastrand::Rng;
+use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
+
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
     ARENA_COLLISION_SHAPES, BT_TO_UU, GameMode, UU_TO_BT, UserInfoTypes,
@@ -28,10 +34,6 @@ use crate::{
     },
     sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode, mutator_config},
 };
-use ahash::AHashMap;
-use fastrand::Rng;
-use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
-use std::{array::from_fn, cell::RefCell, f32::consts::PI, mem, rc::Rc};
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 pub enum ArenaMemWeightMode {

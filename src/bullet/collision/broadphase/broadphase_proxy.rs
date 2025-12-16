@@ -1,7 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::bullet::{
     collision::dispatch::collision_object::CollisionObject, linear_math::aabb_util_2::Aabb,
 };
-use std::{cell::RefCell, rc::Rc};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]

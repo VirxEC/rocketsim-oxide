@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::Vec3A;
+
 use super::{
     collision_dispatcher::CollisionDispatcher,
     collision_object::{CollisionObject, CollisionObjectTypes},
@@ -14,8 +18,6 @@ use crate::bullet::{
     },
     linear_math::{AffineExt, aabb_util_2::Aabb, interpolate_3},
 };
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
 
 // struct LocalShapeInfo {
 //     shape_part: usize,

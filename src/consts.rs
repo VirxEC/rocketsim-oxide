@@ -1,5 +1,6 @@
-use glam::Vec3A;
 use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
+
+use glam::Vec3A;
 
 pub const GRAVITY_Z: f32 = -650.;
 pub const ARENA_EXTENT_X: f32 = 4096.;
@@ -296,8 +297,9 @@ pub mod btvehicle {
 }
 
 pub mod heatseeker {
-    use glam::Vec3A;
     use std::f32::consts::PI;
+
+    use glam::Vec3A;
 
     /// Initial target speed from kickoff (goes to 2985 after the first touch)
     pub const INITIAL_TARGET_SPEED: f32 = 2900.;
@@ -344,8 +346,9 @@ pub mod snowday {
 }
 
 pub mod dropshot {
-    use crate::BT_TO_UU;
     use glam::Vec3A;
+
+    use crate::BT_TO_UU;
 
     pub const BALL_LAUNCH_Z_VEL: f32 = 985.;
     pub const BALL_LAUNCH_DELAY: f32 = 0.26;

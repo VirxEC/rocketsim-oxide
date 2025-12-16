@@ -1,8 +1,9 @@
+use glam::Vec3A;
+
 use super::triangle_shape::TriangleShape;
 use crate::bullet::{
     collision::shapes::triangle_callback::TriangleCallback, linear_math::aabb_util_2::Aabb,
 };
-use glam::Vec3A;
 
 #[derive(Debug)]
 pub struct TriangleMesh {

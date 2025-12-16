@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::Vec3A;
+
 use crate::bullet::{
     collision::dispatch::{
         collision_object::CollisionObject,
@@ -5,8 +9,6 @@ use crate::bullet::{
     },
     dynamics::{discrete_dynamics_world::DiscreteDynamicsWorld, rigid_body::RigidBody},
 };
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
 
 pub struct VehicleRaycasterResult {
     pub hit_point_in_world: Vec3A,

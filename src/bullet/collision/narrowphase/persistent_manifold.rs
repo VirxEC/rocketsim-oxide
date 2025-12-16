@@ -1,11 +1,13 @@
+use std::{cell::RefCell, rc::Rc};
+
+use arrayvec::ArrayVec;
+use glam::{Vec3A, Vec4};
+
 use super::manifold_point::ManifoldPoint;
 use crate::bullet::{
     collision::dispatch::collision_object::CollisionObject,
     linear_math::{AffineExt, plane_space_2},
 };
-use arrayvec::ArrayVec;
-use glam::{Vec3A, Vec4};
-use std::{cell::RefCell, rc::Rc};
 
 pub trait ContactAddedCallback {
     fn callback(

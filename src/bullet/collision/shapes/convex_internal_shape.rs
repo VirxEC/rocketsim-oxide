@@ -1,5 +1,6 @@
-use super::{collision_margin::CONVEX_DISTANCE_MARGIN, convex_shape::ConvexShape};
 use glam::Vec3A;
+
+use super::{collision_margin::CONVEX_DISTANCE_MARGIN, convex_shape::ConvexShape};
 
 pub struct ConvexInternalShape {
     pub convex_shape: ConvexShape,

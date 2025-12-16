@@ -1,5 +1,6 @@
-use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec4, Vec4Swizzles};
 use std::f32::consts::FRAC_1_SQRT_2;
+
+use glam::{Affine3A, Mat3A, Quat, Vec3A, Vec4, Vec4Swizzles};
 
 pub mod aabb_util_2;
 pub mod obb;

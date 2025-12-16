@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::Affine3A;
+
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
@@ -8,8 +12,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::test_aabb_against_aabb,
 };
-use glam::Affine3A;
-use std::{cell::RefCell, rc::Rc};
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
     is_swapped: bool,

@@ -1,3 +1,7 @@
+use std::mem;
+
+use glam::{Affine3A, Vec3A};
+
 use super::{
     collision_shape::CollisionShape, convex_internal_shape::ConvexInternalShape,
     convex_shape::ConvexShape,
@@ -9,8 +13,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::Aabb,
 };
-use glam::{Affine3A, Vec3A};
-use std::mem;
 
 pub const SPHERE_RADIUS_MARGIN: f32 = 0.08;
 

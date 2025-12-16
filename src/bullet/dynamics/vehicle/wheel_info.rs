@@ -1,6 +1,8 @@
-use crate::bullet::dynamics::rigid_body::RigidBody;
-use glam::{Affine3A, Vec3A};
 use std::{cell::RefCell, rc::Rc};
+
+use glam::{Affine3A, Vec3A};
+
+use crate::bullet::dynamics::rigid_body::RigidBody;
 
 #[derive(Clone, Copy)]
 pub struct WheelInfoConstructionInfo {

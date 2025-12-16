@@ -1,3 +1,7 @@
+use std::mem;
+
+use glam::Vec3A;
+
 use crate::bullet::{
     collision::shapes::{
         triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
@@ -8,8 +12,6 @@ use crate::bullet::{
         aabb_util_2::{Aabb, ray_aabb_2, test_aabb_against_aabb},
     },
 };
-use glam::Vec3A;
-use std::mem;
 
 pub trait NodeOverlapCallback {
     fn process_node(&mut self, triangle_index: usize);

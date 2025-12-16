@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use super::{
     collision_object::CollisionObject,
     convex_concave_collision_algorithm::ConvexConcaveCollisionAlgorithm,
@@ -17,7 +19,6 @@ use crate::bullet::collision::{
     },
     narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
 };
-use std::{cell::RefCell, rc::Rc};
 
 enum Algorithms<'a, T: ContactAddedCallback> {
     ConvexPlane(ConvexPlaneCollisionAlgorithm<'a, T>),

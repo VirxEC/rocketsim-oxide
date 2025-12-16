@@ -1,3 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
+use arrayvec::ArrayVec;
+use glam::{Affine3A, Mat3A, Quat, Vec3A};
+
 use super::{
     raycaster::VehicleRaycaster,
     wheel_info::{WheelInfo, WheelInfoConstructionInfo},
@@ -16,9 +21,6 @@ use crate::{
     },
     consts::btvehicle::SUSPENSION_SUBTRACTION,
 };
-use arrayvec::ArrayVec;
-use glam::{Affine3A, Mat3A, Quat, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 const NUM_WHEELS: usize = 4;
 

@@ -1,9 +1,10 @@
+use glam::Vec3A;
+
 use super::triangle_mesh::TriangleMesh;
 use crate::bullet::{
     collision::broadphase::bvh::{Bvh, BvhNode, NodeType},
     linear_math::aabb_util_2::Aabb,
 };
-use glam::Vec3A;
 
 fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {
     const MIN_AABB_DIMENSION: f32 = 0.002;

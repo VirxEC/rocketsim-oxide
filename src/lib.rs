@@ -6,17 +6,18 @@ pub mod sim;
 mod bullet;
 mod collision_meshes;
 
-use ahash::AHashMap;
-use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
-use collision_meshes::{
-    COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
-};
 use std::{
     fs,
     io::{Error as IoError, ErrorKind, Result as IoResult},
     path::Path,
     sync::{Arc, RwLock},
     time::Instant,
+};
+
+use ahash::AHashMap;
+use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
+use collision_meshes::{
+    COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<

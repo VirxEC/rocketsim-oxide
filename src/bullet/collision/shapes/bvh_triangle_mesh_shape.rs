@@ -1,3 +1,5 @@
+use glam::{Affine3A, Vec3A};
+
 use super::{
     collision_shape::CollisionShape, optimized_bvh::OptimizedBvh,
     triangle_callback::TriangleCallback, triangle_info_map::TriangleInfoMap,
@@ -10,7 +12,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::Aabb,
 };
-use glam::{Affine3A, Vec3A};
 
 pub struct BvhTriangleMeshShape {
     pub triangle_mesh_shape: TriangleMeshShape,

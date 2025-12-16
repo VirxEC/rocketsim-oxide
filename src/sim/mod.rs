@@ -15,9 +15,8 @@ pub use boost_pad::*;
 pub use car::*;
 pub use car_config::*;
 pub use car_controls::*;
-pub use mutator_config::*;
-
 use glam::{Mat3A, Vec3A};
+pub use mutator_config::*;
 
 pub(crate) enum CollisionMasks {
     HoopsNet = (1 << 8),

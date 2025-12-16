@@ -1,20 +1,27 @@
+use std::time::Instant;
+
 use rocketsim::{
     GameMode, init_from_default,
-    sim::{Arena, CarConfig, Team},
+    sim::{Arena, ArenaConfig, CarConfig, Team},
 };
-use std::time::Instant;
 
 fn main() {
     init_from_default(false).unwrap();
 
     let start = Instant::now();
-    let mut arena = Arena::new(GameMode::Soccar);
+    let mut arena = Arena::new_with_config(
+        GameMode::Soccar,
+        ArenaConfig {
+            rng_seed: Some(0),
+            ..Default::default()
+        },
+        120,
+    );
     println!(
         "Finished initializing Arena in {:.4}s!",
         Instant::now().duration_since(start).as_secs_f32()
     );
 
-    fastrand::seed(0);
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
     arena.reset_to_random_kickoff();
 

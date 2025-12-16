@@ -1,5 +1,6 @@
-use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
 use glam::{Affine3A, Vec3A};
+
+use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
 
 pub const ACTIVE_TAG: i32 = 1;
 pub const ISLAND_SLEEPING: i32 = 2;

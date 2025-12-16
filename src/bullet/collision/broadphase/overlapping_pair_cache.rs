@@ -1,10 +1,12 @@
+use std::mem;
+
+use ahash::AHashMap;
+
 use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
 use crate::bullet::collision::{
     dispatch::collision_dispatcher::CollisionDispatcher,
     narrowphase::persistent_manifold::ContactAddedCallback,
 };
-use ahash::AHashMap;
-use std::mem;
 
 pub struct HashedOverlappingPairCache {
     overlapping_pair_array: Vec<BroadphasePair>,

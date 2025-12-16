@@ -1,8 +1,9 @@
+use std::time::Instant;
+
 use rocketsim::{
     GameMode, init_from_default,
     sim::{Arena, CarConfig, Team},
 };
-use std::time::Instant;
 
 fn main() {
     fastrand::seed(4);

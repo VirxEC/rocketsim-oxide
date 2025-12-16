@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::{USizeVec3, Vec3A};
+
 use super::{
     broadphase_proxy::BroadphaseProxy, overlapping_pair_cache::HashedOverlappingPairCache,
 };
@@ -13,8 +17,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
-use glam::{USizeVec3, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone, Default)]
 pub struct RsBroadphaseProxy {

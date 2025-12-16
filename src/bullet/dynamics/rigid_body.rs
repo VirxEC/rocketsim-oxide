@@ -1,3 +1,7 @@
+use std::{cell::RefCell, rc::Rc};
+
+use glam::{Affine3A, Mat3A, Vec3A};
+
 use crate::bullet::{
     collision::{
         dispatch::collision_object::{
@@ -8,8 +12,6 @@ use crate::bullet::{
     },
     linear_math::transform_util::{integrate_transform, integrate_transform_no_rot},
 };
-use glam::{Affine3A, Mat3A, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 pub enum RigidBodyFlags {
     DisableWorldGravity = 1,

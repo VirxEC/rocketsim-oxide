@@ -1,3 +1,6 @@
+use arrayvec::ArrayVec;
+use glam::{Mat3A, Vec3A};
+
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
@@ -9,8 +12,6 @@ use crate::bullet::{
     },
     linear_math::{aabb_util_2::test_aabb_against_aabb, obb::Obb},
 };
-use arrayvec::ArrayVec;
-use glam::{Mat3A, Vec3A};
 
 struct Hit {
     depth: f32,

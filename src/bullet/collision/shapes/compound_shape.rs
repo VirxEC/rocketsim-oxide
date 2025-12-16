@@ -1,5 +1,7 @@
 use std::f32;
 
+use glam::{Affine3A, Vec3A};
+
 use super::{box_shape::BoxShape, collision_shape::CollisionShape};
 use crate::bullet::{
     collision::{
@@ -8,7 +10,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
-use glam::{Affine3A, Vec3A};
 
 pub struct CompoundShapeChild {
     pub transform: Affine3A,

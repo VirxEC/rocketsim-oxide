@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use glam::{Affine3A, Vec3A};
+
 use super::{
     bvh_triangle_mesh_shape::BvhTriangleMeshShape, compound_shape::CompoundShape,
     sphere_shape::SphereShape, static_plane_shape::StaticPlaneShape,
@@ -10,8 +14,6 @@ use crate::bullet::{
     },
     linear_math::aabb_util_2::Aabb,
 };
-use glam::{Affine3A, Vec3A};
-use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct CollisionShape {

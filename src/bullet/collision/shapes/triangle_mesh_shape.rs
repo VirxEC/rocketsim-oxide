@@ -1,9 +1,10 @@
+use glam::{Affine3A, Vec3A};
+
 use super::{
     concave_shape::ConcaveShape, triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
     triangle_shape::TriangleShape,
 };
 use crate::bullet::linear_math::aabb_util_2::Aabb;
-use glam::{Affine3A, Vec3A};
 
 pub struct TriangleMeshShape {
     pub concave_shape: ConcaveShape,

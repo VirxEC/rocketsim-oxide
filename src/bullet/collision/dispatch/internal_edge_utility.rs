@@ -1,3 +1,7 @@
+use std::{f32::consts::PI, mem};
+
+use glam::{Quat, Vec3, Vec3A};
+
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
@@ -17,8 +21,6 @@ use crate::bullet::{
     },
     linear_math::{AffineExt, QuatExt, aabb_util_2::Aabb},
 };
-use glam::{Quat, Vec3, Vec3A};
-use std::{f32::consts::PI, mem};
 
 fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {
     normal_b.dot(edge_a).atan2(normal_b.dot(normal_a))

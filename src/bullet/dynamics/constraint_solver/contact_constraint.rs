@@ -1,3 +1,5 @@
+use glam::Vec3A;
+
 use crate::bullet::{
     collision::dispatch::collision_object::CollisionObject,
     dynamics::{
@@ -8,7 +10,6 @@ use crate::bullet::{
         rigid_body::RigidBody,
     },
 };
-use glam::Vec3A;
 
 pub struct ContactBody<'a> {
     pub rb: &'a RigidBody,
