@@ -15,6 +15,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
+    dynamics::rigid_body::RigidBody,
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
 
@@ -394,7 +395,7 @@ impl RsBroadphase {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<CollisionObject>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
         dispatcher: &mut CollisionDispatcher,
         contact_added_callback: &mut T,
     ) {

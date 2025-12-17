@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{Affine3A, Mat3A, Vec3A};
 
 use crate::bullet::{
@@ -25,8 +23,6 @@ pub struct RigidBodyConstructionInfo {
     pub linear_damping: f32,
     pub angular_damping: f32,
     pub friction: f32,
-    // pub rolling_friction: f32,
-    // pub spinning_friction: f32,
     pub restitution: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
@@ -47,8 +43,6 @@ impl RigidBodyConstructionInfo {
             linear_damping: 0.0,
             angular_damping: 0.0,
             friction: 0.5,
-            // rolling_friction: 0.0,
-            // spinning_friction: 0.0,
             restitution: 0.0,
             linear_sleeping_threshold: 0.0,
             angular_sleeping_threshold: 1.0,
@@ -63,7 +57,7 @@ impl RigidBodyConstructionInfo {
 }
 
 pub struct RigidBody {
-    pub collision_object: Rc<RefCell<CollisionObject>>,
+    pub collision_object: CollisionObject,
     pub inv_inertia_tensor_world: Mat3A,
     pub linear_velocity: Vec3A,
     pub angular_velocity: Vec3A,
@@ -101,8 +95,6 @@ impl RigidBody {
 
         collision_object.interpolation_world_transform = *collision_object.get_world_transform();
         collision_object.friction = info.friction;
-        // collision_object.rolling_friction = info.rolling_friction;
-        // collision_object.spinning_friction = info.spinning_friction;
         collision_object.restitution = info.restitution;
         collision_object.set_collision_shape(info.collision_shape);
 
@@ -126,7 +118,7 @@ impl RigidBody {
         );
 
         Self {
-            collision_object: Rc::new(RefCell::new(collision_object)),
+            collision_object,
             inv_inertia_tensor_world,
             linear_velocity: Vec3A::ZERO,
             angular_velocity: Vec3A::ZERO,
@@ -190,7 +182,7 @@ impl RigidBody {
 
     pub fn update_inertia_tensor(&mut self) {
         self.inv_inertia_tensor_world = Self::get_inertia_tensor(
-            self.collision_object.borrow().get_world_transform().matrix3,
+            self.collision_object.get_world_transform().matrix3,
             self.inv_inertia_local,
         );
     }
@@ -222,11 +214,7 @@ impl RigidBody {
     }
 
     pub fn apply_gravity(&mut self) {
-        if self
-            .collision_object
-            .borrow()
-            .is_static_or_kinematic_object()
-        {
+        if self.collision_object.is_static_or_kinematic_object() {
             return;
         }
 
@@ -244,10 +232,9 @@ impl RigidBody {
 
     #[must_use]
     pub fn predict_integration_transform(&self, time_step: f32) -> Affine3A {
-        let co = self.collision_object.borrow();
-        let mut trans = *co.get_world_transform();
+        let mut trans = *self.collision_object.get_world_transform();
 
-        if co.no_rot {
+        if self.collision_object.no_rot {
             integrate_transform_no_rot(&mut trans, self.linear_velocity, time_step);
         } else {
             integrate_transform(
@@ -262,15 +249,13 @@ impl RigidBody {
     }
 
     pub fn set_center_of_mass_transform(&mut self, xform: Affine3A) {
-        let mut co = self.collision_object.borrow_mut();
-        debug_assert!(!co.is_kinematic_object());
+        debug_assert!(!self.collision_object.is_kinematic_object());
 
-        co.interpolation_world_transform = xform;
-        co.interpolation_linear_velocity = self.linear_velocity;
-        co.interpolation_angular_velocity = self.angular_velocity;
-        co.set_world_transform(xform);
+        self.collision_object.interpolation_world_transform = xform;
+        self.collision_object.interpolation_linear_velocity = self.linear_velocity;
+        self.collision_object.interpolation_angular_velocity = self.angular_velocity;
+        self.collision_object.set_world_transform(xform);
 
-        drop(co);
         self.update_inertia_tensor();
     }
 
@@ -280,34 +265,32 @@ impl RigidBody {
     }
 
     pub fn update_deactivation(&mut self, time_step: f32) {
-        let activation_state = self.collision_object.borrow().activation_state_1;
+        let activation_state = self.collision_object.activation_state_1;
 
         if activation_state == ISLAND_SLEEPING || activation_state == DISABLE_DEACTIVATION {
             return;
         }
 
-        let mut co = self.collision_object.borrow_mut();
         if self.linear_velocity.length_squared()
             < self.linear_sleeping_threshold * self.linear_sleeping_threshold
             && self.angular_velocity.length_squared()
                 < self.angular_sleeping_threshold * self.angular_sleeping_threshold
         {
-            co.deactivation_time += time_step;
+            self.collision_object.deactivation_time += time_step;
         } else {
-            co.deactivation_time = 0.0;
-            co.set_activation_state(0);
+            self.collision_object.deactivation_time = 0.0;
+            self.collision_object.set_activation_state(0);
         }
     }
 
     #[must_use]
     pub fn wants_sleeping(&self) -> bool {
-        let co = self.collision_object.borrow();
-        let activation_state = co.activation_state_1;
+        let activation_state = self.collision_object.activation_state_1;
 
         activation_state == DISABLE_DEACTIVATION
             && (activation_state == ISLAND_SLEEPING
                 || activation_state == WANTS_DEACTIVATION
-                || co.deactivation_time > 2.0)
+                || self.collision_object.deactivation_time > 2.0)
     }
 
     pub const fn clear_forces(&mut self) {
@@ -324,12 +307,7 @@ impl RigidBody {
     }
 
     pub fn compute_impulse_denominator(&self, pos: Vec3A, normal: Vec3A) -> f32 {
-        let r0 = pos
-            - self
-                .collision_object
-                .borrow()
-                .get_world_transform()
-                .translation;
+        let r0 = pos - self.collision_object.get_world_transform().translation;
         let c0 = r0.cross(normal);
         let vec = (self.inv_inertia_tensor_world.transpose() * c0).cross(r0);
 

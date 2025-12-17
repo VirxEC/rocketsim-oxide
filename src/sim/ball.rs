@@ -16,7 +16,8 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts::*,
+    consts,
+    consts::{dropshot, heatseeker},
     sim::{BallHitInfo, Car, Team},
 };
 
@@ -92,7 +93,7 @@ impl Default for BallState {
 impl BallState {
     pub const DEFAULT: Self = Self {
         physics: PhysState {
-            pos: Vec3A::new(0.0, 0.0, BALL_REST_Z),
+            pos: Vec3A::new(0.0, 0.0, consts::BALL_REST_Z),
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
@@ -136,19 +137,17 @@ impl Ball {
         let shape_type = collision_shape.get_shape_type();
 
         let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
-        info.start_world_transform.translation.z = BALL_REST_Z * UU_TO_BT;
+        info.start_world_transform.translation.z = consts::BALL_REST_Z * UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;
         info.friction = mutator_config.ball_world_friction;
         info.restitution = mutator_config.ball_world_restitution;
 
-        let body = RigidBody::new(info);
-        let mut co = body.collision_object.borrow_mut();
-        co.user_index = UserInfoTypes::Ball;
-        co.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
-        co.no_rot = no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
-
-        drop(co);
+        let mut body = RigidBody::new(info);
+        body.collision_object.user_index = UserInfoTypes::Ball;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
+        body.collision_object.no_rot =
+            no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
         let rigid_body = Rc::new(RefCell::new(body));
 
@@ -175,7 +174,7 @@ impl Ball {
         state.physics.vel = rb.linear_velocity * BT_TO_UU;
         state.physics.ang_vel = rb.angular_velocity;
 
-        let trans = *rb.collision_object.borrow().get_world_transform();
+        let trans = *rb.collision_object.get_world_transform();
         state.physics.pos = trans.translation * BT_TO_UU;
         state.physics.rot_mat = trans.matrix3;
 
@@ -185,21 +184,17 @@ impl Ball {
     pub fn set_state(&mut self, state: BallState) {
         let mut rb = self.rigid_body.borrow_mut();
 
-        rb.collision_object
-            .borrow_mut()
-            .set_world_transform(Affine3A {
-                matrix3: state.physics.rot_mat,
-                translation: state.physics.pos * UU_TO_BT,
-            });
+        rb.collision_object.set_world_transform(Affine3A {
+            matrix3: state.physics.rot_mat,
+            translation: state.physics.pos * UU_TO_BT,
+        });
 
         rb.set_linear_velocity(state.physics.vel * UU_TO_BT);
         rb.set_angular_velocity(state.physics.ang_vel);
         rb.update_inertia_tensor();
 
         if state.physics.vel != Vec3A::ZERO || state.physics.ang_vel != Vec3A::ZERO {
-            rb.collision_object
-                .borrow_mut()
-                .set_activation_state(ACTIVE_TAG);
+            rb.collision_object.set_activation_state(ACTIVE_TAG);
         }
 
         self.internal_state = state;
@@ -231,8 +226,10 @@ impl Ball {
             rb.linear_velocity = rb.linear_velocity.normalize() * ball_max_speed_bt;
         }
 
-        if rb.angular_velocity.length_squared() > BALL_MAX_ANG_SPEED * BALL_MAX_ANG_SPEED {
-            rb.angular_velocity = rb.angular_velocity.normalize() * BALL_MAX_ANG_SPEED;
+        if rb.angular_velocity.length_squared()
+            > consts::BALL_MAX_ANG_SPEED * consts::BALL_MAX_ANG_SPEED
+        {
+            rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
         }
 
         self.internal_state.tick_count_since_update += 1;
@@ -276,27 +273,29 @@ impl Ball {
         let rel_pos = ball_state.physics.pos - car_state.physics.pos;
         let rel_vel = ball_state.physics.vel - car_state.physics.vel;
 
-        let rel_speed = rel_vel.length().min(BALL_CAR_EXTRA_IMPULSE_MAXDELTAVEL_UU);
+        let rel_speed = rel_vel
+            .length()
+            .min(consts::BALL_CAR_EXTRA_IMPULSE_MAXDELTAVEL_UU);
         if rel_speed > 0.0 {
             let extra_z_scale = game_mode == GameMode::Hoops
                 && car_state.is_on_ground
                 && car_state.physics.rot_mat.z_axis.z
-                    > BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_NORMAL_Z_THRESH;
+                    > consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
-                BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_GROUND
+                consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_GROUND
             } else {
-                BALL_CAR_EXTRA_IMPULSE_Z_SCALE
+                consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE
             };
 
             let mut hit_dir = rel_pos * Vec3A::new(1.0, 1.0, z_scale).normalize();
             let forward_dir_adjustment = car_forward
                 * hit_dir.dot(car_forward)
-                * const { 1.0 - BALL_CAR_EXTRA_IMPULSE_FORWARD_SCALE };
+                * const { 1.0 - consts::BALL_CAR_EXTRA_IMPULSE_FORWARD_SCALE };
             hit_dir = (hit_dir - forward_dir_adjustment).normalize();
 
             let added_vel = hit_dir
                 * rel_speed
-                * BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE.get_output(rel_speed)
+                * consts::BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE.get_output(rel_speed)
                 * mutator_config.ball_hit_extra_force_scale;
             ball_hit_info.extra_hit_vel = added_vel;
 

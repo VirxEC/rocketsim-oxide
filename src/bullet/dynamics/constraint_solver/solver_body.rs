@@ -1,10 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{Affine3A, Vec3A};
 
-use crate::bullet::{
-    collision::dispatch::collision_object::CollisionObject, dynamics::rigid_body::RigidBody,
-};
+use crate::bullet::dynamics::rigid_body::RigidBody;
 
 pub struct SolverBody {
     pub world_transform: Affine3A,
@@ -35,9 +31,9 @@ impl SolverBody {
         original_body: None,
     };
 
-    pub fn new(rb: &RigidBody, co: &CollisionObject, time_step: f32) -> Self {
+    pub fn new(rb: &RigidBody, time_step: f32) -> Self {
         Self {
-            world_transform: *co.get_world_transform(),
+            world_transform: *rb.collision_object.get_world_transform(),
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
             inv_mass: rb.inv_mass,
@@ -47,7 +43,7 @@ impl SolverBody {
             angular_velocity: rb.angular_velocity,
             external_force_impulse: rb.total_force * rb.inverse_mass * time_step,
             external_torque_impulse: rb.inv_inertia_tensor_world * rb.total_torque * time_step,
-            original_body: Some(co.get_rigid_body_world_index()),
+            original_body: Some(rb.collision_object.get_rigid_body_world_index()),
         }
     }
 
@@ -57,19 +53,14 @@ impl SolverBody {
         angular_component: Vec3A,
         impulse_magnitude: f32,
     ) {
-        debug_assert!(self.original_body.is_some());
         self.delta_linear_velocity += linear_component * impulse_magnitude;
         self.delta_angular_velocity += angular_component * impulse_magnitude;
     }
 
     #[must_use]
     pub fn get_velocity_in_local_point_no_delta(&self, rel_pos: Vec3A) -> Vec3A {
-        if self.original_body.is_some() {
-            self.linear_velocity
-                + self.external_force_impulse
-                + (self.angular_velocity + self.external_torque_impulse).cross(rel_pos)
-        } else {
-            Vec3A::ZERO
-        }
+        self.linear_velocity
+            + self.external_force_impulse
+            + (self.angular_velocity + self.external_torque_impulse).cross(rel_pos)
     }
 }

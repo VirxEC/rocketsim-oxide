@@ -13,7 +13,7 @@ use crate::bullet::{
 pub struct VehicleRaycasterResult {
     pub hit_point_in_world: Vec3A,
     pub hit_normal_in_world: Vec3A,
-    pub dist_fraction: f32,
+    // pub dist_fraction: f32,
     pub rigid_body: Rc<RefCell<RigidBody>>,
 }
 
@@ -41,22 +41,19 @@ impl VehicleRaycaster {
             .ray_test(from, to, &mut ray_callback);
 
         if ray_callback.has_hit()
-            && let Some(co_ref) = ray_callback.base.collision_object.as_ref()
+            && let Some(co_index) = ray_callback.base.collision_object_index
         {
-            let co = co_ref.borrow();
-            if co.has_contact_response() {
-                let rigid_body = if co.is_static_object() {
-                    &collision_world.static_rigid_bodies
-                } else {
-                    &collision_world.non_static_rigid_bodies
-                }[co.get_rigid_body_world_index()]
-                .clone();
-
+            let rb_ref = &collision_world
+                .dynamics_world
+                .collision_world
+                .collision_objects[co_index];
+            let rb = rb_ref.borrow();
+            if rb.collision_object.has_contact_response() {
                 Some(VehicleRaycasterResult {
-                    rigid_body,
+                    rigid_body: rb_ref.clone(),
                     hit_point_in_world: ray_callback.hit_point_world,
                     hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
-                    dist_fraction: ray_callback.base.closest_hit_fraction,
+                    // dist_fraction: ray_callback.base.closest_hit_fraction,
                 })
             } else {
                 None

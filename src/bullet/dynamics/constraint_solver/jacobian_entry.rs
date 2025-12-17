@@ -8,8 +8,8 @@ pub struct JacbobianBody<'a> {
 }
 
 pub fn get_jacobian_diagonal(
-    body_a: JacbobianBody<'_>,
-    body_b: JacbobianBody<'_>,
+    body_a: &JacbobianBody<'_>,
+    body_b: &JacbobianBody<'_>,
     joint_axis: Vec3A,
 ) -> f32 {
     let a_j = body_a.world * body_a.rel_pos.cross(joint_axis);

@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{Affine3A, Vec3A};
 
 use crate::bullet::{
@@ -47,7 +45,7 @@ fn closest_point_on_segment(p: Vec3A, a: Vec3A, b: Vec3A) -> Vec3A {
 /// Check SAT between OBB and triangle; if collision, return penetration depth & normal
 fn obb_triangle_sat(obb: &Obb, tri: &TriangleShape) -> Option<Hit> {
     // Prepare candidate axes
-    let mut axes = [
+    let axes = [
         tri.normal,
         obb.axis.x_axis,
         obb.axis.y_axis,
@@ -229,7 +227,6 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                 // Edge-edge axis — approximate contact point as midpoint between closest points
                 // on edges
                 let (tri_edge_idx, obb_axis_idx) = ((axis_index - 4) / 3, (axis_index - 4) % 3);
-                let tri_edge = triangle.edges[tri_edge_idx];
                 let obb_axis = obb.axis.col(obb_axis_idx);
 
                 // Get two vertices of triangle edge

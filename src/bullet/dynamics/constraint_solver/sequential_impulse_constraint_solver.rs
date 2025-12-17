@@ -65,7 +65,7 @@ impl SequentialImpulseConstraintSolver {
 
     fn get_or_init_solver_body(
         &mut self,
-        bodies: &[Rc<RefCell<RigidBody>>],
+        non_static_bodies: &[Rc<RefCell<RigidBody>>],
         body: &mut CollisionObject,
         time_step: f32,
     ) -> usize {
@@ -74,16 +74,15 @@ impl SequentialImpulseConstraintSolver {
         }
 
         if !body.is_static_object() {
-            let rb = &bodies[body.get_rigid_body_world_index()];
-            let rb_ref = rb.borrow();
+            let rb_ref = &non_static_bodies[body.get_rigid_body_world_index()];
+            let rb = rb_ref.borrow();
 
-            if rb_ref.inverse_mass != 0.0 || body.is_kinematic_object() {
+            if rb.inverse_mass != 0.0 || body.is_kinematic_object() {
                 let solver_body_id = self.tmp_solver_body_pool.len();
                 body.companion_id = Some(solver_body_id);
 
-                let co = rb_ref.collision_object.borrow();
                 self.tmp_solver_body_pool
-                    .push(SolverBody::new(&rb_ref, &co, time_step));
+                    .push(SolverBody::new(&rb, time_step));
                 return solver_body_id;
             }
         }
@@ -102,20 +101,20 @@ impl SequentialImpulseConstraintSolver {
 
     pub fn solve_group(
         &mut self,
-        collision_objects: &[Rc<RefCell<CollisionObject>>],
-        bodies: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
+        non_static_bodies: &[Rc<RefCell<RigidBody>>],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
     ) {
-        self.solve_group_setup(collision_objects, bodies, manifolds, info);
+        self.solve_group_setup(collision_objects, non_static_bodies, manifolds, info);
         self.solve_group_iterations(info);
-        self.solve_group_finish(bodies, info);
+        self.solve_group_finish(non_static_bodies, info);
     }
 
     fn solve_group_setup(
         &mut self,
-        collision_objects: &[Rc<RefCell<CollisionObject>>],
-        bodies: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
+        non_static_bodies: &[Rc<RefCell<RigidBody>>],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
     ) {
@@ -127,30 +126,31 @@ impl SequentialImpulseConstraintSolver {
         for manifold in manifolds.iter() {
             collision_objects[manifold.body0_idx]
                 .borrow_mut()
+                .collision_object
                 .companion_id = None;
             collision_objects[manifold.body1_idx]
                 .borrow_mut()
+                .collision_object
                 .companion_id = None;
         }
 
-        for rb in bodies {
-            let rb_ref = rb.borrow();
-            let mut co = rb_ref.collision_object.borrow_mut();
-            co.companion_id = None;
+        for rb_ref in non_static_bodies {
+            let mut rb = rb_ref.borrow_mut();
+            rb.collision_object.companion_id = None;
 
-            if rb_ref.inverse_mass != 0.0 || co.is_kinematic_object() {
-                if !co.is_active() {
+            if rb.inverse_mass != 0.0 || rb.collision_object.is_kinematic_object() {
+                if !rb.collision_object.is_active() {
                     continue;
                 }
 
                 let solver_body_id = self.tmp_solver_body_pool.len();
-                co.companion_id = Some(solver_body_id);
+                rb.collision_object.companion_id = Some(solver_body_id);
 
                 self.tmp_solver_body_pool
-                    .push(SolverBody::new(&rb_ref, &co, info.time_step));
+                    .push(SolverBody::new(&rb, info.time_step));
             } else if self.fixed_body_id.is_none() {
                 let solver_body_id = self.tmp_solver_body_pool.len();
-                co.companion_id = Some(solver_body_id);
+                rb.collision_object.companion_id = Some(solver_body_id);
 
                 self.fixed_body_id = Some(solver_body_id);
                 self.tmp_solver_body_pool.push(SolverBody::DEFAULT);
@@ -161,8 +161,16 @@ impl SequentialImpulseConstraintSolver {
             let mut body0 = collision_objects[manifold.body0_idx].borrow_mut();
             let mut body1 = collision_objects[manifold.body1_idx].borrow_mut();
 
-            let solver_body_id_a = self.get_or_init_solver_body(bodies, &mut body0, info.time_step);
-            let solver_body_id_b = self.get_or_init_solver_body(bodies, &mut body1, info.time_step);
+            let solver_body_id_a = self.get_or_init_solver_body(
+                non_static_bodies,
+                &mut body0.collision_object,
+                info.time_step,
+            );
+            let solver_body_id_b = self.get_or_init_solver_body(
+                non_static_bodies,
+                &mut body1.collision_object,
+                info.time_step,
+            );
 
             debug_assert!(solver_body_id_a < self.tmp_solver_body_pool.len());
             debug_assert!(solver_body_id_b < self.tmp_solver_body_pool.len());
@@ -172,17 +180,22 @@ impl SequentialImpulseConstraintSolver {
                     .get_disjoint_unchecked_mut([solver_body_id_a, solver_body_id_b])
             };
 
-            body0.companion_id = Some(solver_body_id_a);
-            body1.companion_id = Some(solver_body_id_b);
+            body0.collision_object.companion_id = Some(solver_body_id_a);
+            body1.collision_object.companion_id = Some(solver_body_id_b);
 
             for cp in &mut manifold.point_cache {
                 assert!(cp.distance_1 <= manifold.contact_processing_threshold);
 
-                let rel_pos1 = cp.position_world_on_a - body0.get_world_transform().translation;
-                let rel_pos2 = cp.position_world_on_b - body1.get_world_transform().translation;
+                let rel_pos1 = cp.position_world_on_a
+                    - body0.collision_object.get_world_transform().translation;
+                let rel_pos2 = cp.position_world_on_b
+                    - body1.collision_object.get_world_transform().translation;
 
                 if cp.is_special {
-                    for (obj, rel_pos) in [(&mut *body0, rel_pos1), (&mut *body1, rel_pos2)] {
+                    for (obj, rel_pos) in [
+                        (&mut body0.collision_object, rel_pos1),
+                        (&mut body1.collision_object, rel_pos2),
+                    ] {
                         if !obj.is_static_object() {
                             obj.special_resolve_info.num_special_collisions += 1;
                             obj.special_resolve_info.friction = cp.combined_friction;
@@ -193,10 +206,8 @@ impl SequentialImpulseConstraintSolver {
                     }
                 }
 
-                let rb0 = solver_body_a.original_body.map(|idx| bodies[idx].borrow());
-                let rb0 = rb0.as_ref();
-                let rb1 = solver_body_b.original_body.map(|idx| bodies[idx].borrow());
-                let rb1 = rb1.as_ref();
+                let rb0 = solver_body_a.original_body.map(|_| &body0);
+                let rb1 = solver_body_b.original_body.map(|_| &body1);
 
                 // setupContactConstraint
                 let relaxation = info.sor;
@@ -363,11 +374,6 @@ impl SequentialImpulseConstraintSolver {
                         plane_space_2(cp.normal_world_on_b);
                 }
 
-                let rb0 = solver_body_a.original_body.map(|idx| bodies[idx].borrow());
-                let rb0 = rb0.as_ref();
-                let rb1 = solver_body_b.original_body.map(|idx| bodies[idx].borrow());
-                let rb1 = rb1.as_ref();
-
                 // addFrictionConstraint
                 let normal_axis = cp.lateral_friction_dir_1;
 
@@ -445,40 +451,29 @@ impl SequentialImpulseConstraintSolver {
 
         manifolds.clear();
 
-        for body in bodies {
-            let body = body.borrow();
+        for body in non_static_bodies {
+            let mut body = body.borrow_mut();
             if body
                 .collision_object
-                .borrow()
                 .special_resolve_info
                 .num_special_collisions
                 > 0
             {
-                let mut co = body.collision_object.borrow_mut();
-                self.convert_contact_special(bodies, &co, info);
-                co.special_resolve_info = SpecialResolveInfo::DEFAULT;
+                self.convert_contact_special(&body, info);
+                body.collision_object.special_resolve_info = SpecialResolveInfo::DEFAULT;
             }
         }
     }
 
-    fn convert_contact_special(
-        &mut self,
-        bodies: &[Rc<RefCell<RigidBody>>],
-        obj: &CollisionObject,
-        info: &ContactSolverInfo,
-    ) {
-        let sri = &obj.special_resolve_info;
-
+    fn convert_contact_special(&mut self, body: &RigidBody, info: &ContactSolverInfo) {
+        let sri = &body.collision_object.special_resolve_info;
         let num_collisions = f32::from(sri.num_special_collisions);
         let distance = sri.total_dist / num_collisions;
         let normal_world_on_b = sri.total_normal / num_collisions;
 
-        // combined_friction: sri.friction,
-        // combined_restitution: sri.restitution,
-
         let friction_index = self.tmp_solver_contact_constraint_pool.len();
 
-        let solver_body_id_a = obj.companion_id.unwrap();
+        let solver_body_id_a = body.collision_object.companion_id.unwrap();
         let solver_body_id_b = if let Some(fixed_body_id) = self.fixed_body_id {
             fixed_body_id
         } else {
@@ -494,32 +489,23 @@ impl SequentialImpulseConstraintSolver {
         let rel_pos1 = normal_world_on_b * -distance;
         let relaxation = info.sor;
 
-        let rb0 = solver_body_a.original_body.map(|idx| bodies[idx].borrow());
-        let rb0 = rb0.as_ref();
-
         let inv_time_step = 1.0 / info.time_step;
         let erp = info.erp_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
-        let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
-            rb.inv_inertia_tensor_world.transpose() * torque_axis_0
-        });
+        let angular_component_a = body.inv_inertia_tensor_world.transpose() * torque_axis_0;
 
-        let denom = rb0.map_or(0.0, |rb| {
+        let denom = {
             let vec = angular_component_a.cross(rel_pos1);
-            rb.inverse_mass + normal_world_on_b.dot(vec)
-        });
+            body.inverse_mass + normal_world_on_b.dot(vec)
+        };
         let jac_diag_ab_inv = relaxation / denom;
 
-        let (contact_normal_1, rel_pos1_cross_normal) = if rb0.is_some() {
-            (normal_world_on_b, torque_axis_0)
-        } else {
-            (Vec3A::ZERO, Vec3A::ZERO)
-        };
+        let (contact_normal_1, rel_pos1_cross_normal) = (normal_world_on_b, torque_axis_0);
 
         let penetration = distance + info.linear_slop;
 
-        let vel = rb0.map_or(Vec3A::ZERO, |rb| rb.get_velocity_in_local_point(rel_pos1));
+        let vel = body.get_velocity_in_local_point(rel_pos1);
         let rel_vel = normal_world_on_b.dot(vel);
 
         let restitution = Self::restitution_curve(
@@ -529,14 +515,10 @@ impl SequentialImpulseConstraintSolver {
         )
         .max(0.0);
 
-        let (external_force_impulse_a, external_torque_impulse_a) = if rb0.is_some() {
-            (
-                solver_body_a.external_force_impulse,
-                solver_body_a.external_torque_impulse,
-            )
-        } else {
-            (Vec3A::ZERO, Vec3A::ZERO)
-        };
+        let (external_force_impulse_a, external_torque_impulse_a) = (
+            solver_body_a.external_force_impulse,
+            solver_body_a.external_torque_impulse,
+        );
 
         let rel_vel = contact_normal_1
             .dot(solver_body_a.linear_velocity + external_force_impulse_a)
@@ -588,25 +570,21 @@ impl SequentialImpulseConstraintSolver {
             lateral_friction_dir_1 = plane_space_1(normal_world_on_b);
         }
 
-        let rb0 = solver_body_a.original_body.map(|idx| bodies[idx].borrow());
-        let rb0 = rb0.as_ref();
-
         // addFrictionConstraint
-        let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) =
-            rb0.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
-                let torque_axis = rel_pos1.cross(lateral_friction_dir_1);
+        let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) = {
+            let torque_axis = rel_pos1.cross(lateral_friction_dir_1);
 
-                (
-                    lateral_friction_dir_1,
-                    torque_axis,
-                    rb.inv_inertia_tensor_world * torque_axis,
-                )
-            });
+            (
+                lateral_friction_dir_1,
+                torque_axis,
+                body.inv_inertia_tensor_world * torque_axis,
+            )
+        };
 
-        let denom = rb0.map_or(0.0, |rb| {
+        let denom = {
             let vec = angular_component_a.cross(rel_pos1);
-            rb.inverse_mass + lateral_friction_dir_1.dot(vec)
-        });
+            body.inverse_mass + lateral_friction_dir_1.dot(vec)
+        };
         let jac_diag_ab_inv = relaxation / denom;
 
         let rel_vel = contact_normal_1
@@ -730,10 +708,17 @@ impl SequentialImpulseConstraintSolver {
         }
     }
 
-    fn solve_group_finish(&mut self, bodies: &[Rc<RefCell<RigidBody>>], info: &ContactSolverInfo) {
+    fn solve_group_finish(
+        &mut self,
+        non_static_bodies: &[Rc<RefCell<RigidBody>>],
+        info: &ContactSolverInfo,
+    ) {
         // writeBackBodies
         for solver in &mut self.tmp_solver_body_pool {
-            let Some(mut body) = solver.original_body.map(|idx| bodies[idx].borrow_mut()) else {
+            let Some(mut body) = solver
+                .original_body
+                .map(|idx| non_static_bodies[idx].borrow_mut())
+            else {
                 continue;
             };
 
@@ -744,7 +729,7 @@ impl SequentialImpulseConstraintSolver {
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
-                if body.collision_object.borrow().no_rot {
+                if body.collision_object.no_rot {
                     integrate_transform_no_rot(
                         &mut solver.world_transform,
                         solver.push_velocity,
@@ -764,7 +749,6 @@ impl SequentialImpulseConstraintSolver {
             body.set_angular_velocity(solver.angular_velocity + solver.external_torque_impulse);
 
             body.collision_object
-                .borrow_mut()
                 .set_world_transform(solver.world_transform);
         }
 

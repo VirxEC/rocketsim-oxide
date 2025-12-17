@@ -16,6 +16,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
         shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
     },
+    dynamics::rigid_body::RigidBody,
     linear_math::{AffineExt, aabb_util_2::Aabb, interpolate_3},
 };
 
@@ -24,9 +25,8 @@ use crate::bullet::{
 //     triangle_index: usize,
 // }
 
-pub struct LocalRayResult<'a> {
-    collision_object: &'a CollisionObject,
-    collision_object_ref: Rc<RefCell<CollisionObject>>,
+pub struct LocalRayResult {
+    collision_object_index: usize,
     // local_shape_info: LocalShapeInfo,
     hit_normal_world: Vec3A,
     hit_fraction: f32,
@@ -34,7 +34,7 @@ pub struct LocalRayResult<'a> {
 
 pub struct RayResultCallbackBase {
     pub closest_hit_fraction: f32,
-    pub collision_object: Option<Rc<RefCell<CollisionObject>>>,
+    pub collision_object_index: Option<usize>,
     pub ignore_object_world_index: Option<usize>,
     pub collision_filter_group: i32,
     pub collision_filter_mask: i32,
@@ -45,7 +45,7 @@ impl Default for RayResultCallbackBase {
     fn default() -> Self {
         Self {
             closest_hit_fraction: 1.0,
-            collision_object: None,
+            collision_object_index: None,
             collision_filter_group: CollisionFilterGroups::DefaultFilter as i32,
             collision_filter_mask: CollisionFilterGroups::AllFilter as i32,
             ignore_object_world_index: None,
@@ -57,7 +57,7 @@ impl Default for RayResultCallbackBase {
 pub trait RayResultCallback {
     fn get_base(&self) -> &RayResultCallbackBase;
     fn has_hit(&self) -> bool {
-        self.get_base().collision_object.is_some()
+        self.get_base().collision_object_index.is_some()
     }
     fn needs_collision(&self, proxy0: &BroadphaseProxy) -> bool {
         let base = self.get_base();
@@ -110,7 +110,7 @@ impl RayResultCallback for ClosestRayResultCallback {
         self.base.closest_hit_fraction = ray_result.hit_fraction;
         self.hit_normal_world = ray_result.hit_normal_world;
 
-        self.base.collision_object = Some(ray_result.collision_object_ref);
+        self.base.collision_object_index = Some(ray_result.collision_object_index);
         self.hit_point_world = interpolate_3(
             self.ray_from_world,
             self.ray_to_world,
@@ -129,7 +129,7 @@ struct SingleRayCallback<'a, T: RayResultCallback> {
 }
 
 impl<'a, T: RayResultCallback> SingleRayCallback<'a, T> {
-    pub fn new(
+    pub const fn new(
         ray_from_world: Vec3A,
         ray_to_world: Vec3A,
         world: &'a CollisionWorld,
@@ -150,17 +150,17 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
             return false;
         }
 
-        let co_ref = &self.world.collision_objects[proxy.client_object_idx.unwrap()];
-        let co = co_ref.borrow();
-        let handle_idx = co.get_broadphase_handle().unwrap();
+        let obj_index = proxy.client_object_idx.unwrap();
+        let rb = self.world.collision_objects[proxy.client_object_idx.unwrap()].borrow();
+        let handle_idx = rb.collision_object.get_broadphase_handle().unwrap();
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
 
         if self.result_callback.needs_collision(handle) {
             CollisionWorld::ray_test_single(
                 self.ray_from_world,
                 self.ray_to_world,
-                &co,
-                co_ref,
+                &rb.collision_object,
+                obj_index,
                 self.result_callback,
             );
         }
@@ -176,7 +176,7 @@ pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
     hit_fraction: f32,
     result_callback: &'a mut T,
     collision_object: &'a CollisionObject,
-    collision_object_ref: &'a Rc<RefCell<CollisionObject>>,
+    collision_object_index: usize,
 }
 
 impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
@@ -185,7 +185,7 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
         to: Vec3A,
         result_callback: &'a mut T,
         collision_object: &'a CollisionObject,
-        collision_object_ref: &'a Rc<RefCell<CollisionObject>>,
+        collision_object_index: usize,
     ) -> Self {
         let delta = from - to;
         let dist = delta.length();
@@ -197,7 +197,7 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
             hit_fraction,
             result_callback,
             collision_object,
-            collision_object_ref,
+            collision_object_index,
             dir: delta / dist,
         }
     }
@@ -214,8 +214,7 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
         let ray_result = LocalRayResult {
             hit_fraction,
             hit_normal_world,
-            collision_object: self.collision_object,
-            collision_object_ref: self.collision_object_ref.clone(),
+            collision_object_index: self.collision_object_index,
         };
         self.result_callback.add_single_result(ray_result);
     }
@@ -265,12 +264,11 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
 }
 
 pub struct CollisionWorld {
-    pub collision_objects: Vec<Rc<RefCell<CollisionObject>>>,
+    pub collision_objects: Vec<Rc<RefCell<RigidBody>>>,
     pub dispatcher1: CollisionDispatcher,
     pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
     num_skippable_statics: usize,
-    // force_update_all_aabbs: bool,
 }
 
 impl CollisionWorld {
@@ -281,18 +279,17 @@ impl CollisionWorld {
             dispatcher_info: DispatcherInfo::default(),
             broadphase_pair_cache: pair_cache,
             num_skippable_statics: 0,
-            // force_update_all_aabbs: true,
         }
     }
 
     pub fn add_collision_object(
         &mut self,
-        object: Rc<RefCell<CollisionObject>>,
+        object: Rc<RefCell<RigidBody>>,
         filter_group: i32,
         filter_mask: i32,
     ) {
         {
-            let mut obj = object.borrow_mut();
+            let obj = &mut object.borrow_mut().collision_object;
             obj.set_world_array_index(self.collision_objects.len());
 
             let trans = obj.get_world_transform();
@@ -300,7 +297,7 @@ impl CollisionWorld {
 
             let proxy =
                 self.broadphase_pair_cache
-                    .create_proxy(aabb, &obj, filter_group, filter_mask);
+                    .create_proxy(aabb, obj, filter_group, filter_mask);
 
             obj.set_broadphase_handle(proxy);
         }
@@ -318,7 +315,8 @@ impl CollisionWorld {
             .enumerate()
             .skip(self.num_skippable_statics)
         {
-            let col_obj = col_obj_ref.borrow();
+            let rb = col_obj_ref.borrow();
+            let col_obj = &rb.collision_object;
             debug_assert_eq!(col_obj.get_world_array_index(), i);
 
             if prev_is_static && col_obj.is_static_object() {
@@ -354,7 +352,7 @@ impl CollisionWorld {
                 col_obj.is_static_object() || (aabb.max - aabb.min).length_squared() < 1e12
             );
             self.broadphase_pair_cache.set_aabb(
-                &col_obj,
+                col_obj,
                 col_obj.get_broadphase_handle().unwrap(),
                 aabb,
             );
@@ -379,7 +377,7 @@ impl CollisionWorld {
         ray_from: Vec3A,
         ray_to: Vec3A,
         co: &CollisionObject,
-        collision_object_ref: &Rc<RefCell<CollisionObject>>,
+        object_index: usize,
         result_callback: &mut T,
     ) {
         let world_to_co = co.get_world_transform().transpose();
@@ -391,7 +389,7 @@ impl CollisionWorld {
             ray_to_local,
             result_callback,
             co,
-            collision_object_ref,
+            object_index,
         );
         co.get_collision_shape()
             .unwrap()

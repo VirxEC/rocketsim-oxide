@@ -235,11 +235,9 @@ impl Car {
         info.start_world_transform = Affine3A::IDENTITY;
         info.local_inertia = local_inertia;
 
-        let body = RigidBody::new(info);
-        let mut co = body.collision_object.borrow_mut();
-        co.user_index = UserInfoTypes::Car;
-        co.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
-        drop(co);
+        let mut body = RigidBody::new(info);
+        body.collision_object.user_index = UserInfoTypes::Car;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
 
         let rigid_body = Rc::new(RefCell::new(body));
 
@@ -380,12 +378,8 @@ impl Car {
         let rb = self.rigid_body.borrow();
 
         let mut internal_state = self.internal_state;
-        internal_state.physics.pos = rb
-            .collision_object
-            .borrow()
-            .get_world_transform()
-            .translation
-            * BT_TO_UU;
+        internal_state.physics.pos =
+            rb.collision_object.get_world_transform().translation * BT_TO_UU;
         internal_state.physics.vel = rb.linear_velocity * BT_TO_UU;
         internal_state.physics.ang_vel = rb.angular_velocity;
 
@@ -395,12 +389,10 @@ impl Car {
     pub fn set_state(&mut self, state: CarState) {
         let mut rb = self.rigid_body.borrow_mut();
 
-        rb.collision_object
-            .borrow_mut()
-            .set_world_transform(Affine3A {
-                matrix3: state.physics.rot_mat,
-                translation: state.physics.pos * UU_TO_BT,
-            });
+        rb.collision_object.set_world_transform(Affine3A {
+            matrix3: state.physics.rot_mat,
+            translation: state.physics.pos * UU_TO_BT,
+        });
 
         rb.linear_velocity = state.physics.vel * UU_TO_BT;
         rb.angular_velocity = state.physics.ang_vel;
@@ -489,11 +481,7 @@ impl Car {
             let long_dir = lat_dir.cross(wheel.wheel_info.raycast_info.contact_normal_ws);
 
             let wheel_delta = wheel.wheel_info.raycast_info.hard_point_ws
-                - ground_rb
-                    .collision_object
-                    .borrow()
-                    .get_world_transform()
-                    .translation;
+                - ground_rb.collision_object.get_world_transform().translation;
             let cross_vec = (angular_vel.cross(wheel_delta) + vel) * BT_TO_UU;
 
             let base_friction = cross_vec.dot(lat_dir).abs();
@@ -583,7 +571,7 @@ impl Car {
                     rel_dodge_torque * const { Vec3A::new(FLIP_TORQUE_X, FLIP_TORQUE_Y, 0.0) };
 
                 let rb_torque = rb.inv_inertia_tensor_world.bullet_inverse()
-                    * rb.collision_object.borrow().get_world_transform().matrix3
+                    * rb.collision_object.get_world_transform().matrix3
                     * dodge_torque;
                 rb.apply_torque(rb_torque);
             }
@@ -928,15 +916,13 @@ impl Car {
                 self.respawn(game_mode, mutator_config.car_spawn_boost_amount);
             }
 
-            let rb = self.rigid_body.borrow();
-            let mut co = rb.collision_object.borrow_mut();
-            co.activation_state_1 = DISABLE_SIMULATION;
-            co.collision_flags |= CollisionFlags::NoContactResponse as i32;
+            let mut rb = self.rigid_body.borrow_mut();
+            rb.collision_object.activation_state_1 = DISABLE_SIMULATION;
+            rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as i32;
         } else {
-            let rb = self.rigid_body.borrow();
-            let mut co = rb.collision_object.borrow_mut();
-            co.activation_state_1 = ACTIVE_TAG;
-            co.collision_flags &= !(CollisionFlags::NoContactResponse as i32);
+            let mut rb = self.rigid_body.borrow_mut();
+            rb.collision_object.activation_state_1 = ACTIVE_TAG;
+            rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as i32);
         }
 
         if self.internal_state.is_demoed {
@@ -997,9 +983,7 @@ impl Car {
         }
 
         let rb = self.rigid_body.borrow();
-        let co = rb.collision_object.borrow();
-
-        self.internal_state.physics.rot_mat = co.get_world_transform().matrix3;
+        self.internal_state.physics.rot_mat = rb.collision_object.get_world_transform().matrix3;
 
         let speed_squared = (rb.linear_velocity * BT_TO_UU).length_squared();
         self.internal_state.is_supersonic = speed_squared

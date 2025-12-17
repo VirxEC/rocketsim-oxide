@@ -144,7 +144,7 @@ impl QuatExt for Quat {
     }
 
     #[inline]
-    /// An implementation of Quat::from_axis_angle that leverages simd
+    /// An implementation of `Quat::from_axis_angle` that leverages simd
     fn from_axis_angle_simd(axis: Vec3A, angle: f32) -> Self {
         let (s, c) = f32::sin_cos(angle * 0.5);
         let v = axis * s;

@@ -22,4 +22,4 @@ unused = "allow"
 [lints.clippy]
 all = "warn"
 # pedantic = "warn"
-# nursery = "warn"
+nursery = "warn"

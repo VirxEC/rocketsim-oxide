@@ -28,11 +28,8 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts::{
-        heatseeker::{BALL_START_POS, BALL_START_VEL},
-        *,
-    },
-    sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode, mutator_config},
+    consts::*,
+    sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode},
 };
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
@@ -259,7 +256,7 @@ impl ContactAddedCallback for Objects {
         if user_index_a == UserInfoTypes::Car {
             match user_index_b {
                 UserInfoTypes::Ball => {
-                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap)
+                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap);
                 }
                 UserInfoTypes::Car => self.on_car_car_collision(
                     body_a.user_pointer,
@@ -383,10 +380,7 @@ impl Arena {
             }
         }
 
-        let rng = match config.rng_seed {
-            Some(seed) => Rng::with_seed(seed),
-            None => Rng::new(),
-        };
+        let rng = config.rng_seed.map_or_else(Rng::new, Rng::with_seed);
 
         Self {
             rng,
@@ -549,7 +543,6 @@ impl Arena {
             .rigid_body
             .borrow()
             .collision_object
-            .borrow()
             .get_world_transform()
             .translation
             * BT_TO_UU;
@@ -678,8 +671,8 @@ impl Arena {
             GameMode::Heatseeker => {
                 let next_rand = self.rng.bool();
                 let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
-                ball_state.physics.pos = BALL_START_POS * scale;
-                ball_state.physics.vel = BALL_START_VEL * scale;
+                ball_state.physics.pos = heatseeker::BALL_START_POS * scale;
+                ball_state.physics.vel = heatseeker::BALL_START_VEL * scale;
             }
             GameMode::Snowday => {
                 ball_state.physics.vel.z = f32::EPSILON;
@@ -709,27 +702,24 @@ impl Arena {
         );
 
         self.last_car_id += 1;
-        car.rigid_body
-            .borrow()
-            .collision_object
-            .borrow_mut()
-            .user_pointer = self.last_car_id;
+        car.rigid_body.borrow_mut().collision_object.user_pointer = self.last_car_id;
         self.objects.cars.insert(self.last_car_id, car);
         self.last_car_id
     }
 
     fn internal_step(&mut self) {
         {
-            let ball_rb = self.objects.ball.rigid_body.borrow();
-            ball_rb.collision_object.borrow_mut().set_activation_state(
-                if ball_rb.linear_velocity.length_squared() == 0.0
-                    && ball_rb.angular_velocity.length_squared() == 0.0
-                {
+            let mut ball_rb = self.objects.ball.rigid_body.borrow_mut();
+            let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
+                && ball_rb.angular_velocity.length_squared() == 0.0;
+
+            ball_rb
+                .collision_object
+                .set_activation_state(if should_sleep {
                     ISLAND_SLEEPING
                 } else {
                     ACTIVE_TAG
-                },
-            );
+                });
         }
 
         for car in self.objects.cars.values_mut() {
@@ -783,27 +773,31 @@ impl Arena {
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
         for i in 0..ticks_to_simulate {
-            // println!("i: {i}");
+            // println!("\nstep {i}");
             self.internal_step();
         }
     }
 
     #[inline]
-    pub fn tick_count(&self) -> u64 {
+    #[must_use]
+    pub const fn tick_count(&self) -> u64 {
         self.objects.tick_count
     }
 
     #[inline]
-    pub fn game_mode(&self) -> GameMode {
+    #[must_use]
+    pub const fn game_mode(&self) -> GameMode {
         self.objects.game_mode
     }
 
     #[inline]
-    pub fn mutator_config(&self) -> MutatorConfig {
+    #[must_use]
+    pub const fn mutator_config(&self) -> MutatorConfig {
         self.objects.mutator_config
     }
 
     #[inline]
+    #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
         &self.objects.boost_pads
     }

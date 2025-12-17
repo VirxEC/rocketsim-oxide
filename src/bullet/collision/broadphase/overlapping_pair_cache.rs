@@ -3,9 +3,12 @@ use std::{cell::RefCell, mem, rc::Rc};
 use ahash::AHashMap;
 
 use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
-use crate::bullet::collision::{
-    dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
-    narrowphase::persistent_manifold::ContactAddedCallback,
+use crate::bullet::{
+    collision::{
+        dispatch::collision_dispatcher::CollisionDispatcher,
+        narrowphase::persistent_manifold::ContactAddedCallback,
+    },
+    dynamics::rigid_body::RigidBody,
 };
 
 pub struct HashedOverlappingPairCache {
@@ -99,7 +102,7 @@ impl HashedOverlappingPairCache {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<CollisionObject>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
         dispatcher: &mut CollisionDispatcher,
         handles: &[RsBroadphaseProxy],
         contact_added_callback: &mut T,
