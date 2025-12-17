@@ -29,7 +29,9 @@ use crate::{
         },
     },
     consts::*,
-    sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode},
+    sim::{
+        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, CollisionMasks, DemoMode, GameState,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
@@ -720,6 +722,7 @@ impl Arena {
             for other_car in self.objects.cars.values_mut() {
                 if car.rigid_body_idx < other_car.rigid_body_idx {
                     other_car.rigid_body_idx -= 1;
+                    other_car.bullet_vehicle.chassis_body_idx -= 1;
                 }
             }
 
@@ -870,7 +873,7 @@ impl Arena {
             state,
         );
     }
-    
+
     pub fn respawn_car(&mut self, car_id: u64) {
         let car = self
             .objects
@@ -883,5 +886,43 @@ impl Arena {
             self.objects.game_mode,
             self.objects.mutator_config.car_spawn_boost_amount,
         );
+    }
+
+    pub fn get_game_state(&self) -> GameState {
+        GameState {
+            tick_rate: self.get_tick_rate(),
+            tick_count: self.tick_count(),
+            game_mode: self.game_mode(),
+            cars: if self.cars().is_empty() {
+                None
+            } else {
+                Some(
+                    self.cars()
+                        .iter()
+                        .map(|(&id, car)| CarInfo {
+                            id,
+                            team: car.team,
+                            state: *car.get_state(),
+                            config: *car.get_config(),
+                        })
+                        .collect(),
+                )
+            },
+            ball: *self.get_ball(),
+            pads: if self.boost_pads().is_empty() {
+                None
+            } else {
+                Some(
+                    self.boost_pads()
+                        .iter()
+                        .map(|pad| BoostPadInfo {
+                            config: *pad.get_config(),
+                            state: *pad.get_state(),
+                        })
+                        .collect(),
+                )
+            },
+            tiles: None,
+        }
     }
 }

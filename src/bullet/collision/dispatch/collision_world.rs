@@ -8,7 +8,6 @@ use crate::bullet::{
     collision::{
         broadphase::{
             broadphase_proxy::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
-            dispatcher::DispatcherInfo,
             rs_broadphase::RsBroadphase,
         },
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
@@ -264,17 +263,15 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
 pub struct CollisionWorld {
     pub collision_objects: Vec<RigidBody>,
     pub dispatcher1: CollisionDispatcher,
-    pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
     num_skippable_statics: usize,
 }
 
 impl CollisionWorld {
-    pub fn new(dispatcher: CollisionDispatcher, pair_cache: RsBroadphase) -> Self {
+    pub const fn new(dispatcher: CollisionDispatcher, pair_cache: RsBroadphase) -> Self {
         Self {
             collision_objects: Vec::new(),
             dispatcher1: dispatcher,
-            dispatcher_info: DispatcherInfo::default(),
             broadphase_pair_cache: pair_cache,
             num_skippable_statics: 0,
         }
@@ -306,7 +303,9 @@ impl CollisionWorld {
         index
     }
 
-    pub fn remove_collision_object(&mut self, _world_index: usize) {
+    pub fn remove_collision_object(&mut self, world_index: usize) {
+        self.collision_objects.remove(world_index);
+
         todo!("remove_collision_object not implemented");
     }
 

@@ -204,8 +204,8 @@ pub struct Car {
     pub team: Team,
     /// The controls to simulate the car with
     pub controls: CarControls,
-    pub(crate) config: CarConfig,
-    bullet_vehicle: VehicleRL,
+    config: CarConfig,
+    pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
     pub(crate) velocity_impulse_cache: Vec3A,
     pub(crate) internal_state: CarState,
@@ -377,6 +377,10 @@ impl Car {
 
     pub const fn get_state(&self) -> &CarState {
         &self.internal_state
+    }
+
+    pub const fn get_config(&self) -> &CarConfig {
+        &self.config
     }
 
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: CarState) {

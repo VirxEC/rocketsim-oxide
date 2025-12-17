@@ -244,10 +244,6 @@ impl DiscreteDynamicsWorld {
     ) {
         self.predict_unconstraint_motion(time_step);
 
-        let dispatcher_info = &mut self.dynamics_world.collision_world.dispatcher_info;
-        dispatcher_info.time_step = time_step;
-        dispatcher_info.step_count = 0;
-
         self.dynamics_world
             .collision_world
             .perform_discrete_collision_detection(contact_added_callback);

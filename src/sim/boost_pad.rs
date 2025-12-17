@@ -8,12 +8,12 @@ pub struct BoostPadConfig {
     pub is_big: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct BoostPadState {
     pub is_active: bool,
     pub cooldown: f32,
-    // Car* curLockedCar = NULL;
-    pub prev_locked_car_id: u32,
+    pub cur_locked_car: u64,
+    pub prev_locked_car_id: u64,
 }
 
 impl Default for BoostPadState {
@@ -26,6 +26,7 @@ impl BoostPadState {
     pub const DEFAULT: Self = Self {
         is_active: true,
         cooldown: 0.0,
+        cur_locked_car: 0,
         prev_locked_car_id: 0,
     };
 }
@@ -66,5 +67,10 @@ impl BoostPad {
 
     pub const fn set_state(&mut self, state: BoostPadState) {
         self.internal_state = state;
+    }
+
+    #[must_use]
+    pub const fn get_config(&self) -> &BoostPadConfig {
+        &self.config
     }
 }

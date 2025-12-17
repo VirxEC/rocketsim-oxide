@@ -318,7 +318,7 @@ pub struct VehicleRL {
     raycaster: VehicleRaycaster,
     // pitch_control: f32,
     // steering_value: f32,
-    chassis_body_idx: usize,
+    pub chassis_body_idx: usize,
     pub wheels: ArrayVec<WheelInfoRL, NUM_WHEELS>,
 }
 
