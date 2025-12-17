@@ -206,9 +206,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
 
         let mut manifold = PersistentManifold::new(
             self.compound_0_obj.object,
-            self.compound_0_obj.index,
             self.compound_1_obj.object,
-            self.compound_1_obj.index,
             false,
         );
 

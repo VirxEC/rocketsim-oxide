@@ -43,7 +43,7 @@ impl SolverBody {
             angular_velocity: rb.angular_velocity,
             external_force_impulse: rb.total_force * rb.inverse_mass * time_step,
             external_torque_impulse: rb.inv_inertia_tensor_world * rb.total_torque * time_step,
-            original_body: Some(rb.collision_object.get_world_array_index()),
+            original_body: Some(rb.collision_object.world_array_index),
         }
     }
 

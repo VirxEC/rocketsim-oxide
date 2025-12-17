@@ -87,7 +87,7 @@ impl ClosestRayResultCallback {
     ) -> Self {
         Self {
             base: RayResultCallbackBase {
-                ignore_object_world_index: Some(ignore_object.get_world_array_index()),
+                ignore_object_world_index: Some(ignore_object.world_array_index),
                 ..Default::default()
             },
             ray_from_world,
@@ -290,7 +290,7 @@ impl CollisionWorld {
     ) -> usize {
         {
             let obj = &mut object.borrow_mut().collision_object;
-            obj.set_world_array_index(self.collision_objects.len());
+            obj.world_array_index = self.collision_objects.len();
 
             let trans = obj.get_world_transform();
             let aabb = obj.get_collision_shape().unwrap().get_aabb(trans);
@@ -320,7 +320,7 @@ impl CollisionWorld {
         {
             let rb = col_obj_ref.borrow();
             let col_obj = &rb.collision_object;
-            debug_assert_eq!(col_obj.get_world_array_index(), i);
+            debug_assert_eq!(col_obj.world_array_index, i);
 
             if prev_is_static && col_obj.is_static_object() {
                 // static objects only need their aabbs set the first time

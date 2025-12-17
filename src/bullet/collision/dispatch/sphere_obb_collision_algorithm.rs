@@ -16,7 +16,6 @@ use crate::bullet::{
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
     sphere_obj: &'a CollisionObject,
-    sphere_obj_idx: usize,
     obb_obj: CollisionObjectWrapper<'a>,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
@@ -25,14 +24,12 @@ pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
 impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
     pub const fn new(
         sphere_obj: &'a CollisionObject,
-        sphere_obj_idx: usize,
         obb_obj: CollisionObjectWrapper<'a>,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             sphere_obj,
-            sphere_obj_idx,
             obb_obj,
             is_swapped,
             contact_added_callback,
@@ -99,13 +96,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let point_in_world = new_child_world_trans.transform_point3a(closest);
         let depth = radius_with_threshold - dist;
 
-        let mut manifold = PersistentManifold::new(
-            self.sphere_obj,
-            self.sphere_obj_idx,
-            self.obb_obj.object,
-            self.obb_obj.index,
-            self.is_swapped,
-        );
+        let mut manifold =
+            PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);
         manifold.add_contact_point(
             self.sphere_obj,
             self.obb_obj.object,

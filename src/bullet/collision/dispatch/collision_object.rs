@@ -73,7 +73,8 @@ pub struct CollisionObject {
     pub collision_flags: i32,
     // pub island_tag_1: i32,
     pub companion_id: Option<usize>,
-    world_array_index: usize,
+    /// The index of this object in `CollisionWorld`
+    pub world_array_index: usize,
     pub activation_state_1: i32,
     pub deactivation_time: f32,
     pub friction: f32,
@@ -153,11 +154,6 @@ impl CollisionObject {
     }
 
     #[must_use]
-    pub const fn get_collision_shape_mut(&mut self) -> Option<&mut CollisionShapes> {
-        self.collision_shape.as_mut()
-    }
-
-    #[must_use]
     pub const fn get_collision_shape(&self) -> Option<&CollisionShapes> {
         self.collision_shape.as_ref()
     }
@@ -208,15 +204,6 @@ impl CollisionObject {
         if self.is_static_or_kinematic_object() {
             self.set_activation_state(ACTIVE_TAG);
         }
-    }
-
-    #[must_use]
-    pub const fn get_world_array_index(&self) -> usize {
-        self.world_array_index
-    }
-
-    pub const fn set_world_array_index(&mut self, index: usize) {
-        self.world_array_index = index;
     }
 
     pub const fn set_broadphase_handle(&mut self, handle: usize) {

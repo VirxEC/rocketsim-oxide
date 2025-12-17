@@ -58,7 +58,7 @@ impl SequentialImpulseConstraintSolver {
         }
 
         if !body.is_static_object() {
-            let rb_ref = &collision_objects[body.get_world_array_index()];
+            let rb_ref = &collision_objects[body.world_array_index];
             let rb = rb_ref.borrow();
 
             if rb.inverse_mass != 0.0 || body.is_kinematic_object() {

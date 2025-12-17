@@ -304,7 +304,7 @@ impl RsBroadphase {
         debug_assert!(aabb.min.cmple(aabb.max).all());
 
         let is_static = co.is_static_object();
-        let world_index = co.get_world_array_index();
+        let world_index = co.world_array_index;
 
         let new_handle_idx = self.handles.len();
         let indices = self.cell_grid.get_cell_indices(aabb.min);

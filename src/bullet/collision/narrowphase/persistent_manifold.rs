@@ -35,14 +35,8 @@ pub struct PersistentManifold {
 }
 
 impl PersistentManifold {
-    pub fn new(
-        body0: &CollisionObject,
-        body0_idx: usize,
-        body1: &CollisionObject,
-        body1_idx: usize,
-        is_swapped: bool,
-    ) -> Self {
-        debug_assert_ne!(body0_idx, body1_idx);
+    pub fn new(body0: &CollisionObject, body1: &CollisionObject, is_swapped: bool) -> Self {
+        debug_assert_ne!(body0.world_array_index, body1.world_array_index);
 
         let body0_cbt = body0
             .get_collision_shape()
@@ -58,8 +52,8 @@ impl PersistentManifold {
             .min(body1.contact_processing_threshold);
 
         Self {
-            body0_idx,
-            body1_idx,
+            body0_idx: body0.world_array_index,
+            body1_idx: body1.world_array_index,
             contact_breaking_threshold,
             contact_processing_threshold,
             // object_type: ContactManifoldTypes::PersistentManifoldType as i32,

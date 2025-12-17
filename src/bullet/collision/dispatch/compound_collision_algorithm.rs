@@ -261,9 +261,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
 
 struct CompoundLeafCallback<'a, T: ContactAddedCallback> {
     compound_obj: &'a CollisionObject,
-    compound_obj_idx: usize,
     other_obj: &'a CollisionObject,
-    other_obj_idx: usize,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
@@ -271,17 +269,13 @@ struct CompoundLeafCallback<'a, T: ContactAddedCallback> {
 impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
     pub const fn new(
         compound_obj: &'a CollisionObject,
-        compound_obj_idx: usize,
         other_obj: &'a CollisionObject,
-        other_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             compound_obj,
-            compound_obj_idx,
             other_obj,
-            other_obj_idx,
             is_swapped,
             contact_added_callback,
         }
@@ -311,7 +305,6 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         }
 
         let compound_obj_wrap = CollisionObjectWrapper {
-            index: self.compound_obj_idx,
             object: self.compound_obj,
             world_transform: new_child_world_trans,
         };
@@ -330,9 +323,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                     ConvexTriangleCallback {
                         manifold: PersistentManifold::new(
                             self.compound_obj,
-                            self.compound_obj_idx,
                             self.other_obj,
-                            self.other_obj_idx,
                             self.is_swapped,
                         ),
                         convex_obj: compound_obj_wrap,
@@ -364,7 +355,6 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                 ConvexPlaneCollisionAlgorithm::new(
                     compound_obj_wrap,
                     self.other_obj,
-                    self.other_obj_idx,
                     self.is_swapped,
                     self.contact_added_callback,
                 )
@@ -377,9 +367,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
 
 pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
     compound_obj: &'a CollisionObject,
-    compound_obj_idx: usize,
     other_obj: &'a CollisionObject,
-    other_obj_idx: usize,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
@@ -387,17 +375,13 @@ pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
 impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
     pub const fn new(
         compound_obj: &'a CollisionObject,
-        compound_obj_idx: usize,
         other_obj: &'a CollisionObject,
-        other_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             compound_obj,
-            compound_obj_idx,
             other_obj,
-            other_obj_idx,
             is_swapped,
             contact_added_callback,
         }
@@ -412,9 +396,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for CompoundCollisionAlgorithm<
     ) -> Option<PersistentManifold> {
         let mut compound_leaf_callback = CompoundLeafCallback::new(
             self.compound_obj,
-            self.compound_obj_idx,
             self.other_obj,
-            self.other_obj_idx,
             self.is_swapped,
             self.contact_added_callback,
         );
