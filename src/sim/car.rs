@@ -1,4 +1,4 @@
-use std::{cell::RefCell, f32::consts::PI, rc::Rc};
+use std::f32::consts::PI;
 
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
@@ -239,8 +239,15 @@ impl Car {
         body.collision_object.user_index = UserInfoTypes::Car;
         body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
 
-        let rigid_body_idx = body.collision_object.world_array_index;
+        let rigid_body_idx = bullet_world
+            .add_rigid_body(
+                body,
+                CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
+                CollisionFilterGroups::AllFilter as i32,
+            )
+            .unwrap();
 
+        let rb = &bullet_world.bodies()[rigid_body_idx];
         let tuning = VehicleTuning {
             suspension_stiffness: SUSPENSION_STIFFNESS,
             suspension_compression: WHEELS_DAMPING_COMPRESSION,
@@ -273,7 +280,7 @@ impl Car {
             }
 
             bullet_vehicle.add_wheel(
-                &body.collision_object,
+                &rb.collision_object,
                 wheel_ray_start_offset * UU_TO_BT,
                 wheel_direction_cs,
                 wheel_axle_cs,
@@ -289,12 +296,6 @@ impl Car {
                 SUSPENSION_FORCE_SCALE_BACK
             };
         }
-
-        bullet_world.add_rigid_body(
-            Rc::new(RefCell::new(body)),
-            CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
-            CollisionFilterGroups::AllFilter as i32,
-        );
 
         Self {
             team,
@@ -395,7 +396,7 @@ impl Car {
 
     fn update_wheels(
         &mut self,
-        rb: &mut RigidBody,
+        bodies: &mut [RigidBody],
         tick_time: f32,
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
@@ -465,10 +466,10 @@ impl Car {
         self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
         for wheel in &mut self.bullet_vehicle.wheels {
-            let Some(ground_rb_ref) = wheel.wheel_info.raycast_info.ground_object.as_ref() else {
+            let Some(ground_rb_index) = wheel.wheel_info.raycast_info.ground_object else {
                 continue;
             };
-            let ground_rb = ground_rb_ref.borrow();
+            let ground_rb = &bodies[ground_rb_index];
 
             let vel = ground_rb.linear_velocity;
             let angular_vel = ground_rb.angular_velocity;
@@ -521,6 +522,7 @@ impl Car {
             .iter()
             .any(|wheel| wheel.is_in_contact_with_world);
         if wheels_have_world_contact {
+            let rb = &mut bodies[self.rigid_body_idx];
             let upwards_dir = self.bullet_vehicle.get_upwards_dir_from_wheel_contacts(rb);
 
             let full_stick = real_throttle != 0.0 || abs_forward_speed_uu > STOPPING_FORWARD_VEL;
@@ -908,13 +910,13 @@ impl Car {
             self.bullet_vehicle.get_num_wheels() == 4 || self.bullet_vehicle.get_num_wheels() == 3
         );
 
-        {
-            let mut rb = collision_world.bodies_mut()[self.rigid_body_idx].borrow_mut();
+        let forward_speed_uu = {
+            let rb = &mut collision_world.bodies_mut()[self.rigid_body_idx];
             if self.internal_state.is_demoed {
                 self.internal_state.demo_respawn_timer =
                     (self.internal_state.demo_respawn_timer - tick_time).max(0.0);
                 if self.internal_state.demo_respawn_timer == 0.0 {
-                    self.respawn(&mut rb, game_mode, mutator_config.car_spawn_boost_amount);
+                    self.respawn(rb, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
                 rb.collision_object.activation_state_1 = DISABLE_SIMULATION;
@@ -929,7 +931,9 @@ impl Car {
             }
 
             self.controls.clamp_fix();
-        }
+
+            rb.get_forward_speed() * BT_TO_UU
+        };
 
         // Do first part of the btVehicleRL update (update wheel transforms, do traces, calculate friction impulses)
         self.bullet_vehicle
@@ -951,20 +955,24 @@ impl Car {
 
         self.internal_state.is_on_ground = num_wheels_in_contact >= 3;
 
-        let mut rb = collision_world.bodies_mut()[self.rigid_body_idx].borrow_mut();
-        let forward_speed_uu = rb.get_forward_speed() * BT_TO_UU;
-        self.update_wheels(&mut rb, tick_time, num_wheels_in_contact, forward_speed_uu);
+        self.update_wheels(
+            collision_world.bodies_mut(),
+            tick_time,
+            num_wheels_in_contact,
+            forward_speed_uu,
+        );
 
+        let rb = &mut collision_world.bodies_mut()[self.rigid_body_idx];
         if self.internal_state.is_on_ground {
             self.internal_state.is_flipping = false;
         } else {
-            self.update_air_torque(&mut rb, num_wheels_in_contact == 0);
+            self.update_air_torque(rb, num_wheels_in_contact == 0);
         }
 
-        self.update_jump(&mut rb, tick_time, mutator_config, jump_pressed);
-        self.update_auto_flip(&mut rb, tick_time, jump_pressed);
+        self.update_jump(rb, tick_time, mutator_config, jump_pressed);
+        self.update_auto_flip(rb, tick_time, jump_pressed);
         self.update_double_jump_or_flip(
-            &mut rb,
+            rb,
             tick_time,
             mutator_config,
             jump_pressed,
@@ -975,14 +983,13 @@ impl Car {
             && ((0 < num_wheels_in_contact && num_wheels_in_contact < 4)
                 || self.internal_state.world_contact_normal.is_some())
         {
-            self.update_auto_roll(&mut rb, num_wheels_in_contact);
+            self.update_auto_roll(rb, num_wheels_in_contact);
         }
 
         self.internal_state.world_contact_normal = None;
 
-        self.bullet_vehicle
-            .update_vehicle_second(&mut rb, tick_time);
-        self.update_boost(&mut rb, tick_time, mutator_config);
+        self.bullet_vehicle.update_vehicle_second(rb, tick_time);
+        self.update_boost(rb, tick_time, mutator_config);
     }
 
     pub(crate) fn post_tick_update(&mut self, tick_time: f32, rb: &RigidBody) {

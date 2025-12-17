@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use super::{
     convex_concave_collision_algorithm::ConvexConcaveCollisionAlgorithm,
     convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
@@ -219,15 +217,15 @@ impl CollisionDispatcher {
 
     pub fn near_callback<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[RigidBody],
         proxy0: &RsBroadphaseProxy,
         proxy1: &RsBroadphaseProxy,
         contact_added_callback: &mut T,
     ) {
         let rb0_idx = proxy0.broadphase_proxy.client_object_idx.unwrap();
         let rb1_idx = proxy1.broadphase_proxy.client_object_idx.unwrap();
-        let rb0 = collision_objects[rb0_idx].borrow();
-        let rb1 = collision_objects[rb1_idx].borrow();
+        let rb0 = &collision_objects[rb0_idx];
+        let rb1 = &collision_objects[rb1_idx];
 
         if !rb0.collision_object.is_active() && !rb1.collision_object.is_active()
             || !rb0.collision_object.has_contact_response()
@@ -249,7 +247,7 @@ impl CollisionDispatcher {
 
     pub fn dispatch_all_collision_pairs<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[RigidBody],
         pair_cache: &mut RsBroadphase,
         contact_added_callback: &mut T,
     ) {

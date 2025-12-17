@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{USizeVec3, Vec3A};
 
 use super::{
@@ -395,7 +393,7 @@ impl RsBroadphase {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[RigidBody],
         dispatcher: &mut CollisionDispatcher,
         contact_added_callback: &mut T,
     ) {

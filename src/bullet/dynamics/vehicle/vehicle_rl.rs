@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use arrayvec::ArrayVec;
 use glam::{Affine3A, Mat3A, Quat, Vec3A};
 
@@ -82,11 +80,10 @@ impl WheelInfoRL {
 
     fn ray_cast(
         &mut self,
-        chassis_body_idx: usize,
+        chassis: &RigidBody,
         raycaster: &VehicleRaycaster,
         collision_world: &DiscreteDynamicsWorld,
     ) {
-        let chassis = collision_world.bodies()[chassis_body_idx].borrow();
         self.update_wheel_transform_ws(chassis.collision_object.get_world_transform());
 
         let suspension_travel = self.wheel_info.max_suspension_travel_cm / 100.0;
@@ -113,14 +110,13 @@ impl WheelInfoRL {
             return;
         };
 
-        let rb = ray_results.rigid_body.borrow();
-        let co = &rb.collision_object;
+        let co = &ray_results.rigid_body.collision_object;
         self.wheel_info.raycast_info.contact_point_ws = ray_results.hit_point_in_world;
         self.wheel_info.raycast_info.contact_normal_ws = ray_results.hit_normal_in_world;
         self.wheel_info.raycast_info.is_in_contact = true;
         self.is_in_contact_with_world = co.is_static_object();
 
-        self.wheel_info.raycast_info.ground_object = Some(ray_results.rigid_body.clone());
+        self.wheel_info.raycast_info.ground_object = Some(co.world_array_index);
 
         let up = chassis
             .collision_object
@@ -169,8 +165,8 @@ impl WheelInfoRL {
                 let wheel_trace_dist_delta = wheel_trace_len_sq - ray_pushback_thresh;
 
                 let collision_result = resolve_single_collision(
-                    &chassis,
-                    &rb,
+                    chassis,
+                    ray_results.rigid_body,
                     ray_results.hit_point_in_world,
                     ray_results.hit_normal_in_world,
                     &collision_world.dynamics_world.solver_info,
@@ -182,12 +178,18 @@ impl WheelInfoRL {
         }
     }
 
-    fn calc_friction_impulses(&mut self, chassis: &RigidBody, friction_scale: f32, time_step: f32) {
-        let Some(ground_rb_ref) = self.wheel_info.raycast_info.ground_object.as_ref() else {
+    fn calc_friction_impulses(
+        &mut self,
+        chassis: &RigidBody,
+        bodies: &[RigidBody],
+        friction_scale: f32,
+        time_step: f32,
+    ) {
+        let Some(ground_rb_index) = self.wheel_info.raycast_info.ground_object else {
             self.impulse = Vec3A::ZERO;
             return;
         };
-        let ground_rb = ground_rb_ref.borrow();
+        let ground_rb = &bodies[ground_rb_index];
 
         let mut axle_dir = self.wheel_info.world_transform.matrix3.y_axis;
         let surf_normal_ws = self.wheel_info.raycast_info.contact_normal_ws;
@@ -199,7 +201,7 @@ impl WheelInfoRL {
 
         let side_impulse = resolve_single_bilateral(
             chassis,
-            &ground_rb,
+            ground_rb,
             self.wheel_info.raycast_info.contact_point_ws,
             self.wheel_info.raycast_info.contact_point_ws,
             axle_dir,
@@ -386,24 +388,14 @@ impl VehicleRL {
         self.wheels.len()
     }
 
-    pub fn update_vehicle_first(&mut self, collision_world: &mut DiscreteDynamicsWorld, step: f32) {
-        let friction_scale = collision_world.bodies_mut()[self.chassis_body_idx]
-            .borrow()
-            .get_mass()
-            / 3.0;
+    pub fn update_vehicle_first(&mut self, collision_world: &DiscreteDynamicsWorld, step: f32) {
+        let chassis = &collision_world.bodies()[self.chassis_body_idx];
 
+        let friction_scale = chassis.get_mass() / 3.0;
         for wheel in &mut self.wheels {
-            wheel.update_wheel_transform(
-                &collision_world.bodies_mut()[self.chassis_body_idx]
-                    .borrow()
-                    .collision_object,
-            );
-            wheel.ray_cast(self.chassis_body_idx, &self.raycaster, collision_world);
-            wheel.calc_friction_impulses(
-                &collision_world.bodies_mut()[self.chassis_body_idx].borrow(),
-                friction_scale,
-                step,
-            );
+            wheel.update_wheel_transform(&chassis.collision_object);
+            wheel.ray_cast(chassis, &self.raycaster, collision_world);
+            wheel.calc_friction_impulses(chassis, collision_world.bodies(), friction_scale, step);
         }
     }
 

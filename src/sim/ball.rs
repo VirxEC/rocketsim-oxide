@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{Affine3A, Mat3A, Vec3A};
 
 use super::{CollisionMasks, MutatorConfig, PhysState};
@@ -149,15 +147,15 @@ impl Ball {
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
-        let rigid_body_idx = body.collision_object.world_array_index;
-
-        bullet_world.add_rigid_body(
-            Rc::new(RefCell::new(body)),
-            CollisionFilterGroups::DefaultFilter as i32
-                | CollisionMasks::HoopsNet as i32
-                | CollisionMasks::DropshotTile as i32,
-            CollisionFilterGroups::AllFilter as i32,
-        );
+        let rigid_body_idx = bullet_world
+            .add_rigid_body(
+                body,
+                CollisionFilterGroups::DefaultFilter as i32
+                    | CollisionMasks::HoopsNet as i32
+                    | CollisionMasks::DropshotTile as i32,
+                CollisionFilterGroups::AllFilter as i32,
+            )
+            .unwrap();
 
         Self {
             internal_state: BallState::DEFAULT,

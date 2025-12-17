@@ -1,4 +1,4 @@
-use std::{array::from_fn, cell::RefCell, f32::consts::PI, mem, rc::Rc};
+use std::{array::from_fn, f32::consts::PI, mem};
 
 use ahash::AHashMap;
 use fastrand::Rng;
@@ -409,7 +409,7 @@ impl Arena {
         rb_constrution_info.friction = ARENA_COLLISION_BASE_FRICTION;
         rb_constrution_info.start_world_transform.translation = pos_bt;
 
-        let shape_rb = Rc::new(RefCell::new(RigidBody::new(rb_constrution_info)));
+        let shape_rb = RigidBody::new(rb_constrution_info);
         if (group | mask) != 0 {
             bullet_world.add_rigid_body(shape_rb, group, mask);
         } else {
@@ -536,7 +536,6 @@ impl Arena {
     #[must_use]
     pub fn is_ball_scored(&self) -> bool {
         let ball_pos = self.bullet_world.bodies()[self.objects.ball.rigid_body_idx]
-            .borrow()
             .collision_object
             .get_world_transform()
             .translation
@@ -658,7 +657,7 @@ impl Arena {
                 );
 
                 car.set_state(
-                    &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
+                    &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
                     spawn_state,
                 );
             }
@@ -679,7 +678,7 @@ impl Arena {
         }
 
         self.objects.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
             ball_state,
         );
 
@@ -699,14 +698,13 @@ impl Arena {
             config,
         );
         car.respawn(
-            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
+            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
             self.objects.game_mode,
             self.objects.mutator_config.car_spawn_boost_amount,
         );
 
         self.last_car_id += 1;
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
-            .borrow_mut()
             .collision_object
             .user_pointer = self.last_car_id;
         self.objects.cars.insert(self.last_car_id, car);
@@ -735,8 +733,7 @@ impl Arena {
 
     fn internal_step(&mut self) {
         {
-            let mut ball_rb =
-                self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut();
+            let ball_rb = &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx];
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
 
@@ -773,9 +770,9 @@ impl Arena {
             .step_simulation(self.tick_time, &mut self.objects);
 
         for car in self.objects.cars.values_mut() {
-            let mut rb = self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut();
-            car.post_tick_update(self.tick_time, &rb);
-            car.finish_physics_tick(&mut rb);
+            let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
+            car.post_tick_update(self.tick_time, rb);
+            car.finish_physics_tick(rb);
 
             if has_arena_stuff {
                 // todo: boostpad collision checks
@@ -787,7 +784,7 @@ impl Arena {
         }
 
         self.objects.ball.finish_physics_tick(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
             &self.objects.mutator_config,
         );
 
@@ -840,7 +837,7 @@ impl Arena {
     #[inline]
     pub fn set_ball(&mut self, state: BallState) {
         self.objects.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
             state,
         );
     }
@@ -869,7 +866,7 @@ impl Arena {
             .expect("No car with the given id");
 
         car.set_state(
-            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
+            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
             state,
         );
     }

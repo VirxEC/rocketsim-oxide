@@ -1,4 +1,4 @@
-use std::{cell::RefCell, mem, rc::Rc};
+use std::mem;
 
 use ahash::AHashMap;
 
@@ -102,7 +102,7 @@ impl HashedOverlappingPairCache {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
-        collision_objects: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[RigidBody],
         dispatcher: &mut CollisionDispatcher,
         handles: &[RsBroadphaseProxy],
         contact_added_callback: &mut T,

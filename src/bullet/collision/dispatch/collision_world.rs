@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::Vec3A;
 
 use super::{
@@ -151,7 +149,7 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
         }
 
         let obj_index = proxy.client_object_idx.unwrap();
-        let rb = self.world.collision_objects[proxy.client_object_idx.unwrap()].borrow();
+        let rb = &self.world.collision_objects[proxy.client_object_idx.unwrap()];
         let handle_idx = rb.collision_object.get_broadphase_handle().unwrap();
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
 
@@ -264,7 +262,7 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
 }
 
 pub struct CollisionWorld {
-    pub collision_objects: Vec<Rc<RefCell<RigidBody>>>,
+    pub collision_objects: Vec<RigidBody>,
     pub dispatcher1: CollisionDispatcher,
     pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
@@ -284,12 +282,12 @@ impl CollisionWorld {
 
     pub fn add_collision_object(
         &mut self,
-        object: Rc<RefCell<RigidBody>>,
+        mut object: RigidBody,
         filter_group: i32,
         filter_mask: i32,
     ) -> usize {
         {
-            let obj = &mut object.borrow_mut().collision_object;
+            let obj = &mut object.collision_object;
             obj.world_array_index = self.collision_objects.len();
 
             let trans = obj.get_world_transform();
@@ -316,13 +314,12 @@ impl CollisionWorld {
         const CBT: Vec3A = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
 
         let mut prev_is_static = true;
-        for (i, col_obj_ref) in self
+        for (i, rb) in self
             .collision_objects
             .iter()
             .enumerate()
             .skip(self.num_skippable_statics)
         {
-            let rb = col_obj_ref.borrow();
             let col_obj = &rb.collision_object;
             debug_assert_eq!(col_obj.world_array_index, i);
 

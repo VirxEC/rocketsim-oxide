@@ -1,8 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::{Affine3A, Vec3A};
-
-use crate::bullet::dynamics::rigid_body::RigidBody;
 
 #[derive(Clone, Copy)]
 pub struct WheelInfoConstructionInfo {
@@ -29,7 +25,7 @@ pub struct RaycastInfo {
     pub wheel_direction_ws: Vec3A,
     pub wheel_axle_ws: Vec3A,
     pub is_in_contact: bool,
-    pub ground_object: Option<Rc<RefCell<RigidBody>>>,
+    pub ground_object: Option<usize>,
 }
 
 pub struct WheelInfo {

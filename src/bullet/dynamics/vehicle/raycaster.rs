@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use glam::Vec3A;
 
 use crate::bullet::{
@@ -10,11 +8,11 @@ use crate::bullet::{
     dynamics::{discrete_dynamics_world::DiscreteDynamicsWorld, rigid_body::RigidBody},
 };
 
-pub struct VehicleRaycasterResult {
+pub struct VehicleRaycasterResult<'a> {
     pub hit_point_in_world: Vec3A,
     pub hit_normal_in_world: Vec3A,
     // pub dist_fraction: f32,
-    pub rigid_body: Rc<RefCell<RigidBody>>,
+    pub rigid_body: &'a RigidBody,
 }
 
 pub struct VehicleRaycaster {
@@ -26,13 +24,13 @@ impl VehicleRaycaster {
         Self { added_filter_mask }
     }
 
-    pub fn cast_ray(
+    pub fn cast_ray<'a>(
         &self,
-        collision_world: &DiscreteDynamicsWorld,
+        collision_world: &'a DiscreteDynamicsWorld,
         from: Vec3A,
         to: Vec3A,
         ignore_obj: &CollisionObject,
-    ) -> Option<VehicleRaycasterResult> {
+    ) -> Option<VehicleRaycasterResult<'a>> {
         let mut ray_callback = ClosestRayResultCallback::new(from, to, ignore_obj);
         ray_callback.base.collision_filter_group |= self.added_filter_mask;
         collision_world
@@ -43,14 +41,13 @@ impl VehicleRaycaster {
         if ray_callback.has_hit()
             && let Some(co_index) = ray_callback.base.collision_object_index
         {
-            let rb_ref = &collision_world
+            let rb = &collision_world
                 .dynamics_world
                 .collision_world
                 .collision_objects[co_index];
-            let rb = rb_ref.borrow();
             if rb.collision_object.has_contact_response() {
                 Some(VehicleRaycasterResult {
-                    rigid_body: rb_ref.clone(),
+                    rigid_body: rb,
                     hit_point_in_world: ray_callback.hit_point_world,
                     hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
                     // dist_fraction: ray_callback.base.closest_hit_fraction,
