@@ -138,15 +138,15 @@ fn clip_polygon_with_plane<const CAP: usize>(
 }
 
 pub struct ObbObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
-    compound_0_obj: CollisionObjectWrapper,
-    compound_1_obj: CollisionObjectWrapper,
+    compound_0_obj: CollisionObjectWrapper<'a>,
+    compound_1_obj: CollisionObjectWrapper<'a>,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> ObbObbCollisionAlgorithm<'a, T> {
     pub const fn new(
-        compound_0_obj: CollisionObjectWrapper,
-        compound_1_obj: CollisionObjectWrapper,
+        compound_0_obj: CollisionObjectWrapper<'a>,
+        compound_1_obj: CollisionObjectWrapper<'a>,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
@@ -206,7 +206,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
 
         let mut manifold = PersistentManifold::new(
             self.compound_0_obj.object,
+            self.compound_0_obj.index,
             self.compound_1_obj.object,
+            self.compound_1_obj.index,
             false,
         );
 
@@ -220,6 +222,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             let depth = (pt_on_b - pt_on_a).dot(hit.normal);
 
             manifold.add_contact_point(
+                self.compound_0_obj.object,
+                self.compound_1_obj.object,
                 normal_on_b_in_world,
                 contact_point,
                 depth,
@@ -228,7 +232,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
                 self.contact_added_callback,
             );
 
-            manifold.refresh_contact_points();
+            manifold.refresh_contact_points(self.compound_0_obj.object, self.compound_1_obj.object);
             return Some(manifold);
         }
 
@@ -261,6 +265,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             let depth = ref_normal.dot(p - ref_box.center) - ref_box.extent[axis_idx] * side_sign;
             if depth >= 0.0 {
                 manifold.add_contact_point(
+                    self.compound_0_obj.object,
+                    self.compound_1_obj.object,
                     normal_on_b_in_world,
                     p,
                     depth,
@@ -271,7 +277,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             }
         }
 
-        manifold.refresh_contact_points();
+        manifold.refresh_contact_points(self.compound_0_obj.object, self.compound_1_obj.object);
         Some(manifold)
     }
 }

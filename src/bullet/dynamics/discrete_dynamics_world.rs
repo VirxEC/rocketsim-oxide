@@ -167,30 +167,24 @@ impl DiscreteDynamicsWorld {
 
     fn calculation_simulation_islands(&self) {
         for manifold in &self.dynamics_world.collision_world.dispatcher1.manifolds {
-            let body0 = &manifold.body0;
-            let body1 = &manifold.body1;
+            let bodies = &self.dynamics_world.collision_world.collision_objects;
+            let mut body0 = bodies[manifold.body0_idx].borrow_mut();
+            let mut body1 = bodies[manifold.body1_idx].borrow_mut();
 
-            let mut body0_ref = body0.borrow_mut();
-            let mut body1_ref = body1.borrow_mut();
-
-            if body0_ref.get_activation_state() != ISLAND_SLEEPING
-                || body1_ref.get_activation_state() != ISLAND_SLEEPING
+            if body0.get_activation_state() != ISLAND_SLEEPING
+                || body1.get_activation_state() != ISLAND_SLEEPING
             {
-                if body0_ref.is_kinematic_object()
-                    && body0_ref.get_activation_state() != ISLAND_SLEEPING
-                {
-                    body1_ref.activate();
+                if body0.is_kinematic_object() && body0.get_activation_state() != ISLAND_SLEEPING {
+                    body1.activate();
                 }
 
-                if body1_ref.is_kinematic_object()
-                    && body1_ref.get_activation_state() != ISLAND_SLEEPING
-                {
-                    body0_ref.activate();
+                if body1.is_kinematic_object() && body1.get_activation_state() != ISLAND_SLEEPING {
+                    body0.activate();
                 }
 
                 debug_assert!(
-                    !body0_ref.is_static_or_kinematic_object()
-                        || !body1_ref.is_static_or_kinematic_object()
+                    !body0.is_static_or_kinematic_object()
+                        || !body1.is_static_or_kinematic_object()
                 );
             }
         }
@@ -198,6 +192,7 @@ impl DiscreteDynamicsWorld {
 
     fn solve_constraints(&mut self) {
         self.solver.solve_group(
+            &self.dynamics_world.collision_world.collision_objects,
             &self.non_static_rigid_bodies,
             &mut self.dynamics_world.collision_world.dispatcher1.manifolds,
             &self.dynamics_world.solver_info,

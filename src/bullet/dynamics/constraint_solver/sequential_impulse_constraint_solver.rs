@@ -102,17 +102,19 @@ impl SequentialImpulseConstraintSolver {
 
     pub fn solve_group(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         bodies: &[Rc<RefCell<RigidBody>>],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
     ) {
-        self.solve_group_setup(bodies, manifolds, info);
+        self.solve_group_setup(collision_objects, bodies, manifolds, info);
         self.solve_group_iterations(info);
         self.solve_group_finish(bodies, info);
     }
 
     fn solve_group_setup(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         bodies: &[Rc<RefCell<RigidBody>>],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
@@ -122,9 +124,19 @@ impl SequentialImpulseConstraintSolver {
         self.tmp_solver_body_pool.clear();
         self.tmp_solver_body_pool.reserve(manifolds.len() * 2);
 
+        for manifold in manifolds.iter() {
+            collision_objects[manifold.body0_idx]
+                .borrow_mut()
+                .companion_id = None;
+            collision_objects[manifold.body1_idx]
+                .borrow_mut()
+                .companion_id = None;
+        }
+
         for rb in bodies {
             let rb_ref = rb.borrow();
             let mut co = rb_ref.collision_object.borrow_mut();
+            co.companion_id = None;
 
             if rb_ref.inverse_mass != 0.0 || co.is_kinematic_object() {
                 if !co.is_active() {
@@ -146,12 +158,14 @@ impl SequentialImpulseConstraintSolver {
         }
 
         for manifold in manifolds.iter_mut() {
-            let mut body0 = manifold.body0.borrow_mut();
-            let mut body1 = manifold.body1.borrow_mut();
+            let mut body0 = collision_objects[manifold.body0_idx].borrow_mut();
+            let mut body1 = collision_objects[manifold.body1_idx].borrow_mut();
 
             let solver_body_id_a = self.get_or_init_solver_body(bodies, &mut body0, info.time_step);
             let solver_body_id_b = self.get_or_init_solver_body(bodies, &mut body1, info.time_step);
 
+            debug_assert!(solver_body_id_a < self.tmp_solver_body_pool.len());
+            debug_assert!(solver_body_id_b < self.tmp_solver_body_pool.len());
             debug_assert_ne!(solver_body_id_a, solver_body_id_b);
             let [solver_body_a, solver_body_b] = unsafe {
                 self.tmp_solver_body_pool
@@ -749,9 +763,9 @@ impl SequentialImpulseConstraintSolver {
             body.set_linear_velocity(solver.linear_velocity + solver.external_force_impulse);
             body.set_angular_velocity(solver.angular_velocity + solver.external_torque_impulse);
 
-            let mut co = body.collision_object.borrow_mut();
-            co.set_world_transform(solver.world_transform);
-            co.companion_id = None;
+            body.collision_object
+                .borrow_mut()
+                .set_world_transform(solver.world_transform);
         }
 
         self.tmp_solver_body_pool.clear();

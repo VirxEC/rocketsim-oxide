@@ -15,15 +15,17 @@ use crate::bullet::{
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
     is_swapped: bool,
-    convex_obj: CollisionObjectWrapper,
-    plane_obj: Rc<RefCell<CollisionObject>>,
+    convex_obj: CollisionObjectWrapper<'a>,
+    plane_obj: &'a CollisionObject,
+    plane_obj_idx: usize,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
     pub const fn new(
-        convex_obj: CollisionObjectWrapper,
-        plane_obj: Rc<RefCell<CollisionObject>>,
+        convex_obj: CollisionObjectWrapper<'a>,
+        plane_obj: &'a CollisionObject,
+        plane_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
@@ -31,6 +33,7 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
             is_swapped,
             convex_obj,
             plane_obj,
+            plane_obj_idx,
             contact_added_callback,
         }
     }
@@ -81,8 +84,13 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);
         let distance = plane_normal.dot(vtx_in_plane) - plane_constant;
 
-        let mut manifold =
-            PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);
+        let mut manifold = PersistentManifold::new(
+            self.convex_obj.object,
+            self.convex_obj.index,
+            self.plane_obj,
+            self.plane_obj_idx,
+            self.is_swapped,
+        );
         if distance >= manifold.contact_breaking_threshold {
             return None;
         }
@@ -94,6 +102,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let normal_on_surface_b = plane_obj.get_world_transform().matrix3 * plane_normal;
 
         manifold.add_contact_point(
+            self.convex_obj.object,
+            self.plane_obj,
             normal_on_surface_b,
             vtx_in_plane_world,
             distance,
@@ -102,7 +112,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
             self.contact_added_callback,
         );
 
-        manifold.refresh_contact_points();
+        manifold.refresh_contact_points(self.convex_obj.object, self.plane_obj);
         Some(manifold)
     }
 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use arrayvec::ArrayVec;
 use glam::{Vec3A, Vec4};
@@ -24,8 +24,8 @@ pub const MANIFOLD_CACHE_SIZE: usize = 4;
 pub struct PersistentManifold {
     // object_type: i32,
     pub point_cache: ArrayVec<ManifoldPoint, MANIFOLD_CACHE_SIZE>,
-    pub body0: Rc<RefCell<CollisionObject>>,
-    pub body1: Rc<RefCell<CollisionObject>>,
+    pub body0_idx: usize,
+    pub body1_idx: usize,
     pub contact_breaking_threshold: f32,
     pub contact_processing_threshold: f32,
     // pub companion_id_a: i32,
@@ -36,12 +36,13 @@ pub struct PersistentManifold {
 
 impl PersistentManifold {
     pub fn new(
-        body0_ref: Rc<RefCell<CollisionObject>>,
-        body1_ref: Rc<RefCell<CollisionObject>>,
+        body0: &CollisionObject,
+        body0_idx: usize,
+        body1: &CollisionObject,
+        body1_idx: usize,
         is_swapped: bool,
     ) -> Self {
-        let body0 = body0_ref.borrow();
-        let body1 = body1_ref.borrow();
+        debug_assert_ne!(body0_idx, body1_idx);
 
         let body0_cbt = body0
             .get_collision_shape()
@@ -56,12 +57,9 @@ impl PersistentManifold {
             .contact_processing_threshold
             .min(body1.contact_processing_threshold);
 
-        drop(body0);
-        drop(body1);
-
         Self {
-            body0: body0_ref,
-            body1: body1_ref,
+            body0_idx,
+            body1_idx,
             contact_breaking_threshold,
             contact_processing_threshold,
             // object_type: ContactManifoldTypes::PersistentManifoldType as i32,
@@ -195,8 +193,10 @@ impl PersistentManifold {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn add_contact_point<T: ContactAddedCallback>(
+    pub fn add_contact_point<'a, T: ContactAddedCallback>(
         &mut self,
+        mut body0: &'a CollisionObject,
+        mut body1: &'a CollisionObject,
         normal_on_b_in_world: Vec3A,
         point_in_world: Vec3A,
         depth: f32,
@@ -208,9 +208,6 @@ impl PersistentManifold {
             return;
         }
 
-        let body0 = self.body0.borrow();
-        let body1 = self.body1.borrow();
-
         let point_a = point_in_world + normal_on_b_in_world * depth;
         let (local_a, local_b) = (
             body0.get_world_transform().inv_x_form(point_a),
@@ -221,8 +218,8 @@ impl PersistentManifold {
         new_pt.position_world_on_a = point_a;
         new_pt.position_world_on_b = point_in_world;
 
-        new_pt.combined_friction = Self::calculate_combined_friction(&body0, &body1);
-        new_pt.combined_restitution = Self::calculate_combined_restitution(&body0, &body1);
+        new_pt.combined_friction = Self::calculate_combined_friction(body0, body1);
+        new_pt.combined_restitution = Self::calculate_combined_restitution(body0, body1);
 
         (new_pt.lateral_friction_dir_1, new_pt.lateral_friction_dir_2) =
             plane_space_2(new_pt.normal_world_on_b);
@@ -235,27 +232,19 @@ impl PersistentManifold {
             new_pt.index_1 = index_1;
         }
 
-        drop(body0);
-        drop(body1);
-
         let insert_index = self.add_manifold_point(new_pt);
 
-        let (body0, body1) = if self.is_swapped {
-            (self.body1.borrow(), self.body0.borrow())
-        } else {
-            (self.body0.borrow(), self.body1.borrow())
-        };
+        if self.is_swapped {
+            mem::swap(&mut body0, &mut body1);
+        }
 
-        contact_added_callback.callback(&mut self.point_cache[insert_index], &body0, &body1);
+        contact_added_callback.callback(&mut self.point_cache[insert_index], body0, body1);
     }
 
-    pub fn refresh_contact_points(&mut self) {
+    pub fn refresh_contact_points(&mut self, body0: &CollisionObject, body1: &CollisionObject) {
         if self.point_cache.is_empty() {
             return;
         }
-
-        let body0 = self.body0.borrow();
-        let body1 = self.body1.borrow();
 
         let tr_a = body0.get_world_transform();
         let tr_b = body1.get_world_transform();
@@ -269,9 +258,6 @@ impl PersistentManifold {
                 - manifold_point.position_world_on_b)
                 .dot(manifold_point.normal_world_on_b);
         }
-
-        drop(body0);
-        drop(body1);
 
         #[cfg(debug_assertions)]
         {

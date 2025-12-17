@@ -20,23 +20,33 @@ use crate::bullet::{
 
 struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
+    pub convex_obj: &'a CollisionObject,
+    pub tri_obj: &'a CollisionObject,
     pub aabb: &'a Aabb,
-    // is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
     pub fn new(
-        convex_obj: Rc<RefCell<CollisionObject>>,
-        tri_obj: Rc<RefCell<CollisionObject>>,
+        convex_obj: &'a CollisionObject,
+        convex_obj_idx: usize,
+        tri_obj: &'a CollisionObject,
+        tri_obj_idx: usize,
         aabb: &'a Aabb,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
-            manifold: PersistentManifold::new(convex_obj, tri_obj, is_swapped),
+            manifold: PersistentManifold::new(
+                convex_obj,
+                convex_obj_idx,
+                tri_obj,
+                tri_obj_idx,
+                is_swapped,
+            ),
+            convex_obj,
+            tri_obj,
             aabb,
-            // is_swapped,
             contact_added_callback,
         }
     }
@@ -54,14 +64,13 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         }
 
         let (center, radius) = {
-            let sphere_ref = self.manifold.body0.borrow();
-            let Some(CollisionShapes::Sphere(sphere_shape)) = sphere_ref.get_collision_shape()
+            let Some(CollisionShapes::Sphere(sphere_shape)) = self.convex_obj.get_collision_shape()
             else {
                 unreachable!()
             };
 
             (
-                sphere_ref.get_world_transform().translation,
+                self.convex_obj.get_world_transform().translation,
                 sphere_shape.get_radius(),
             )
         };
@@ -73,6 +82,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         };
 
         self.manifold.add_contact_point(
+            self.convex_obj,
+            self.tri_obj,
             contact_info.result_normal,
             contact_info.contact_point,
             contact_info.depth,
@@ -86,22 +97,28 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
 }
 
 pub struct ConvexConcaveCollisionAlgorithm<'a, T: ContactAddedCallback> {
-    convex_obj: Rc<RefCell<CollisionObject>>,
-    concave_obj: Rc<RefCell<CollisionObject>>,
+    convex_obj: &'a CollisionObject,
+    convex_obj_idx: usize,
+    concave_obj: &'a CollisionObject,
+    concave_obj_idx: usize,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> ConvexConcaveCollisionAlgorithm<'a, T> {
     pub const fn new(
-        convex_obj: Rc<RefCell<CollisionObject>>,
-        concave_obj: Rc<RefCell<CollisionObject>>,
+        convex_obj: &'a CollisionObject,
+        convex_obj_idx: usize,
+        concave_obj: &'a CollisionObject,
+        concave_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             convex_obj,
+            convex_obj_idx,
             concave_obj,
+            concave_obj_idx,
             is_swapped,
             contact_added_callback,
         }
@@ -138,7 +155,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
         let aabb = sphere_shape.get_aabb(&convex_in_triangle_space);
         let mut convex_triangle_callback = ConvexTriangleCallback::new(
             self.convex_obj,
+            self.convex_obj_idx,
             self.concave_obj,
+            self.concave_obj_idx,
             &aabb,
             self.is_swapped,
             self.contact_added_callback,
@@ -149,7 +168,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
         if convex_triangle_callback.manifold.point_cache.is_empty() {
             None
         } else {
-            convex_triangle_callback.manifold.refresh_contact_points();
+            convex_triangle_callback
+                .manifold
+                .refresh_contact_points(self.convex_obj, self.concave_obj);
             Some(convex_triangle_callback.manifold)
         }
     }

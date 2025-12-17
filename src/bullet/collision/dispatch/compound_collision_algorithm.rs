@@ -139,33 +139,13 @@ fn obb_triangle_sat(obb: &Obb, tri: &TriangleShape) -> Option<Hit> {
     })
 }
 
-pub struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
+struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
-    convex_transform: Affine3A,
+    pub convex_obj: CollisionObjectWrapper<'a>,
+    pub tri_obj: &'a CollisionObject,
     pub aabb: &'a Aabb,
-    box_shape: &'a BoxShape,
-    is_swapped: bool,
-    contact_added_callback: &'a mut T,
-}
-
-impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
-    pub fn new(
-        convex_obj: CollisionObjectWrapper,
-        tri_obj: Rc<RefCell<CollisionObject>>,
-        aabb: &'a Aabb,
-        box_shape: &'a BoxShape,
-        is_swapped: bool,
-        contact_added_callback: &'a mut T,
-    ) -> Self {
-        Self {
-            manifold: PersistentManifold::new(convex_obj.object, tri_obj, is_swapped),
-            convex_transform: convex_obj.world_transform,
-            aabb,
-            is_swapped,
-            box_shape,
-            contact_added_callback,
-        }
-    }
+    pub box_shape: &'a BoxShape,
+    pub contact_added_callback: &'a mut T,
 }
 
 impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T> {
@@ -180,8 +160,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         }
 
         let obb = Obb {
-            center: self.convex_transform.translation,
-            axis: self.convex_transform.matrix3,
+            center: self.convex_obj.world_transform.translation,
+            axis: self.convex_obj.world_transform.matrix3,
             extent: self.box_shape.get_half_extents(),
         };
 
@@ -189,7 +169,10 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             return true;
         };
 
-        let normal_on_b_in_world = self.convex_transform.transform_vector3a(hit.normal);
+        let normal_on_b_in_world = self
+            .convex_obj
+            .world_transform
+            .transform_vector3a(hit.normal);
 
         match hit.axis_index {
             0 => {
@@ -200,6 +183,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                 let closest_point = obb.center - triangle.normal * dist_to_plane;
 
                 self.manifold.add_contact_point(
+                    self.convex_obj.object,
+                    self.tri_obj,
                     normal_on_b_in_world,
                     closest_point,
                     dist_to_plane,
@@ -230,6 +215,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                 }
 
                 self.manifold.add_contact_point(
+                    self.convex_obj.object,
+                    self.tri_obj,
                     normal_on_b_in_world,
                     closest_point,
                     hit.depth,
@@ -259,6 +246,8 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                 let contact_point = (pt_on_tri + pt_on_obb) * 0.5;
 
                 self.manifold.add_contact_point(
+                    self.convex_obj.object,
+                    self.tri_obj,
                     normal_on_b_in_world,
                     contact_point,
                     hit.depth,
@@ -274,35 +263,41 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
 }
 
 struct CompoundLeafCallback<'a, T: ContactAddedCallback> {
-    compound_obj: Rc<RefCell<CollisionObject>>,
-    other_obj: Rc<RefCell<CollisionObject>>,
+    compound_obj: &'a CollisionObject,
+    compound_obj_idx: usize,
+    other_obj: &'a CollisionObject,
+    other_obj_idx: usize,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
     pub const fn new(
-        compound_obj: Rc<RefCell<CollisionObject>>,
-        other_obj: Rc<RefCell<CollisionObject>>,
+        compound_obj: &'a CollisionObject,
+        compound_obj_idx: usize,
+        other_obj: &'a CollisionObject,
+        other_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             compound_obj,
+            compound_obj_idx,
             other_obj,
+            other_obj_idx,
             is_swapped,
             contact_added_callback,
         }
     }
 
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
-        let compound_obj = self.compound_obj.borrow();
-        let Some(CollisionShapes::Compound(compound_shape)) = compound_obj.get_collision_shape()
+        let Some(CollisionShapes::Compound(compound_shape)) =
+            self.compound_obj.get_collision_shape()
         else {
             unreachable!()
         };
 
-        let org_trans = *compound_obj.get_world_transform();
+        let org_trans = *self.compound_obj.get_world_transform();
 
         let child = compound_shape.child.as_ref().unwrap();
         let child_trans = child.transform;
@@ -311,41 +306,51 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let box_shape = &child.child_shape;
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
-        let other_obj = self.other_obj.borrow();
-        let other_col_shape = other_obj.get_collision_shape().unwrap();
-        let aabb2 = other_col_shape.get_aabb(other_obj.get_world_transform());
+        let other_col_shape = self.other_obj.get_collision_shape().unwrap();
+        let aabb2 = other_col_shape.get_aabb(self.other_obj.get_world_transform());
 
         if !test_aabb_against_aabb(&aabb1, &aabb2) {
             return None;
         }
 
         let compound_obj_wrap = CollisionObjectWrapper {
-            object: self.compound_obj.clone(),
+            index: self.compound_obj_idx,
+            object: self.compound_obj,
             world_transform: new_child_world_trans,
         };
 
         match other_col_shape {
             CollisionShapes::TriangleMesh(tri_mesh) => {
-                let xform1 = other_obj.get_world_transform().transpose();
+                let xform1 = self.other_obj.get_world_transform().transpose();
                 let xform2 = new_child_world_trans;
                 let convex_in_triangle_space = Affine3A {
                     matrix3: xform1.matrix3 * xform2.matrix3,
                     translation: xform1.transform_point3a(xform2.translation),
                 };
-
                 let aabb = box_shape.get_aabb(&convex_in_triangle_space);
-                let mut convex_triangle_callback = ConvexTriangleCallback::new(
-                    compound_obj_wrap,
-                    self.other_obj.clone(),
-                    &aabb,
-                    box_shape,
-                    self.is_swapped,
-                    self.contact_added_callback,
-                );
+
+                let mut convex_triangle_callback = {
+                    ConvexTriangleCallback {
+                        manifold: PersistentManifold::new(
+                            self.compound_obj,
+                            self.compound_obj_idx,
+                            self.other_obj,
+                            self.other_obj_idx,
+                            self.is_swapped,
+                        ),
+                        convex_obj: compound_obj_wrap,
+                        tri_obj: self.other_obj,
+                        aabb: &aabb,
+                        box_shape,
+                        contact_added_callback: self.contact_added_callback,
+                    }
+                };
 
                 tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb);
 
-                convex_triangle_callback.manifold.refresh_contact_points();
+                convex_triangle_callback
+                    .manifold
+                    .refresh_contact_points(self.compound_obj, self.other_obj);
                 if convex_triangle_callback.manifold.point_cache.is_empty() {
                     None
                 } else {
@@ -354,18 +359,19 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
             }
             CollisionShapes::StaticPlane(_) => {
                 let (body0, body1) = if self.is_swapped {
-                    (self.other_obj.borrow(), self.compound_obj.borrow())
+                    (self.other_obj, self.compound_obj)
                 } else {
-                    (self.compound_obj.borrow(), self.other_obj.borrow())
+                    (self.compound_obj, self.other_obj)
                 };
 
                 ConvexPlaneCollisionAlgorithm::new(
                     compound_obj_wrap,
-                    self.other_obj.clone(),
+                    self.other_obj,
+                    self.other_obj_idx,
                     self.is_swapped,
                     self.contact_added_callback,
                 )
-                .process_collision(&body0, &body1)
+                .process_collision(body0, body1)
             }
             _ => todo!(),
         }
@@ -373,22 +379,28 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
 }
 
 pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
-    compound_obj: Rc<RefCell<CollisionObject>>,
-    other_obj: Rc<RefCell<CollisionObject>>,
+    compound_obj: &'a CollisionObject,
+    compound_obj_idx: usize,
+    other_obj: &'a CollisionObject,
+    other_obj_idx: usize,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
 impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
     pub const fn new(
-        compound_obj: Rc<RefCell<CollisionObject>>,
-        other_obj: Rc<RefCell<CollisionObject>>,
+        compound_obj: &'a CollisionObject,
+        compound_obj_idx: usize,
+        other_obj: &'a CollisionObject,
+        other_obj_idx: usize,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             compound_obj,
+            compound_obj_idx,
             other_obj,
+            other_obj_idx,
             is_swapped,
             contact_added_callback,
         }
@@ -403,7 +415,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for CompoundCollisionAlgorithm<
     ) -> Option<PersistentManifold> {
         let mut compound_leaf_callback = CompoundLeafCallback::new(
             self.compound_obj,
+            self.compound_obj_idx,
             self.other_obj,
+            self.other_obj_idx,
             self.is_swapped,
             self.contact_added_callback,
         );
