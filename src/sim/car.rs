@@ -264,7 +264,7 @@ impl Car {
 
         for i in 0..4 {
             let front = i < 2;
-            let left = i % 2 == 1;
+            let left = i % 2 != 0;
 
             let wheels = if front {
                 &config.front_wheels

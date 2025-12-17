@@ -171,15 +171,11 @@ impl RigidBody {
 
     pub fn set_linear_velocity(&mut self, lin_vel: Vec3A) {
         debug_assert!(!lin_vel.is_nan());
-
-        // self.collision_object.borrow_mut().update_revision += 1;
         self.linear_velocity = lin_vel;
     }
 
     pub fn set_angular_velocity(&mut self, ang_vel: Vec3A) {
         debug_assert!(!ang_vel.is_nan());
-
-        // self.collision_object.borrow_mut().update_revision += 1;
         self.angular_velocity = ang_vel;
     }
 

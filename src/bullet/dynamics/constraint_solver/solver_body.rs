@@ -2,7 +2,9 @@ use std::{cell::RefCell, rc::Rc};
 
 use glam::{Affine3A, Vec3A};
 
-use crate::bullet::dynamics::rigid_body::RigidBody;
+use crate::bullet::{
+    collision::dispatch::collision_object::CollisionObject, dynamics::rigid_body::RigidBody,
+};
 
 pub struct SolverBody {
     pub world_transform: Affine3A,
@@ -15,7 +17,7 @@ pub struct SolverBody {
     pub angular_velocity: Vec3A,
     pub external_force_impulse: Vec3A,
     pub external_torque_impulse: Vec3A,
-    pub original_body: Option<Rc<RefCell<RigidBody>>>,
+    pub original_body: Option<usize>,
 }
 
 impl SolverBody {
@@ -33,27 +35,19 @@ impl SolverBody {
         original_body: None,
     };
 
-    pub fn new(rb: Rc<RefCell<RigidBody>>, time_step: f32) -> Self {
-        let rb_ref = rb.borrow();
-
-        let world_transform = *rb_ref.collision_object.borrow().get_world_transform();
+    pub fn new(rb: &RigidBody, co: &CollisionObject, time_step: f32) -> Self {
         Self {
-            world_transform,
+            world_transform: *co.get_world_transform(),
             delta_linear_velocity: Vec3A::ZERO,
             delta_angular_velocity: Vec3A::ZERO,
-            inv_mass: rb_ref.inv_mass,
+            inv_mass: rb.inv_mass,
             push_velocity: Vec3A::ZERO,
             turn_velocity: Vec3A::ZERO,
-            linear_velocity: rb_ref.linear_velocity,
-            angular_velocity: rb_ref.angular_velocity,
-            external_force_impulse: rb_ref.total_force * rb_ref.inverse_mass * time_step,
-            external_torque_impulse: rb_ref.inv_inertia_tensor_world
-                * rb_ref.total_torque
-                * time_step,
-            original_body: {
-                drop(rb_ref);
-                Some(rb)
-            },
+            linear_velocity: rb.linear_velocity,
+            angular_velocity: rb.angular_velocity,
+            external_force_impulse: rb.total_force * rb.inverse_mass * time_step,
+            external_torque_impulse: rb.inv_inertia_tensor_world * rb.total_torque * time_step,
+            original_body: Some(co.get_rigid_body_world_index()),
         }
     }
 
