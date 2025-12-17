@@ -21,13 +21,9 @@ use crate::bullet::{
 pub struct SequentialImpulseConstraintSolver {
     pub tmp_solver_body_pool: Vec<SolverBody>,
     pub tmp_solver_contact_constraint_pool: Vec<SolverConstraint>,
-    // pub tmp_solver_non_contact_constraint_pool: Vec<SolverConstraint>,
     pub tmp_solver_contact_friction_constraint_pool: Vec<SolverConstraint>,
     pub fixed_body_id: Option<usize>,
-    // pub kinematic_body_unique_id_to_solver_body_table: Vec<i32>,
-    // pub cached_solver_mode: i32,
     pub least_squares_residual: f32,
-    // pub bt_seed_2: u64,
 }
 
 impl Default for SequentialImpulseConstraintSolver {
@@ -35,21 +31,9 @@ impl Default for SequentialImpulseConstraintSolver {
         Self {
             tmp_solver_body_pool: Vec::new(),
             tmp_solver_contact_constraint_pool: Vec::new(),
-            // tmp_solver_non_contact_constraint_pool: Vec::new(),
             tmp_solver_contact_friction_constraint_pool: Vec::new(),
-            // tmp_solver_contact_rolling_constraint_pool: Vec::new(),
-            // order_tmp_constraint_pool: Vec::new(),
-            // order_non_contact_constraint_pool: Vec::new(),
-            // order_friction_constraint_pool: Vec::new(),
             fixed_body_id: None,
-            // kinematic_body_unique_id_to_solver_body_table: Vec::new(),
-            // resolve_single_constraint_row_generic: Self::resolve_single_constraint_row_generic,
-            // resolve_single_constraint_row_lower_limit:
-            //     Self::resolve_single_constraint_row_lower_limit,
-            // resolve_split_penetration_impulse: Self::resolve_split_penetration_impulse,
-            // cached_solver_mode: 0,
             least_squares_residual: 0.0,
-            // bt_seed_2: 0,
         }
     }
 }
@@ -65,7 +49,7 @@ impl SequentialImpulseConstraintSolver {
 
     fn get_or_init_solver_body(
         &mut self,
-        non_static_bodies: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
         body: &mut CollisionObject,
         time_step: f32,
     ) -> usize {
@@ -74,7 +58,7 @@ impl SequentialImpulseConstraintSolver {
         }
 
         if !body.is_static_object() {
-            let rb_ref = &non_static_bodies[body.get_rigid_body_world_index()];
+            let rb_ref = &collision_objects[body.get_world_array_index()];
             let rb = rb_ref.borrow();
 
             if rb.inverse_mass != 0.0 || body.is_kinematic_object() {
@@ -102,19 +86,19 @@ impl SequentialImpulseConstraintSolver {
     pub fn solve_group(
         &mut self,
         collision_objects: &[Rc<RefCell<RigidBody>>],
-        non_static_bodies: &[Rc<RefCell<RigidBody>>],
+        non_static_bodies: &[usize],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
     ) {
         self.solve_group_setup(collision_objects, non_static_bodies, manifolds, info);
         self.solve_group_iterations(info);
-        self.solve_group_finish(non_static_bodies, info);
+        self.solve_group_finish(collision_objects, info);
     }
 
     fn solve_group_setup(
         &mut self,
         collision_objects: &[Rc<RefCell<RigidBody>>],
-        non_static_bodies: &[Rc<RefCell<RigidBody>>],
+        non_static_bodies: &[usize],
         manifolds: &mut Vec<PersistentManifold>,
         info: &ContactSolverInfo,
     ) {
@@ -134,8 +118,8 @@ impl SequentialImpulseConstraintSolver {
                 .companion_id = None;
         }
 
-        for rb_ref in non_static_bodies {
-            let mut rb = rb_ref.borrow_mut();
+        for &rb_idx in non_static_bodies {
+            let mut rb = collision_objects[rb_idx].borrow_mut();
             rb.collision_object.companion_id = None;
 
             if rb.inverse_mass != 0.0 || rb.collision_object.is_kinematic_object() {
@@ -162,12 +146,12 @@ impl SequentialImpulseConstraintSolver {
             let mut body1 = collision_objects[manifold.body1_idx].borrow_mut();
 
             let solver_body_id_a = self.get_or_init_solver_body(
-                non_static_bodies,
+                collision_objects,
                 &mut body0.collision_object,
                 info.time_step,
             );
             let solver_body_id_b = self.get_or_init_solver_body(
-                non_static_bodies,
+                collision_objects,
                 &mut body1.collision_object,
                 info.time_step,
             );
@@ -451,8 +435,8 @@ impl SequentialImpulseConstraintSolver {
 
         manifolds.clear();
 
-        for body in non_static_bodies {
-            let mut body = body.borrow_mut();
+        for &body in non_static_bodies {
+            let mut body = collision_objects[body].borrow_mut();
             if body
                 .collision_object
                 .special_resolve_info
@@ -710,14 +694,14 @@ impl SequentialImpulseConstraintSolver {
 
     fn solve_group_finish(
         &mut self,
-        non_static_bodies: &[Rc<RefCell<RigidBody>>],
+        collision_objects: &[Rc<RefCell<RigidBody>>],
         info: &ContactSolverInfo,
     ) {
         // writeBackBodies
         for solver in &mut self.tmp_solver_body_pool {
             let Some(mut body) = solver
                 .original_body
-                .map(|idx| non_static_bodies[idx].borrow_mut())
+                .map(|idx| collision_objects[idx].borrow_mut())
             else {
                 continue;
             };

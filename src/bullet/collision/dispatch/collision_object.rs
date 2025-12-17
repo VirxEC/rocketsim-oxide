@@ -74,7 +74,6 @@ pub struct CollisionObject {
     // pub island_tag_1: i32,
     pub companion_id: Option<usize>,
     world_array_index: usize,
-    rigid_body_world_index: usize,
     pub activation_state_1: i32,
     pub deactivation_time: f32,
     pub friction: f32,
@@ -114,7 +113,6 @@ impl Default for CollisionObject {
             // island_tag_1: -1,
             companion_id: None,
             world_array_index: 0,
-            rigid_body_world_index: 0,
             activation_state_1: ACTIVE_TAG,
             deactivation_time: 0.0,
             friction: 0.5,
@@ -219,15 +217,6 @@ impl CollisionObject {
 
     pub const fn set_world_array_index(&mut self, index: usize) {
         self.world_array_index = index;
-    }
-
-    #[must_use]
-    pub const fn get_rigid_body_world_index(&self) -> usize {
-        self.rigid_body_world_index
-    }
-
-    pub const fn set_rigid_body_world_index(&mut self, index: usize) {
-        self.rigid_body_world_index = index;
     }
 
     pub const fn set_broadphase_handle(&mut self, handle: usize) {

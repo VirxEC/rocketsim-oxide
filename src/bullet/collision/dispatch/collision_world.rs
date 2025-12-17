@@ -287,7 +287,7 @@ impl CollisionWorld {
         object: Rc<RefCell<RigidBody>>,
         filter_group: i32,
         filter_mask: i32,
-    ) {
+    ) -> usize {
         {
             let obj = &mut object.borrow_mut().collision_object;
             obj.set_world_array_index(self.collision_objects.len());
@@ -302,7 +302,10 @@ impl CollisionWorld {
             obj.set_broadphase_handle(proxy);
         }
 
+        let index = self.collision_objects.len();
         self.collision_objects.push(object);
+
+        index
     }
 
     fn update_aabbs(&mut self) {
