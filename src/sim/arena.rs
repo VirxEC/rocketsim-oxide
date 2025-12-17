@@ -925,4 +925,26 @@ impl Arena {
             tiles: None,
         }
     }
+
+    pub fn set_game_state(&mut self, state: GameState) {
+        assert_eq!(self.game_mode(), state.game_mode, "Game mode mismatch");
+
+        if let Some(cars) = state.cars {
+            if cars.len() != self.cars().len() {
+                panic!(
+                    "Car count mismatch: expected {}, got {}",
+                    self.cars().len(),
+                    cars.len()
+                );
+            }
+
+            for car_info in cars {
+                self.set_car_state(car_info.id, car_info.state);
+            }
+        }
+
+        self.set_ball(state.ball);
+
+        // todo: boost pads, tiles
+    }
 }
