@@ -1,10 +1,10 @@
-use std::mem;
+use std::{cell::RefCell, mem, rc::Rc};
 
 use ahash::AHashMap;
 
 use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
 use crate::bullet::collision::{
-    dispatch::collision_dispatcher::CollisionDispatcher,
+    dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
     narrowphase::persistent_manifold::ContactAddedCallback,
 };
 
@@ -99,12 +99,14 @@ impl HashedOverlappingPairCache {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         dispatcher: &mut CollisionDispatcher,
         handles: &[RsBroadphaseProxy],
         contact_added_callback: &mut T,
     ) {
         for pair in &self.overlapping_pair_array {
             dispatcher.near_callback(
+                collision_objects,
                 &handles[pair.proxy0],
                 &handles[pair.proxy1],
                 contact_added_callback,

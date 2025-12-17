@@ -251,22 +251,15 @@ impl CollisionDispatcher {
 
     pub fn near_callback<T: ContactAddedCallback>(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         proxy0: &RsBroadphaseProxy,
         proxy1: &RsBroadphaseProxy,
         contact_added_callback: &mut T,
     ) {
-        let col_obj_0 = proxy0
-            .broadphase_proxy
-            .client_object
-            .as_ref()
-            .unwrap()
-            .borrow();
-        let col_obj_1 = proxy1
-            .broadphase_proxy
-            .client_object
-            .as_ref()
-            .unwrap()
-            .borrow();
+        let col_obj_0_ref = &collision_objects[proxy0.broadphase_proxy.client_object_idx.unwrap()];
+        let col_obj_1_ref = &collision_objects[proxy1.broadphase_proxy.client_object_idx.unwrap()];
+        let col_obj_0 = col_obj_0_ref.borrow();
+        let col_obj_1 = col_obj_1_ref.borrow();
 
         if !col_obj_0.is_active() && !col_obj_1.is_active()
             || !col_obj_0.has_contact_response()
@@ -277,19 +270,9 @@ impl CollisionDispatcher {
 
         let algorithm = Self::find_algorithm(
             &col_obj_0,
-            proxy0
-                .broadphase_proxy
-                .client_object
-                .as_ref()
-                .unwrap()
-                .clone(),
+            col_obj_0_ref.clone(),
             &col_obj_1,
-            proxy1
-                .broadphase_proxy
-                .client_object
-                .as_ref()
-                .unwrap()
-                .clone(),
+            col_obj_1_ref.clone(),
             contact_added_callback,
         );
 
@@ -300,9 +283,10 @@ impl CollisionDispatcher {
 
     pub fn dispatch_all_collision_pairs<T: ContactAddedCallback>(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         pair_cache: &mut RsBroadphase,
         contact_added_callback: &mut T,
     ) {
-        pair_cache.process_all_overlapping_pairs(self, contact_added_callback);
+        pair_cache.process_all_overlapping_pairs(collision_objects, self, contact_added_callback);
     }
 }

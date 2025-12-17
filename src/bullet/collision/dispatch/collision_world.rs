@@ -61,7 +61,7 @@ pub trait RayResultCallback {
     }
     fn needs_collision(&self, proxy0: &BroadphaseProxy) -> bool {
         let base = self.get_base();
-        if base.ignore_object_world_index == proxy0.client_object_world_index {
+        if base.ignore_object_world_index == proxy0.client_object_idx {
             return false;
         }
 
@@ -150,7 +150,7 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
             return false;
         }
 
-        let co_ref = proxy.client_object.as_ref().unwrap();
+        let co_ref = &self.world.collision_objects[proxy.client_object_idx.unwrap()];
         let co = co_ref.borrow();
         let handle_idx = co.get_broadphase_handle().unwrap();
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
@@ -298,13 +298,9 @@ impl CollisionWorld {
             let trans = obj.get_world_transform();
             let aabb = obj.get_collision_shape().unwrap().get_aabb(trans);
 
-            let proxy = self.broadphase_pair_cache.create_proxy(
-                aabb,
-                &obj,
-                object.clone(),
-                filter_group,
-                filter_mask,
-            );
+            let proxy =
+                self.broadphase_pair_cache
+                    .create_proxy(aabb, &obj, filter_group, filter_mask);
 
             obj.set_broadphase_handle(proxy);
         }
@@ -372,8 +368,11 @@ impl CollisionWorld {
         self.update_aabbs();
 
         self.broadphase_pair_cache.calculate_overlapping_pairs();
-        self.dispatcher1
-            .dispatch_all_collision_pairs(&mut self.broadphase_pair_cache, contact_added_callback);
+        self.dispatcher1.dispatch_all_collision_pairs(
+            &self.collision_objects,
+            &mut self.broadphase_pair_cache,
+            contact_added_callback,
+        );
     }
 
     fn ray_test_single<T: RayResultCallback>(

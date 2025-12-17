@@ -297,7 +297,6 @@ impl RsBroadphase {
         &mut self,
         aabb: Aabb,
         co: &CollisionObject,
-        collision_object_ref: Rc<RefCell<CollisionObject>>,
         collision_filter_group: i32,
         collision_filter_mask: i32,
     ) -> usize {
@@ -313,8 +312,7 @@ impl RsBroadphase {
         let new_handle = RsBroadphaseProxy {
             broadphase_proxy: BroadphaseProxy {
                 aabb,
-                client_object_world_index: Some(world_index),
-                client_object: Some(collision_object_ref),
+                client_object_idx: Some(world_index),
                 collision_filter_group,
                 collision_filter_mask,
                 unique_id: new_handle_idx + 2,
@@ -396,10 +394,12 @@ impl RsBroadphase {
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
+        collision_objects: &[Rc<RefCell<CollisionObject>>],
         dispatcher: &mut CollisionDispatcher,
         contact_added_callback: &mut T,
     ) {
         self.pair_cache.process_all_overlapping_pairs(
+            collision_objects,
             dispatcher,
             &self.handles,
             contact_added_callback,
@@ -417,7 +417,7 @@ impl RsBroadphase {
 
         for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
             let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;
-            if other_proxy.client_object.is_some() {
+            if other_proxy.client_object_idx.is_some() {
                 ray_callback.process(other_proxy);
             }
         }
