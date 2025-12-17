@@ -308,6 +308,10 @@ impl CollisionWorld {
         index
     }
 
+    pub fn remove_collision_object(&mut self, _world_index: usize) {
+        todo!("remove_collision_object not implemented");
+    }
+
     fn update_aabbs(&mut self) {
         const CBT: Vec3A = Vec3A::splat(CONTACT_BREAKING_THRESHOLD);
 

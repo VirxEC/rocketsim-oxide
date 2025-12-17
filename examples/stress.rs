@@ -22,17 +22,17 @@ fn main() {
 
     arena.reset_to_random_kickoff();
 
-    let mut ball_state = arena.objects.ball.get_state();
+    let mut ball_state = *arena.get_ball();
     ball_state.physics.pos.z += 1000.;
     ball_state.physics.vel.z = -10.;
-    arena.objects.ball.set_state(ball_state);
+    arena.set_ball(ball_state);
 
     let mut states = Vec::new();
     for &id in &ids {
-        let car = arena.objects.cars.get_mut(&id).unwrap();
+        let car = arena.get_car_mut(id).unwrap();
         car.controls.throttle = 1.0;
 
-        let mut state = car.get_state();
+        let mut state = *car.get_state();
         state.physics.pos.z = 43.0;
         state.is_on_ground = false;
 
@@ -47,9 +47,9 @@ fn main() {
 
     let start = Instant::now();
     for _ in 0..2_000 {
-        arena.objects.ball.set_state(ball_state);
-        for (id, state) in ids.iter().zip(&states) {
-            arena.objects.cars.get_mut(id).unwrap().set_state(*state);
+        arena.set_ball(ball_state);
+        for (&id, &state) in ids.iter().zip(&states) {
+            arena.set_car_state(id, state);
         }
 
         arena.step(720);

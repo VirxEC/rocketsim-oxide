@@ -4,9 +4,7 @@ use glam::Vec3A;
 use crate::bullet::{
     collision::{
         broadphase::collision_algorithm::CollisionAlgorithm,
-        dispatch::{
-            collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
-        },
+        dispatch::collision_object_wrapper::CollisionObjectWrapper,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,
     },
@@ -158,24 +156,22 @@ impl<'a, T: ContactAddedCallback> ObbObbCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_, T> {
-    fn process_collision<'a>(
-        self,
-        compound_0_obj: &'a CollisionObject,
-        compound_1_obj: &'a CollisionObject,
-    ) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Compound(compound_0_ref)) = compound_0_obj.get_collision_shape()
+    fn process_collision<'a>(self) -> Option<PersistentManifold> {
+        let Some(CollisionShapes::Compound(compound_0_ref)) =
+            self.compound_0_obj.object.get_collision_shape()
         else {
             unreachable!();
         };
 
-        let Some(CollisionShapes::Compound(compound_1_ref)) = compound_1_obj.get_collision_shape()
+        let Some(CollisionShapes::Compound(compound_1_ref)) =
+            self.compound_1_obj.object.get_collision_shape()
         else {
             unreachable!();
         };
 
-        let org_0_trans = compound_0_obj.get_world_transform();
+        let org_0_trans = self.compound_0_obj.object.get_world_transform();
         let aabb_0 = compound_0_ref.get_aabb(org_0_trans);
-        let org_1_trans = compound_1_obj.get_world_transform();
+        let org_1_trans = self.compound_1_obj.object.get_world_transform();
         let aabb_1 = compound_1_ref.get_aabb(org_1_trans);
         if !test_aabb_against_aabb(&aabb_0, &aabb_1) {
             return None;

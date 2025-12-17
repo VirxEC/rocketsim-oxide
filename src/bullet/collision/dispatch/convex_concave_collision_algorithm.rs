@@ -110,27 +110,19 @@ impl<'a, T: ContactAddedCallback> ConvexConcaveCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgorithm<'_, T> {
-    fn process_collision(
-        self,
-        body0: &CollisionObject,
-        body1: &CollisionObject,
-    ) -> Option<PersistentManifold> {
-        let (sphere_obj, tris_obj) = if self.is_swapped {
-            (body1, body0)
-        } else {
-            (body0, body1)
-        };
-
-        let Some(CollisionShapes::Sphere(sphere_shape)) = sphere_obj.get_collision_shape() else {
+    fn process_collision(self) -> Option<PersistentManifold> {
+        let Some(CollisionShapes::Sphere(sphere_shape)) = self.convex_obj.get_collision_shape()
+        else {
             unreachable!()
         };
 
-        let Some(CollisionShapes::TriangleMesh(tri_mesh)) = tris_obj.get_collision_shape() else {
+        let Some(CollisionShapes::TriangleMesh(tri_mesh)) = self.concave_obj.get_collision_shape()
+        else {
             unreachable!()
         };
 
-        let xform1 = tris_obj.get_world_transform().transpose();
-        let xform2 = sphere_obj.get_world_transform();
+        let xform1 = self.convex_obj.get_world_transform().transpose();
+        let xform2 = self.concave_obj.get_world_transform();
         let convex_in_triangle_space = Affine3A {
             matrix3: xform1.matrix3 * xform2.matrix3,
             translation: xform1.transform_point3a(xform2.translation),

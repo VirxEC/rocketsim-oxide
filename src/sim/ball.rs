@@ -106,7 +106,7 @@ impl BallState {
 
 pub struct Ball {
     pub(crate) internal_state: BallState,
-    pub(crate) rigid_body: Rc<RefCell<RigidBody>>,
+    pub(crate) rigid_body_idx: usize,
     pub(crate) ground_stick_applied: bool,
     pub(crate) velocity_impulse_cache: Vec3A,
 }
@@ -149,10 +149,10 @@ impl Ball {
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
-        let rigid_body = Rc::new(RefCell::new(body));
+        let rigid_body_idx = body.collision_object.world_array_index;
 
         bullet_world.add_rigid_body(
-            rigid_body.clone(),
+            Rc::new(RefCell::new(body)),
             CollisionFilterGroups::DefaultFilter as i32
                 | CollisionMasks::HoopsNet as i32
                 | CollisionMasks::DropshotTile as i32,
@@ -161,29 +161,13 @@ impl Ball {
 
         Self {
             internal_state: BallState::DEFAULT,
-            rigid_body,
+            rigid_body_idx,
             ground_stick_applied: false,
             velocity_impulse_cache: Vec3A::ZERO,
         }
     }
 
-    #[must_use]
-    pub fn get_state(&self) -> BallState {
-        let mut state = self.internal_state;
-        let rb = self.rigid_body.borrow();
-        state.physics.vel = rb.linear_velocity * BT_TO_UU;
-        state.physics.ang_vel = rb.angular_velocity;
-
-        let trans = *rb.collision_object.get_world_transform();
-        state.physics.pos = trans.translation * BT_TO_UU;
-        state.physics.rot_mat = trans.matrix3;
-
-        state
-    }
-
-    pub fn set_state(&mut self, state: BallState) {
-        let mut rb = self.rigid_body.borrow_mut();
-
+    pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: BallState) {
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
             translation: state.physics.pos * UU_TO_BT,
@@ -213,9 +197,11 @@ impl Ball {
         }
     }
 
-    pub(crate) fn finish_physics_tick(&mut self, mutator_config: &MutatorConfig) {
-        let mut rb = self.rigid_body.borrow_mut();
-
+    pub(crate) fn finish_physics_tick(
+        &mut self,
+        rb: &mut RigidBody,
+        mutator_config: &MutatorConfig,
+    ) {
         if self.velocity_impulse_cache.length_squared() != 0.0 {
             rb.linear_velocity += self.velocity_impulse_cache;
             self.velocity_impulse_cache = Vec3A::ZERO;
@@ -232,6 +218,13 @@ impl Ball {
             rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
         }
 
+        self.internal_state.physics.vel = rb.linear_velocity * BT_TO_UU;
+        self.internal_state.physics.ang_vel = rb.angular_velocity;
+
+        let trans = *rb.collision_object.get_world_transform();
+        self.internal_state.physics.pos = trans.translation * BT_TO_UU;
+        self.internal_state.physics.rot_mat = trans.matrix3;
+
         self.internal_state.tick_count_since_update += 1;
     }
 
@@ -243,12 +236,10 @@ impl Ball {
         mutator_config: &MutatorConfig,
         tick_count: u64,
     ) {
-        let ball_state = self.get_state();
-
         let mut ball_hit_info = BallHitInfo {
             relative_pos_on_ball: rel_pos,
             tick_count_when_hit: tick_count,
-            ball_pos: ball_state.physics.pos,
+            ball_pos: self.internal_state.physics.pos,
             extra_hit_vel: Vec3A::ZERO,
             tick_count_when_extra_impulse_applied: 0,
         };
@@ -268,18 +259,17 @@ impl Ball {
 
         ball_hit_info.tick_count_when_extra_impulse_applied = tick_count;
 
-        let car_state = car.get_state();
-        let car_forward = car_state.physics.rot_mat.x_axis;
-        let rel_pos = ball_state.physics.pos - car_state.physics.pos;
-        let rel_vel = ball_state.physics.vel - car_state.physics.vel;
+        let car_forward = car.internal_state.physics.rot_mat.x_axis;
+        let rel_pos = self.internal_state.physics.pos - car.internal_state.physics.pos;
+        let rel_vel = self.internal_state.physics.vel - car.internal_state.physics.vel;
 
         let rel_speed = rel_vel
             .length()
             .min(consts::BALL_CAR_EXTRA_IMPULSE_MAXDELTAVEL_UU);
         if rel_speed > 0.0 {
             let extra_z_scale = game_mode == GameMode::Hoops
-                && car_state.is_on_ground
-                && car_state.physics.rot_mat.z_axis.z
+                && car.internal_state.is_on_ground
+                && car.internal_state.physics.rot_mat.z_axis.z
                     > consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
                 consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_GROUND
@@ -306,18 +296,20 @@ impl Ball {
 
         match game_mode {
             GameMode::Heatseeker => {
-                let can_increase = ball_state.hs_info.time_since_hit
+                let can_increase = self.internal_state.hs_info.time_since_hit
                     > heatseeker::MIN_SPEEDUP_INTERVAL
-                    || ball_state.hs_info.y_target_dir == 0.0;
+                    || self.internal_state.hs_info.y_target_dir == 0.0;
                 self.internal_state.hs_info.y_target_dir =
                     f32::from(car.team == Team::Blue) * 2.0 - 1.0;
 
                 if can_increase
-                    && self.internal_state.hs_info.y_target_dir != ball_state.hs_info.y_target_dir
+                    && self.internal_state.hs_info.y_target_dir
+                        != self.internal_state.hs_info.y_target_dir
                 {
                     self.internal_state.hs_info.time_since_hit = 0.0;
                     self.internal_state.hs_info.cur_target_speed = heatseeker::MAX_SPEED.min(
-                        ball_state.hs_info.cur_target_speed + heatseeker::TARGET_SPEED_INCREMENT,
+                        self.internal_state.hs_info.cur_target_speed
+                            + heatseeker::TARGET_SPEED_INCREMENT,
                     );
                 }
             }
@@ -325,8 +317,10 @@ impl Ball {
                 let accumulated_hit_force = &mut self.internal_state.ds_info.accumulated_hit_force;
                 let charge_level = &mut self.internal_state.ds_info.charge_level;
 
-                let dir_from_car = (ball_state.physics.pos - car_state.physics.pos).normalize();
-                let rel_vel_from_car = car_state.physics.vel - ball_state.physics.vel;
+                let dir_from_car =
+                    (self.internal_state.physics.pos - car.internal_state.physics.pos).normalize();
+                let rel_vel_from_car =
+                    car.internal_state.physics.vel - self.internal_state.physics.vel;
                 let vel_info_ball = dir_from_car.dot(rel_vel_from_car);
 
                 if vel_info_ball >= dropshot::MIN_CHARGE_HIT_SPEED {

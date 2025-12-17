@@ -345,21 +345,13 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                     Some(convex_triangle_callback.manifold)
                 }
             }
-            CollisionShapes::StaticPlane(_) => {
-                let (body0, body1) = if self.is_swapped {
-                    (self.other_obj, self.compound_obj)
-                } else {
-                    (self.compound_obj, self.other_obj)
-                };
-
-                ConvexPlaneCollisionAlgorithm::new(
-                    compound_obj_wrap,
-                    self.other_obj,
-                    self.is_swapped,
-                    self.contact_added_callback,
-                )
-                .process_collision(body0, body1)
-            }
+            CollisionShapes::StaticPlane(_) => ConvexPlaneCollisionAlgorithm::new(
+                compound_obj_wrap,
+                self.other_obj,
+                self.is_swapped,
+                self.contact_added_callback,
+            )
+            .process_collision(),
             _ => todo!(),
         }
     }
@@ -389,11 +381,7 @@ impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for CompoundCollisionAlgorithm<'_, T> {
-    fn process_collision(
-        self,
-        _body0: &CollisionObject,
-        _body1: &CollisionObject,
-    ) -> Option<PersistentManifold> {
+    fn process_collision(self) -> Option<PersistentManifold> {
         let mut compound_leaf_callback = CompoundLeafCallback::new(
             self.compound_obj,
             self.other_obj,

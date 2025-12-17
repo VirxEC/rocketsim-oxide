@@ -35,19 +35,9 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorithm<'_, T> {
-    fn process_collision(
-        self,
-        body0: &CollisionObject,
-        body1: &CollisionObject,
-    ) -> Option<PersistentManifold> {
-        let (convex_obj, plane_obj) = if self.is_swapped {
-            (body1, body0)
-        } else {
-            (body0, body1)
-        };
-
-        let col_shape = convex_obj.get_collision_shape().unwrap();
-        let Some(CollisionShapes::StaticPlane(plane_shape)) = plane_obj.get_collision_shape()
+    fn process_collision(self) -> Option<PersistentManifold> {
+        let col_shape = self.convex_obj.object.get_collision_shape().unwrap();
+        let Some(CollisionShapes::StaticPlane(plane_shape)) = self.plane_obj.get_collision_shape()
         else {
             unreachable!()
         };
@@ -66,11 +56,12 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let plane_constant = plane_shape.get_plane_constant();
 
         let plane_in_convex = self.convex_obj.world_transform.matrix3.transpose()
-            * plane_obj.get_world_transform().matrix3;
+            * self.plane_obj.get_world_transform().matrix3;
         let convex_in_plane_trans = Affine3A {
-            matrix3: plane_obj.get_world_transform().matrix3
+            matrix3: self.plane_obj.get_world_transform().matrix3
                 * self.convex_obj.world_transform.matrix3.transpose(),
-            translation: plane_obj
+            translation: self
+                .plane_obj
                 .get_world_transform()
                 .transform_point3a(self.convex_obj.world_transform.translation),
         };
@@ -86,10 +77,11 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         }
 
         let vtx_in_plane_projected = vtx_in_plane - distance * plane_normal;
-        let vtx_in_plane_world = plane_obj
+        let vtx_in_plane_world = self
+            .plane_obj
             .get_world_transform()
             .transform_point3a(vtx_in_plane_projected);
-        let normal_on_surface_b = plane_obj.get_world_transform().matrix3 * plane_normal;
+        let normal_on_surface_b = self.plane_obj.get_world_transform().matrix3 * plane_normal;
 
         manifold.add_contact_point(
             self.convex_obj.object,

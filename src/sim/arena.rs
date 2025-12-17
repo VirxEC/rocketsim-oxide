@@ -75,10 +75,9 @@ impl ArenaConfig {
     };
 }
 
-pub struct Objects {
-    pub ball: Ball,
-    /// Do NOT add/remove cars by adding/removing them from the hashmap.
-    pub cars: AHashMap<u64, Car>,
+struct Objects {
+    ball: Ball,
+    cars: AHashMap<u64, Car>,
     tick_count: u64,
     game_mode: GameMode,
     mutator_config: MutatorConfig,
@@ -132,22 +131,21 @@ impl Objects {
         // a car cannot collide with itself.
         let [car_1, car_2] =
             unsafe { self.cars.get_disjoint_unchecked_mut([&car_1_id, &car_2_id]) };
-        let car_1 = car_1.unwrap();
-        let car_2 = car_2.unwrap();
+        let mut car_1 = car_1.unwrap();
+        let mut car_2 = car_2.unwrap();
 
-        let mut state_1 = car_1.get_state();
-        let mut state_2 = car_2.get_state();
-
-        if state_1.is_demoed || state_2.is_demoed {
+        if car_1.internal_state.is_demoed || car_2.internal_state.is_demoed {
             return;
         }
 
         // Test collision both ways
         for is_swapped in [false, true] {
             if is_swapped {
-                mem::swap(car_1, car_2);
-                mem::swap(&mut state_1, &mut state_2);
+                mem::swap(&mut car_1, &mut car_2);
             }
+
+            let state_1 = &car_1.internal_state;
+            let state_2 = &car_2.internal_state;
 
             if let Some(car_contact) = state_1.car_contact
                 && car_contact.other_car_id == car_2_id
@@ -293,7 +291,7 @@ pub struct Arena {
     last_car_id: u64,
     config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
-    pub objects: Objects,
+    objects: Objects,
 }
 
 impl Arena {
@@ -537,10 +535,7 @@ impl Arena {
 
     #[must_use]
     pub fn is_ball_scored(&self) -> bool {
-        let ball_pos = self
-            .objects
-            .ball
-            .rigid_body
+        let ball_pos = self.bullet_world.bodies()[self.objects.ball.rigid_body_idx]
             .borrow()
             .collision_object
             .get_world_transform()
@@ -662,7 +657,10 @@ impl Arena {
                     0.0,
                 );
 
-                car.set_state(spawn_state);
+                car.set_state(
+                    &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
+                    spawn_state,
+                );
             }
         }
 
@@ -679,7 +677,11 @@ impl Arena {
             }
             _ => {}
         }
-        self.objects.ball.set_state(ball_state);
+
+        self.objects.ball.set_state(
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            ball_state,
+        );
 
         // TODO
         // Reset boost pads
@@ -697,19 +699,44 @@ impl Arena {
             config,
         );
         car.respawn(
+            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
             self.objects.game_mode,
             self.objects.mutator_config.car_spawn_boost_amount,
         );
 
         self.last_car_id += 1;
-        car.rigid_body.borrow_mut().collision_object.user_pointer = self.last_car_id;
+        self.bullet_world.bodies_mut()[car.rigid_body_idx]
+            .borrow_mut()
+            .collision_object
+            .user_pointer = self.last_car_id;
         self.objects.cars.insert(self.last_car_id, car);
         self.last_car_id
     }
 
+    pub fn remove_car(&mut self, id: u64) -> bool {
+        if let Some(car) = self.objects.cars.remove(&id) {
+            if car.rigid_body_idx < self.objects.ball.rigid_body_idx {
+                self.objects.ball.rigid_body_idx -= 1;
+            }
+
+            for other_car in self.objects.cars.values_mut() {
+                if car.rigid_body_idx < other_car.rigid_body_idx {
+                    other_car.rigid_body_idx -= 1;
+                }
+            }
+
+            self.bullet_world
+                .remove_collision_object(car.rigid_body_idx);
+            true
+        } else {
+            false
+        }
+    }
+
     fn internal_step(&mut self) {
         {
-            let mut ball_rb = self.objects.ball.rigid_body.borrow_mut();
+            let mut ball_rb =
+                self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut();
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
 
@@ -724,7 +751,7 @@ impl Arena {
 
         for car in self.objects.cars.values_mut() {
             car.pre_tick_update(
-                &self.bullet_world,
+                &mut self.bullet_world,
                 self.objects.game_mode,
                 self.tick_time,
                 &self.objects.mutator_config,
@@ -746,8 +773,9 @@ impl Arena {
             .step_simulation(self.tick_time, &mut self.objects);
 
         for car in self.objects.cars.values_mut() {
-            car.post_tick_update(self.tick_time);
-            car.finish_physics_tick();
+            let mut rb = self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut();
+            car.post_tick_update(self.tick_time, &rb);
+            car.finish_physics_tick(&mut rb);
 
             if has_arena_stuff {
                 // todo: boostpad collision checks
@@ -758,9 +786,10 @@ impl Arena {
             // todo: boostpad posttickupdate
         }
 
-        self.objects
-            .ball
-            .finish_physics_tick(&self.objects.mutator_config);
+        self.objects.ball.finish_physics_tick(
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            &self.objects.mutator_config,
+        );
 
         if self.objects.game_mode == GameMode::Dropshot {
             todo!("dropshot tile state sync")
@@ -800,5 +829,48 @@ impl Arena {
     #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
         &self.objects.boost_pads
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn get_ball(&self) -> &BallState {
+        &self.objects.ball.internal_state
+    }
+
+    #[inline]
+    pub fn set_ball(&mut self, state: BallState) {
+        self.objects.ball.set_state(
+            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx].borrow_mut(),
+            state,
+        );
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn cars(&self) -> &AHashMap<u64, Car> {
+        &self.objects.cars
+    }
+
+    #[must_use]
+    pub fn get_car(&self, car_id: u64) -> Option<&Car> {
+        self.objects.cars.get(&car_id)
+    }
+
+    #[must_use]
+    pub fn get_car_mut(&mut self, car_id: u64) -> Option<&mut Car> {
+        self.objects.cars.get_mut(&car_id)
+    }
+
+    pub fn set_car_state(&mut self, car_id: u64, state: CarState) {
+        let car = self
+            .objects
+            .cars
+            .get_mut(&car_id)
+            .expect("No car with the given id");
+
+        car.set_state(
+            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx].borrow_mut(),
+            state,
+        );
     }
 }

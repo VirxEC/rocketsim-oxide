@@ -1,5 +1,3 @@
-use std::mem;
-
 use glam::{Affine3A, Vec3A};
 
 use crate::bullet::{
@@ -38,28 +36,22 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
-    fn process_collision<'a>(
-        self,
-        mut sphere_obj: &'a CollisionObject,
-        mut compound_obj: &'a CollisionObject,
-    ) -> Option<PersistentManifold> {
-        if self.is_swapped {
-            mem::swap(&mut sphere_obj, &mut compound_obj);
-        }
-
-        let Some(CollisionShapes::Sphere(sphere_ref)) = sphere_obj.get_collision_shape() else {
-            unreachable!();
-        };
-
-        let Some(CollisionShapes::Compound(compound_shape)) = compound_obj.get_collision_shape()
+    fn process_collision<'a>(self) -> Option<PersistentManifold> {
+        let Some(CollisionShapes::Sphere(sphere_ref)) = self.sphere_obj.get_collision_shape()
         else {
             unreachable!();
         };
 
-        let sphere_trans = sphere_obj.get_world_transform();
+        let Some(CollisionShapes::Compound(compound_shape)) =
+            self.obb_obj.object.get_collision_shape()
+        else {
+            unreachable!();
+        };
+
+        let sphere_trans = self.sphere_obj.get_world_transform();
         let aabb_1 = sphere_ref.get_aabb(sphere_trans);
 
-        let org_trans = compound_obj.get_world_transform();
+        let org_trans = self.obb_obj.object.get_world_transform();
         let aabb_2 = compound_shape.get_aabb(org_trans);
 
         if !test_aabb_against_aabb(&aabb_1, &aabb_2) {

@@ -20,20 +20,20 @@ fn main() {
     let id2 = arena.add_car(Team::Blue, CarConfig::OCTANE);
     arena.reset_to_random_kickoff();
 
-    let mut ball_state = arena.objects.ball.get_state();
+    let mut ball_state = *arena.get_ball();
     ball_state.physics.pos.z += 200.;
-    arena.objects.ball.set_state(ball_state);
+    arena.set_ball(ball_state);
 
     {
-        let state = arena.objects.cars.get_mut(&id).unwrap().get_state();
+        let state = arena.get_car(id).unwrap().get_state();
 
-        let car = arena.objects.cars.get_mut(&id2).unwrap();
-        let mut state2 = car.get_state();
+        let car = arena.get_car(id2).unwrap();
+        let mut state2 = *car.get_state();
         state2.physics.pos = state.physics.pos;
         state2.physics.pos.z = 100.0;
         state2.is_on_ground = false;
 
-        car.set_state(state2);
+        arena.set_car_state(id2, state2);
     };
 
     let start = Instant::now();
@@ -43,14 +43,14 @@ fn main() {
         Instant::now().duration_since(start).as_secs_f32()
     );
 
-    let state = arena.objects.cars.get(&id).unwrap().get_state();
+    let state = arena.get_car(id).unwrap().get_state();
     println!("\npos: {}", state.physics.pos);
     println!("vel: {}", state.physics.vel);
     println!("ang_vel: {}", state.physics.ang_vel);
     println!("rot_mat: {}", state.physics.rot_mat);
     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
 
-    let state = arena.objects.cars.get(&id2).unwrap().get_state();
+    let state = arena.get_car(id2).unwrap().get_state();
     println!("\npos: {}", state.physics.pos);
     println!("vel: {}", state.physics.vel);
     println!("ang_vel: {}", state.physics.ang_vel);

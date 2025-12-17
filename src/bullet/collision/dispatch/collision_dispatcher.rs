@@ -1,7 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
 use super::{
-    collision_object::CollisionObject,
     convex_concave_collision_algorithm::ConvexConcaveCollisionAlgorithm,
     convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
 };
@@ -13,7 +12,7 @@ use crate::bullet::{
             rs_broadphase::{RsBroadphase, RsBroadphaseProxy},
         },
         dispatch::{
-            collision_object_wrapper::CollisionObjectWrapper,
+            collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
             compound_collision_algorithm::CompoundCollisionAlgorithm,
             obb_obb_collision_algorithm::ObbObbCollisionAlgorithm,
             sphere_obb_collision_algorithm::SphereObbCollisionAlgorithm,
@@ -102,17 +101,13 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for Algorithms<'_, T> {
-    fn process_collision(
-        self,
-        body0: &CollisionObject,
-        body1: &CollisionObject,
-    ) -> Option<PersistentManifold> {
+    fn process_collision(self) -> Option<PersistentManifold> {
         match self {
-            Self::ConvexPlane(alg) => alg.process_collision(body0, body1),
-            Self::ConvexConcave(alg) => alg.process_collision(body0, body1),
-            Self::SphereObb(alg) => alg.process_collision(body0, body1),
-            Self::Compound(alg) => alg.process_collision(body0, body1),
-            Self::ObbObb(alg) => alg.process_collision(body0, body1),
+            Self::ConvexPlane(alg) => alg.process_collision(),
+            Self::ConvexConcave(alg) => alg.process_collision(),
+            Self::SphereObb(alg) => alg.process_collision(),
+            Self::Compound(alg) => alg.process_collision(),
+            Self::ObbObb(alg) => alg.process_collision(),
         }
     }
 }
@@ -247,9 +242,7 @@ impl CollisionDispatcher {
             contact_added_callback,
         );
 
-        if let Some(manifold) =
-            algorithm.process_collision(&rb0.collision_object, &rb1.collision_object)
-        {
+        if let Some(manifold) = algorithm.process_collision() {
             self.manifolds.push(manifold);
         }
     }
