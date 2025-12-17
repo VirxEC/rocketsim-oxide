@@ -313,4 +313,16 @@ impl RigidBody {
 
         self.inverse_mass + normal.dot(vec)
     }
+
+    pub const fn get_up_vector(&self) -> Vec3A {
+        self.collision_object.get_world_transform().matrix3.z_axis
+    }
+
+    pub const fn get_forward_vector(&self) -> Vec3A {
+        self.collision_object.get_world_transform().matrix3.x_axis
+    }
+
+    pub fn get_forward_speed(&self) -> f32 {
+        self.linear_velocity.dot(self.get_forward_vector())
+    }
 }

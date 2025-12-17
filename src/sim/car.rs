@@ -240,13 +240,6 @@ impl Car {
         body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
 
         let rigid_body_idx = body.collision_object.world_array_index;
-        let rigid_body = Rc::new(RefCell::new(body));
-
-        bullet_world.add_rigid_body(
-            rigid_body.clone(),
-            CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
-            CollisionFilterGroups::AllFilter as i32,
-        );
 
         let tuning = VehicleTuning {
             suspension_stiffness: SUSPENSION_STIFFNESS,
@@ -256,7 +249,7 @@ impl Car {
             // max_suspension_force: f32::MAX,
         };
         let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32) };
-        let mut bullet_vehicle = VehicleRL::new(rigid_body, raycaster);
+        let mut bullet_vehicle = VehicleRL::new(rigid_body_idx, raycaster);
 
         let wheel_direction_cs = Vec3A::new(0.0, 0.0, -1.0);
         let wheel_axle_cs = Vec3A::new(0.0, -1.0, 0.0);
@@ -280,6 +273,7 @@ impl Car {
             }
 
             bullet_vehicle.add_wheel(
+                &body.collision_object,
                 wheel_ray_start_offset * UU_TO_BT,
                 wheel_direction_cs,
                 wheel_axle_cs,
@@ -295,6 +289,12 @@ impl Car {
                 SUSPENSION_FORCE_SCALE_BACK
             };
         }
+
+        bullet_world.add_rigid_body(
+            Rc::new(RefCell::new(body)),
+            CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
+            CollisionFilterGroups::AllFilter as i32,
+        );
 
         Self {
             team,
@@ -521,7 +521,7 @@ impl Car {
             .iter()
             .any(|wheel| wheel.is_in_contact_with_world);
         if wheels_have_world_contact {
-            let upwards_dir = self.bullet_vehicle.get_upwards_dir_from_wheel_contacts();
+            let upwards_dir = self.bullet_vehicle.get_upwards_dir_from_wheel_contacts(rb);
 
             let full_stick = real_throttle != 0.0 || abs_forward_speed_uu > STOPPING_FORWARD_VEL;
             let mut sticky_force_scale = f32::from(!self.config.three_wheels) * 0.5;
@@ -828,7 +828,7 @@ impl Car {
 
     fn update_auto_roll(&self, rb: &mut RigidBody, num_wheels_in_contact: u8) {
         let ground_up_dir = if num_wheels_in_contact > 0 {
-            self.bullet_vehicle.get_upwards_dir_from_wheel_contacts()
+            self.bullet_vehicle.get_upwards_dir_from_wheel_contacts(rb)
         } else {
             self.internal_state.world_contact_normal.unwrap()
         };
@@ -952,7 +952,7 @@ impl Car {
         self.internal_state.is_on_ground = num_wheels_in_contact >= 3;
 
         let mut rb = collision_world.bodies_mut()[self.rigid_body_idx].borrow_mut();
-        let forward_speed_uu = self.bullet_vehicle.get_forward_speed() * BT_TO_UU;
+        let forward_speed_uu = rb.get_forward_speed() * BT_TO_UU;
         self.update_wheels(&mut rb, tick_time, num_wheels_in_contact, forward_speed_uu);
 
         if self.internal_state.is_on_ground {
@@ -980,7 +980,8 @@ impl Car {
 
         self.internal_state.world_contact_normal = None;
 
-        self.bullet_vehicle.update_vehicle_second(tick_time);
+        self.bullet_vehicle
+            .update_vehicle_second(&mut rb, tick_time);
         self.update_boost(&mut rb, tick_time, mutator_config);
     }
 

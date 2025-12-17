@@ -82,10 +82,11 @@ impl WheelInfoRL {
 
     fn ray_cast(
         &mut self,
-        chassis: &RigidBody,
+        chassis_body_idx: usize,
         raycaster: &VehicleRaycaster,
         collision_world: &DiscreteDynamicsWorld,
     ) {
+        let chassis = collision_world.bodies()[chassis_body_idx].borrow();
         self.update_wheel_transform_ws(chassis.collision_object.get_world_transform());
 
         let suspension_travel = self.wheel_info.max_suspension_travel_cm / 100.0;
@@ -168,7 +169,7 @@ impl WheelInfoRL {
                 let wheel_trace_dist_delta = wheel_trace_len_sq - ray_pushback_thresh;
 
                 let collision_result = resolve_single_collision(
-                    chassis,
+                    &chassis,
                     &rb,
                     ray_results.hit_point_in_world,
                     ray_results.hit_normal_in_world,
@@ -315,15 +316,15 @@ pub struct VehicleRL {
     raycaster: VehicleRaycaster,
     // pitch_control: f32,
     // steering_value: f32,
-    chassis_body: Rc<RefCell<RigidBody>>,
+    chassis_body_idx: usize,
     pub wheels: ArrayVec<WheelInfoRL, NUM_WHEELS>,
 }
 
 impl VehicleRL {
-    pub fn new(chassis_body: Rc<RefCell<RigidBody>>, raycaster: VehicleRaycaster) -> Self {
+    pub fn new(chassis_body_idx: usize, raycaster: VehicleRaycaster) -> Self {
         Self {
             raycaster,
-            chassis_body,
+            chassis_body_idx,
             // forward_ws: Vec::new(),
             // axle: Vec::new(),
             // forward_impulse: Vec::new(),
@@ -334,32 +335,7 @@ impl VehicleRL {
         }
     }
 
-    pub fn get_up_vector(&self) -> Vec3A {
-        self.chassis_body
-            .borrow()
-            .collision_object
-            .get_world_transform()
-            .matrix3
-            .z_axis
-    }
-
-    pub fn get_forward_vector(&self) -> Vec3A {
-        self.chassis_body
-            .borrow()
-            .collision_object
-            .get_world_transform()
-            .matrix3
-            .x_axis
-    }
-
-    pub fn get_forward_speed(&self) -> f32 {
-        self.chassis_body
-            .borrow()
-            .linear_velocity
-            .dot(self.get_forward_vector())
-    }
-
-    pub fn get_upwards_dir_from_wheel_contacts(&self) -> Vec3A {
+    pub fn get_upwards_dir_from_wheel_contacts(&self, cb: &RigidBody) -> Vec3A {
         let mut sum_contact_dir = Vec3A::ZERO;
         for wheel in &self.wheels {
             if wheel.wheel_info.raycast_info.is_in_contact {
@@ -368,7 +344,7 @@ impl VehicleRL {
         }
 
         if sum_contact_dir == Vec3A::ZERO {
-            self.get_up_vector()
+            cb.get_up_vector()
         } else {
             sum_contact_dir.normalize_or_zero()
         }
@@ -377,6 +353,7 @@ impl VehicleRL {
     #[allow(clippy::too_many_arguments)]
     pub fn add_wheel(
         &mut self,
+        cb_co: &CollisionObject,
         connection_point_cs: Vec3A,
         wheel_direction_cs0: Vec3A,
         wheel_axle_cs: Vec3A,
@@ -401,7 +378,7 @@ impl VehicleRL {
         };
 
         let mut wheel = WheelInfoRL::new(ci);
-        wheel.update_wheel_transform(&self.chassis_body.borrow().collision_object);
+        wheel.update_wheel_transform(cb_co);
         self.wheels.push(wheel);
     }
 
@@ -409,27 +386,35 @@ impl VehicleRL {
         self.wheels.len()
     }
 
-    pub fn update_vehicle_first(&mut self, collision_world: &DiscreteDynamicsWorld, step: f32) {
-        let cb = self.chassis_body.borrow();
+    pub fn update_vehicle_first(&mut self, collision_world: &mut DiscreteDynamicsWorld, step: f32) {
+        let friction_scale = collision_world.bodies_mut()[self.chassis_body_idx]
+            .borrow()
+            .get_mass()
+            / 3.0;
 
-        let friction_scale = cb.get_mass() / 3.0;
         for wheel in &mut self.wheels {
-            wheel.update_wheel_transform(&cb.collision_object);
-            wheel.ray_cast(&cb, &self.raycaster, collision_world);
-            wheel.calc_friction_impulses(&cb, friction_scale, step);
+            wheel.update_wheel_transform(
+                &collision_world.bodies_mut()[self.chassis_body_idx]
+                    .borrow()
+                    .collision_object,
+            );
+            wheel.ray_cast(self.chassis_body_idx, &self.raycaster, collision_world);
+            wheel.calc_friction_impulses(
+                &collision_world.bodies_mut()[self.chassis_body_idx].borrow(),
+                friction_scale,
+                step,
+            );
         }
     }
 
-    pub fn update_vehicle_second(&mut self, step: f32) {
-        let mut cb = self.chassis_body.borrow_mut();
-
+    pub fn update_vehicle_second(&mut self, cb: &mut RigidBody, step: f32) {
         for wheel in &mut self.wheels {
-            wheel.update_suspension(&mut cb, step);
+            wheel.update_suspension(cb, step);
         }
 
         // note: all suspension MUST be updated before impulses are applied
         for wheel in &mut self.wheels {
-            wheel.apply_friction_impulses(&mut cb, step);
+            wheel.apply_friction_impulses(cb, step);
         }
     }
 }
