@@ -870,4 +870,18 @@ impl Arena {
             state,
         );
     }
+    
+    pub fn respawn_car(&mut self, car_id: u64) {
+        let car = self
+            .objects
+            .cars
+            .get_mut(&car_id)
+            .expect("No car with the given id");
+
+        car.respawn(
+            &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
+            self.objects.game_mode,
+            self.objects.mutator_config.car_spawn_boost_amount,
+        );
+    }
 }
