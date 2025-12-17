@@ -1,5 +1,6 @@
-use glam::Vec3A;
 use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
+
+use glam::Vec3A;
 
 pub const GRAVITY_Z: f32 = -650.;
 pub const ARENA_EXTENT_X: f32 = 4096.;
@@ -117,10 +118,11 @@ pub const BUMP_MIN_FORWARD_DIST: f32 = 64.5;
 pub const DEMO_RESPAWN_TIME: f32 = 3.;
 pub const CAR_AIR_CONTROL_TORQUE: Vec3A = Vec3A::new(130., 95., 400.);
 pub const CAR_AIR_CONTROL_DAMPING: Vec3A = Vec3A::new(30., 20., 50.);
-pub const CAR_SPAWN_LOCATION_AMOUNT: i32 = 5;
-pub const CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER: i32 = 4;
-pub const CAR_RESPAWN_LOCATION_AMOUNT: i32 = 4;
+pub const CAR_SPAWN_LOCATION_AMOUNT: usize = 5;
+pub const CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER: usize = 4;
+pub const CAR_RESPAWN_LOCATION_AMOUNT: usize = 4;
 
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CarSpawnPos {
     pub x: f32,
     pub y: f32,
@@ -135,139 +137,154 @@ impl CarSpawnPos {
     }
 }
 
-pub const CAR_SPAWN_LOCATIONS_SOCCAR: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-2560., -2560., FRAC_PI_4 * 1.),
-    CarSpawnPos::new(-2560., -2560., FRAC_PI_4 * 3.),
-    CarSpawnPos::new(-3840., -3840., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-3840., -3840., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-4608., -4608., FRAC_PI_4 * 2.),
+pub const CAR_SPAWN_LOCATIONS_SOCCAR: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-2048., -2560., FRAC_PI_4 * 1.),
+    CarSpawnPos::new(2048., -2560., FRAC_PI_4 * 3.),
+    CarSpawnPos::new(-256., -3840., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(256., -3840., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(0., -4608., FRAC_PI_4 * 2.),
 ];
-pub const CAR_SPAWN_LOCATIONS_HOOPS: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-2816., -2816., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-2816., -2816., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-3200., -3200., FRAC_PI_4 * 2.),
+pub const CAR_SPAWN_LOCATIONS_HOOPS: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-1536., -3072., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(1536., -3072., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(-256., -2816., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(256., -2816., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(0., -3200., FRAC_PI_4 * 2.),
 ];
-pub const CAR_SPAWN_LOCATIONS_DROPSHOT: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-2380., -2380., FRAC_PI_4 * 1.),
-    CarSpawnPos::new(-2380., -2380., FRAC_PI_4 * 3.),
-    CarSpawnPos::new(-3576., -3576., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-3576., -3576., FRAC_PI_4 * 2.),
-    CarSpawnPos::new(-4088., -4088., FRAC_PI_4 * 2.),
+pub const CAR_SPAWN_LOCATIONS_DROPSHOT: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-1867., -2380., FRAC_PI_4 * 1.),
+    CarSpawnPos::new(1867., -2380., FRAC_PI_4 * 3.),
+    CarSpawnPos::new(-256., -3576., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(256., -3576., FRAC_PI_4 * 2.),
+    CarSpawnPos::new(0., -4088., FRAC_PI_4 * 2.),
 ];
-pub const CAR_SPAWN_LOCATIONS_HEATSEEKER: [CarSpawnPos;
-    CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER as usize] = [
-    CarSpawnPos::new(-4620., -4620., FRAC_PI_2),
-    CarSpawnPos::new(-4620., -4620., FRAC_PI_2),
-    CarSpawnPos::new(-4620., -4620., FRAC_PI_2),
-    CarSpawnPos::new(-4620., -4620., FRAC_PI_2),
+pub const CAR_SPAWN_LOCATIONS_HEATSEEKER: [CarSpawnPos; CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER] = [
+    CarSpawnPos::new(-1000., -4620., FRAC_PI_2),
+    CarSpawnPos::new(1000., -4620., FRAC_PI_2),
+    CarSpawnPos::new(-2000., -4620., FRAC_PI_2),
+    CarSpawnPos::new(2000., -4620., FRAC_PI_2),
 ];
-pub const CAR_RESPAWN_LOCATIONS_SOCCAR: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-4608., -4608., FRAC_PI_2),
-    CarSpawnPos::new(-4608., -4608., FRAC_PI_2),
-    CarSpawnPos::new(-4608., -4608., FRAC_PI_2),
-    CarSpawnPos::new(-4608., -4608., FRAC_PI_2),
+pub const CAR_RESPAWN_LOCATIONS_SOCCAR: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-2304., -4608., FRAC_PI_2),
+    CarSpawnPos::new(-2688., -4608., FRAC_PI_2),
+    CarSpawnPos::new(2304., -4608., FRAC_PI_2),
+    CarSpawnPos::new(2688., -4608., FRAC_PI_2),
 ];
-pub const CAR_RESPAWN_LOCATIONS_HOOPS: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_2),
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_2),
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_2),
-    CarSpawnPos::new(-3072., -3072., FRAC_PI_2),
+pub const CAR_RESPAWN_LOCATIONS_HOOPS: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-1920., -3072., FRAC_PI_2),
+    CarSpawnPos::new(-1152., -3072., FRAC_PI_2),
+    CarSpawnPos::new(1920., -3072., FRAC_PI_2),
+    CarSpawnPos::new(1152., -3072., FRAC_PI_2),
 ];
-pub const CAR_RESPAWN_LOCATIONS_DROPSHOT: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT as usize] = [
-    CarSpawnPos::new(-3410., -3410., FRAC_PI_2),
-    CarSpawnPos::new(-3100., -3100., FRAC_PI_2),
-    CarSpawnPos::new(-3410., -3410., FRAC_PI_2),
-    CarSpawnPos::new(-3100., -3100., FRAC_PI_2),
+pub const CAR_RESPAWN_LOCATIONS_DROPSHOT: [CarSpawnPos; CAR_RESPAWN_LOCATION_AMOUNT] = [
+    CarSpawnPos::new(-2176., -3410., FRAC_PI_2),
+    CarSpawnPos::new(-1152., -3100., FRAC_PI_2),
+    CarSpawnPos::new(2176., -3410., FRAC_PI_2),
+    CarSpawnPos::new(1152., -3100., FRAC_PI_2),
 ];
 
+#[derive(Clone, Copy, Debug)]
+struct LinearPiece {
+    pub base_x: f32,
+    pub base_y: f32,
+    pub max_x: f32,
+    pub max_y: f32,
+    pub x_diff: f32,
+    pub y_diff: f32,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct LinearPieceCurve<const N: usize> {
-    pub value_mappings: [(f32, f32); N],
+    curve: [LinearPiece; N],
 }
 
 impl<const N: usize> LinearPieceCurve<N> {
+    /// A mapping of `(x, y)` pairs that make up the continuous linear piecewise function
+    #[must_use]
+    pub const fn new(value_mappings: [(f32, f32); N]) -> Self {
+        let mut curve = [LinearPiece {
+            base_x: 0.0,
+            base_y: 0.0,
+            max_x: 0.0,
+            max_y: 0.0,
+            x_diff: 0.0,
+            y_diff: 0.0,
+        }; N];
+
+        curve[0].max_x = value_mappings[0].0;
+        curve[0].max_y = value_mappings[0].1;
+
+        let mut i = 1;
+        while i < N {
+            let prev = &value_mappings[i - 1];
+            let this = &value_mappings[i];
+
+            curve[i].base_x = prev.0;
+            curve[i].base_y = prev.1;
+            curve[i].max_x = this.0;
+            curve[i].max_y = this.1;
+            curve[i].x_diff = this.0 - prev.0;
+            curve[i].y_diff = this.1 - prev.1;
+
+            i += 1;
+        }
+
+        Self { curve }
+    }
+
     /// Returns the output of the curve
     ///
     /// # Arguments
     ///
     /// * `input` - The input to the curve
-    /// * `default_output` - The default output if N is 0
     #[must_use]
-    pub fn get_output(&self, input: f32, default_output: Option<f32>) -> f32 {
-        if N == 0 {
-            return default_output.unwrap_or(1.);
+    pub fn get_output(&self, input: f32) -> f32 {
+        debug_assert!(N != 0);
+
+        let first_val_pair = self.curve[0];
+        if input <= first_val_pair.max_x {
+            return first_val_pair.max_y;
         }
 
-        let first_val_pair = self.value_mappings[0];
+        let Some(pair) = self.curve.iter().skip(1).find(|pair| pair.max_x > input) else {
+            return self.curve[N - 1].max_y;
+        };
 
-        if input <= first_val_pair.0 {
-            return first_val_pair.1;
-        }
-
-        for i in 1..N {
-            let after_pair = self.value_mappings[i];
-            let before_pair = self.value_mappings[i - 1];
-
-            if after_pair.0 > input {
-                let range_between = after_pair.0 - before_pair.0;
-                let val_diff_between = after_pair.1 - before_pair.1;
-                let linear_interp_factor = (input - before_pair.0) / range_between;
-                return val_diff_between.mul_add(linear_interp_factor, before_pair.1);
-            }
-        }
-
-        self.value_mappings[N - 1].1
+        let linear_interp_factor = (input - pair.base_x) / pair.x_diff;
+        pair.y_diff * linear_interp_factor + pair.base_y
     }
 }
 
-pub const STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<6> = LinearPieceCurve {
-    value_mappings: [
-        (0., 0.53356),
-        (500., 0.31930),
-        (1000., 0.18203),
-        (1500., 0.10570),
-        (1750., 0.08507),
-        (3000., 0.03454),
-    ],
-};
-pub const STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.342473), (2300., 0.034837)],
-};
-pub const POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.39235), (2500., 0.12610)],
-};
-pub const DRIVE_SPEED_TORQUE_FACTOR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., 1.0), (1400., 0.1), (1410., 0.0)],
-};
-pub const NON_STICKY_FRICTION_FACTOR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., 0.1), (0.7075, 0.5), (1., 1.0)],
-};
-pub const LAT_FRICTION_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 1.0), (1., 0.2)],
-};
-pub const LAT_FRICTION_CURVE_THREEWHEEL: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.30), (1., 0.25)],
-};
-pub const LONG_FRICTION_CURVE: LinearPieceCurve<0> = LinearPieceCurve { value_mappings: [] };
-pub const HANDBRAKE_LAT_FRICTION_FACTOR_CURVE: LinearPieceCurve<1> = LinearPieceCurve {
-    value_mappings: [(0., 0.1)],
-};
-pub const HANDBRAKE_LONG_FRICTION_FACTOR_CURVE: LinearPieceCurve<2> = LinearPieceCurve {
-    value_mappings: [(0., 0.5), (1., 0.9)],
-};
-pub const BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE: LinearPieceCurve<4> = LinearPieceCurve {
-    value_mappings: [(0., 0.65), (500., 0.65), (2300., 0.55), (4600., 0.30)],
-};
-pub const BUMP_VEL_AMOUNT_GROUND_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (5. / 6.)), (1400., 1100.), (2200., 1530.)],
-};
-pub const BUMP_VEL_AMOUNT_AIR_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (5. / 6.)), (1400., 1390.), (2200., 1945.)],
-};
-pub const BUMP_UPWARD_VEL_AMOUNT_CURVE: LinearPieceCurve<3> = LinearPieceCurve {
-    value_mappings: [(0., (2. / 6.)), (1400., 278.), (2200., 417.)],
-};
+pub const STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<6> = LinearPieceCurve::new([
+    (0., 0.53356),
+    (500., 0.31930),
+    (1000., 0.18203),
+    (1500., 0.10570),
+    (1750., 0.08507),
+    (3000., 0.03454),
+]);
+pub const STEER_ANGLE_FROM_SPEED_CURVE_THREEWHEEL: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.342_473), (2300., 0.034_837)]);
+pub const POWERSLIDE_STEER_ANGLE_FROM_SPEED_CURVE: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.39235), (2500., 0.12610)]);
+pub const DRIVE_SPEED_TORQUE_FACTOR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., 1.0), (1400., 0.1), (1410., 0.0)]);
+pub const NON_STICKY_FRICTION_FACTOR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., 0.1), (0.7075, 0.5), (1., 1.0)]);
+pub const LAT_FRICTION_CURVE: LinearPieceCurve<2> = LinearPieceCurve::new([(0., 1.0), (1., 0.2)]);
+pub const LAT_FRICTION_CURVE_THREEWHEEL: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.30), (1., 0.25)]);
+pub const HANDBRAKE_LAT_FRICTION_FACTOR_CURVE: f32 = 0.9;
+pub const HANDBRAKE_LONG_FRICTION_FACTOR_CURVE: LinearPieceCurve<2> =
+    LinearPieceCurve::new([(0., 0.5), (1., 0.9)]);
+pub const BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE: LinearPieceCurve<4> =
+    LinearPieceCurve::new([(0., 0.65), (500., 0.65), (2300., 0.55), (4600., 0.30)]);
+pub const BUMP_VEL_AMOUNT_GROUND_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (5. / 6.)), (1400., 1100.), (2200., 1530.)]);
+pub const BUMP_VEL_AMOUNT_AIR_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (5. / 6.)), (1400., 1390.), (2200., 1945.)]);
+pub const BUMP_UPWARD_VEL_AMOUNT_CURVE: LinearPieceCurve<3> =
+    LinearPieceCurve::new([(0., (2. / 6.)), (1400., 278.), (2200., 417.)]);
 
 pub mod btvehicle {
     pub const SUSPENSION_FORCE_SCALE_FRONT: f32 = 36. - (1. / 4.);
@@ -281,8 +298,9 @@ pub mod btvehicle {
 }
 
 pub mod heatseeker {
-    use glam::Vec3A;
     use std::f32::consts::PI;
+
+    use glam::Vec3A;
 
     /// Initial target speed from kickoff (goes to 2985 after the first touch)
     pub const INITIAL_TARGET_SPEED: f32 = 2900.;
@@ -331,7 +349,7 @@ pub mod snowday {
 pub mod dropshot {
     use glam::Vec3A;
 
-    const BT_TO_UU: f32 = 50.0;
+    use crate::BT_TO_UU;
 
     pub const BALL_LAUNCH_Z_VEL: f32 = 985.;
     pub const BALL_LAUNCH_DELAY: f32 = 0.26;

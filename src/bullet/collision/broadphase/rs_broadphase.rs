@@ -1,18 +1,21 @@
+use glam::{USizeVec3, Vec3A};
+
 use super::{
     broadphase_proxy::BroadphaseProxy, overlapping_pair_cache::HashedOverlappingPairCache,
 };
 use crate::bullet::{
     collision::{
+        broadphase::broadphase_proxy::BroadphaseAabbCallback,
         dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
+        narrowphase::persistent_manifold::ContactAddedCallback,
         shapes::{
             collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::aabb_util_2::test_aabb_against_aabb,
+    dynamics::rigid_body::RigidBody,
+    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
-use glam::{USizeVec3, Vec3A};
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone, Default)]
 pub struct RsBroadphaseProxy {
@@ -20,7 +23,6 @@ pub struct RsBroadphaseProxy {
     pub(crate) is_static: bool,
     pub(crate) cell_idx: usize,
     pub(crate) indices: USizeVec3,
-    pub(crate) next_free: usize,
 }
 
 #[derive(Clone)]
@@ -73,9 +75,7 @@ impl TriangleCallback for BoolHitTriangleCallback {
     fn process_triangle(
         &mut self,
         _triangle: &TriangleShape,
-        _tri_aabb_min: Vec3A,
-        _tri_aabb_max: Vec3A,
-        _part_id: usize,
+        _tri_aabb: &Aabb,
         _triangle_index: usize,
     ) -> bool {
         self.hit = true;
@@ -84,96 +84,17 @@ impl TriangleCallback for BoolHitTriangleCallback {
     }
 }
 
-pub struct RsBroadphase {
-    num_handles: usize,
-    max_handles: usize,
-    last_handle_index: usize,
+struct CellGrid {
     max_pos: Vec3A,
     min_pos: Vec3A,
     cell_size: f32,
     cell_size_sq: f32,
     num_cells: USizeVec3,
-    total_cells: usize,
     num_dyn_proxies: u32,
-    total_static_pairs: u32,
-    total_dyn_pairs: u32,
-    total_real_pairs: u32,
-    total_iters: u32,
     cells: Vec<Cell>,
-    handles: Vec<RsBroadphaseProxy>,
-    first_free_handle: usize,
-    pair_cache: HashedOverlappingPairCache,
 }
 
-impl RsBroadphase {
-    #[must_use]
-    pub fn new(
-        min_pos: Vec3A,
-        max_pos: Vec3A,
-        cell_size: f32,
-        pair_cache: HashedOverlappingPairCache,
-        max_handles: usize,
-    ) -> Self {
-        debug_assert!(min_pos.cmple(max_pos).all(), "Invalid min/max pos");
-
-        let mut handles: Vec<_> = (0..max_handles)
-            .map(|i| RsBroadphaseProxy {
-                broadphase_proxy: BroadphaseProxy {
-                    unique_id: i as u32 + 2,
-                    ..Default::default()
-                },
-                next_free: i + 1,
-                ..Default::default()
-            })
-            .collect();
-
-        handles.last_mut().unwrap().next_free = 0;
-
-        let range = max_pos - min_pos;
-        let num_cells = (range / cell_size)
-            .ceil()
-            .as_usizevec3()
-            .max(USizeVec3::ONE);
-        let total_cells = num_cells.element_product();
-
-        let cells = vec![Cell::default(); total_cells];
-
-        Self {
-            num_handles: 0,
-            max_handles,
-            last_handle_index: 0,
-            max_pos,
-            min_pos,
-            cell_size,
-            cell_size_sq: cell_size * cell_size,
-            num_cells,
-            total_cells,
-            num_dyn_proxies: 0,
-            total_static_pairs: 0,
-            total_dyn_pairs: 0,
-            total_real_pairs: 0,
-            total_iters: 0,
-            cells,
-            handles,
-            first_free_handle: 0,
-            pair_cache,
-        }
-    }
-
-    fn alloc_handle(&mut self) -> usize {
-        debug_assert!(self.num_handles < self.max_handles);
-
-        let free_handle = self.first_free_handle;
-        self.first_free_handle = self.handles[free_handle].next_free;
-        self.num_handles += 1;
-
-        if free_handle > self.last_handle_index {
-            self.last_handle_index = free_handle;
-        }
-
-        free_handle
-    }
-
+impl CellGrid {
     fn get_cell_indices(&self, pos: Vec3A) -> USizeVec3 {
         let cell_idx_f = (pos - self.min_pos) / self.cell_size;
         cell_idx_f
@@ -198,24 +119,20 @@ impl RsBroadphase {
         &mut self.cells[idx]
     }
 
-    fn update_cells_static<const ADD: bool>(&mut self, proxy_idx: usize) {
-        let proxy = &self.handles[proxy_idx];
-
+    fn update_cells_static<const ADD: bool>(
+        &mut self,
+        proxy: &RsBroadphaseProxy,
+        col_obj: &CollisionObject,
+        proxy_idx: usize,
+    ) {
         // TODO: "Fix dumb massive value aabb bug"
-        let aabb_max = proxy.broadphase_proxy.aabb_max.min(self.max_pos);
+        let aabb_max = proxy.broadphase_proxy.aabb.max.min(self.max_pos);
 
-        let min = self.get_cell_indices(proxy.broadphase_proxy.aabb_min);
+        let min = self.get_cell_indices(proxy.broadphase_proxy.aabb.min);
         let max = self.get_cell_indices(aabb_max);
 
-        let col_obj = &*proxy
-            .broadphase_proxy
-            .client_object
-            .as_ref()
-            .unwrap()
-            .borrow();
-        let obj = col_obj.get_collision_shape().as_ref().unwrap().borrow();
-        let tri_mesh_shape = match &*obj {
-            CollisionShapes::TriangleMesh(mesh) => Some(mesh),
+        let tri_mesh_shape = match col_obj.get_collision_shape() {
+            Some(CollisionShapes::TriangleMesh(mesh)) => Some(mesh),
             _ => None,
         };
 
@@ -226,27 +143,16 @@ impl RsBroadphase {
             for j in min.y..=max.y {
                 for k in min.z..=max.z {
                     debug_assert!(cells.is_empty());
-                    let idx = i * self.num_cells.y * self.num_cells.z + j * self.num_cells.z + k;
+                    if ADD && let Some(mesh_interface) = tri_mesh_shape {
+                        let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
+                        let cell_aabb =
+                            Aabb::new(cell_min, cell_min + Vec3A::splat(self.cell_size));
 
-                    if ADD {
-                        if let Some(mesh_interface) = tri_mesh_shape {
-                            let cell_min = self.get_cell_min_pos(USizeVec3::new(i, j, k));
-                            let cell_max = cell_min + Vec3A::splat(self.cell_size);
+                        callback_inst.hit = false;
+                        mesh_interface.process_all_triangles(&mut callback_inst, &cell_aabb);
 
-                            callback_inst.hit = false;
-                            mesh_interface.process_all_triangles(
-                                &mut callback_inst,
-                                cell_min,
-                                cell_max,
-                            );
-
-                            if idx == 2862 {
-                                dbg!(idx);
-                            }
-
-                            if !callback_inst.hit {
-                                continue;
-                            }
+                        if !callback_inst.hit {
+                            continue;
                         }
                     }
 
@@ -312,42 +218,75 @@ impl RsBroadphase {
             }
         }
     }
+}
 
-    fn aabb_overlap(proxy0: &RsBroadphaseProxy, proxy1: &RsBroadphaseProxy) -> bool {
-        test_aabb_against_aabb(
-            proxy0.broadphase_proxy.aabb_min,
-            proxy0.broadphase_proxy.aabb_max,
-            proxy1.broadphase_proxy.aabb_min,
-            proxy1.broadphase_proxy.aabb_max,
-        )
+pub struct RsBroadphase {
+    cell_grid: CellGrid,
+    min_dyn_handle_index: usize,
+    pub handles: Vec<RsBroadphaseProxy>,
+    pair_cache: HashedOverlappingPairCache,
+}
+
+impl RsBroadphase {
+    #[must_use]
+    pub fn new(
+        min_pos: Vec3A,
+        max_pos: Vec3A,
+        cell_size: f32,
+        pair_cache: HashedOverlappingPairCache,
+    ) -> Self {
+        debug_assert!(min_pos.cmple(max_pos).all(), "Invalid min/max pos");
+
+        let range = max_pos - min_pos;
+        let num_cells = (range / cell_size)
+            .ceil()
+            .as_usizevec3()
+            .max(USizeVec3::ONE);
+        let total_cells = num_cells.element_product();
+        let cells = vec![Cell::default(); total_cells];
+
+        Self {
+            min_dyn_handle_index: 0,
+            cell_grid: CellGrid {
+                max_pos,
+                min_pos,
+                cell_size,
+                cell_size_sq: cell_size * cell_size,
+                num_cells,
+                num_dyn_proxies: 0,
+                cells,
+            },
+            handles: Vec::with_capacity(32),
+            pair_cache,
+        }
     }
 
-    pub fn set_aabb(&mut self, proxy_idx: usize, aabb_min: Vec3A, aabb_max: Vec3A) {
-        let sbp = &self.handles[proxy_idx];
+    pub fn set_aabb(&mut self, col_obj: &CollisionObject, proxy_idx: usize, aabb: Aabb) {
+        let sbp = &mut self.handles[proxy_idx];
 
-        if sbp.broadphase_proxy.aabb_min != aabb_min || sbp.broadphase_proxy.aabb_max != aabb_max {
+        if sbp.broadphase_proxy.aabb.min != aabb.min || sbp.broadphase_proxy.aabb.max != aabb.max {
             if sbp.is_static {
-                self.update_cells_static::<false>(proxy_idx);
+                self.cell_grid
+                    .update_cells_static::<false>(sbp, col_obj, proxy_idx);
 
-                let sbp = &mut self.handles[proxy_idx];
-                sbp.broadphase_proxy.aabb_min = aabb_min;
-                sbp.broadphase_proxy.aabb_max = aabb_max;
+                sbp.broadphase_proxy.aabb = aabb;
 
-                self.update_cells_static::<true>(proxy_idx);
+                self.cell_grid
+                    .update_cells_static::<true>(sbp, col_obj, proxy_idx);
             } else {
-                let sbp = &mut self.handles[proxy_idx];
                 let old_index = sbp.cell_idx;
-                sbp.broadphase_proxy.aabb_min = aabb_min;
-                sbp.broadphase_proxy.aabb_max = aabb_max;
+                sbp.broadphase_proxy.aabb = aabb;
 
-                let new_indices = self.get_cell_indices(aabb_min);
-                let new_index = self.cell_indices_to_index(new_indices);
+                let new_indices = self.cell_grid.get_cell_indices(aabb.min);
+                let new_index = self.cell_grid.cell_indices_to_index(new_indices);
                 self.handles[proxy_idx].cell_idx = new_index;
 
-                if new_index != old_index && self.num_dyn_proxies > 1 {
-                    self.update_cells_dynamic::<false>(proxy_idx, new_indices);
+                if new_index != old_index && self.cell_grid.num_dyn_proxies > 1 {
+                    self.cell_grid
+                        .update_cells_dynamic::<false>(proxy_idx, new_indices);
                     self.handles[proxy_idx].indices = new_indices;
-                    self.update_cells_dynamic::<true>(proxy_idx, new_indices);
+                    self.cell_grid
+                        .update_cells_dynamic::<true>(proxy_idx, new_indices);
                 }
             }
         }
@@ -355,91 +294,131 @@ impl RsBroadphase {
 
     pub fn create_proxy(
         &mut self,
-        aabb_min: Vec3A,
-        aabb_max: Vec3A,
-        collision_object: Rc<RefCell<CollisionObject>>,
+        aabb: Aabb,
+        co: &CollisionObject,
         collision_filter_group: i32,
         collision_filter_mask: i32,
     ) -> usize {
-        debug_assert!(aabb_min.cmple(aabb_max).all());
+        debug_assert!(aabb.min.cmple(aabb.max).all());
 
-        let is_static = collision_object.borrow().is_static_object();
-        let new_handle_idx = self.alloc_handle();
-        let cell_idx = self.get_cell_index(aabb_min);
-        let indices = self.get_cell_indices(aabb_min);
+        let is_static = co.is_static_object();
+        let world_index = co.world_array_index;
+
+        let new_handle_idx = self.handles.len();
+        let indices = self.cell_grid.get_cell_indices(aabb.min);
+        let cell_idx = self.cell_grid.cell_indices_to_index(indices);
 
         let new_handle = RsBroadphaseProxy {
             broadphase_proxy: BroadphaseProxy {
-                aabb_min,
-                aabb_max,
-                client_object: Some(collision_object),
+                aabb,
+                client_object_idx: Some(world_index),
                 collision_filter_group,
                 collision_filter_mask,
-                unique_id: self.handles[new_handle_idx].broadphase_proxy.unique_id,
+                unique_id: new_handle_idx + 2,
             },
             is_static,
             cell_idx,
             indices,
-            next_free: 0,
         };
 
-        self.handles[new_handle_idx] = new_handle;
-
         if is_static {
-            self.update_cells_static::<true>(new_handle_idx);
-        } else {
-            debug_assert!(aabb_min.distance_squared(aabb_max) <= self.cell_size_sq);
+            if self.cell_grid.num_dyn_proxies == 0 {
+                self.min_dyn_handle_index = new_handle_idx + 1;
+            }
 
-            self.update_cells_dynamic::<true>(new_handle_idx, indices);
-            self.num_dyn_proxies += 1;
+            self.cell_grid
+                .update_cells_static::<true>(&new_handle, co, new_handle_idx);
+        } else {
+            debug_assert!(aabb.min.distance_squared(aabb.max) <= self.cell_grid.cell_size_sq);
+
+            self.cell_grid
+                .update_cells_dynamic::<true>(new_handle_idx, indices);
+            self.cell_grid.num_dyn_proxies += 1;
         }
 
+        self.handles.push(new_handle);
         new_handle_idx
     }
 
     pub fn calculate_overlapping_pairs(&mut self) {
-        // let last_real_pairs = self.total_real_pairs;
-
         debug_assert!(self.pair_cache.is_empty());
-        if self.num_handles == 0 {
+        if self.cell_grid.num_dyn_proxies == 0 {
             return;
         }
 
-        let mut new_largest_index = 0;
-        for (i, proxy) in self.handles[..=self.last_handle_index].iter().enumerate() {
-            if proxy.is_static {
-                continue; // todo: use separate list
-            }
-
-            self.total_iters += 1;
-            new_largest_index = i;
-
-            let cell = &self.cells[proxy.cell_idx];
-
+        for (i, proxy) in self
+            .handles
+            .iter()
+            .enumerate()
+            .skip(self.min_dyn_handle_index)
+            .filter(|(_, proxy)| !proxy.is_static)
+        {
+            let cell = &self.cell_grid.cells[proxy.cell_idx];
             for &other_proxy_idx in &cell.static_handles {
                 let other_proxy = &self.handles[other_proxy_idx];
 
-                self.total_static_pairs += 1;
-
-                if Self::aabb_overlap(proxy, other_proxy)
-                    && !self.pair_cache.contains_pair(proxy, other_proxy)
+                if test_aabb_against_aabb(
+                    &proxy.broadphase_proxy.aabb,
+                    &other_proxy.broadphase_proxy.aabb,
+                ) && !self.pair_cache.contains_pair(proxy, other_proxy)
                 {
                     self.pair_cache
                         .add_overlapping_pair(proxy, i, other_proxy, other_proxy_idx);
-                    self.total_real_pairs += 1;
                 }
             }
 
-            if self.num_dyn_proxies > 1 {
-                todo!()
+            if self.cell_grid.num_dyn_proxies > 1 && !cell.dyn_handles.is_empty() {
+                for &other_proxy_idx in &cell.dyn_handles {
+                    if i == other_proxy_idx {
+                        continue;
+                    }
+
+                    let other_proxy = &self.handles[other_proxy_idx];
+                    if test_aabb_against_aabb(
+                        &proxy.broadphase_proxy.aabb,
+                        &other_proxy.broadphase_proxy.aabb,
+                    ) && !self.pair_cache.contains_pair(proxy, other_proxy)
+                    {
+                        self.pair_cache.add_overlapping_pair(
+                            proxy,
+                            i,
+                            other_proxy,
+                            other_proxy_idx,
+                        );
+                    }
+                }
             }
         }
-
-        self.last_handle_index = new_largest_index;
     }
 
-    pub fn process_all_overlapping_pairs(&mut self, dispatcher: &mut CollisionDispatcher) {
-        self.pair_cache
-            .process_all_overlapping_pairs(dispatcher, &self.handles);
+    pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
+        &mut self,
+        collision_objects: &[RigidBody],
+        dispatcher: &mut CollisionDispatcher,
+        contact_added_callback: &mut T,
+    ) {
+        self.pair_cache.process_all_overlapping_pairs(
+            collision_objects,
+            dispatcher,
+            &self.handles,
+            contact_added_callback,
+        );
+    }
+
+    pub fn ray_test<T: BroadphaseAabbCallback>(
+        &self,
+        ray_from: Vec3A,
+        ray_to: Vec3A,
+        ray_callback: &mut T,
+    ) {
+        debug_assert!(ray_from.distance_squared(ray_to) < self.cell_grid.cell_size_sq);
+        let cell = &self.cell_grid.cells[self.cell_grid.get_cell_index(ray_from)];
+
+        for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
+            let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;
+            if other_proxy.client_object_idx.is_some() {
+                ray_callback.process(other_proxy);
+            }
+        }
     }
 }

@@ -1,24 +1,11 @@
 use super::triangle_shape::TriangleShape;
-use glam::Vec3A;
+use crate::bullet::linear_math::aabb_util_2::Aabb;
 
 pub trait TriangleCallback {
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,
-        tri_aabb_min: Vec3A,
-        tri_aabb_max: Vec3A,
-        part_id: usize,
-        triangle_index: usize,
-    ) -> bool;
-}
-
-pub trait InternalTriangleIndexCallback {
-    fn internal_process_triangle_index(
-        &mut self,
-        triangle: &TriangleShape,
-        tri_aabb_min: Vec3A,
-        tri_aabb_max: Vec3A,
-        part_id: usize,
+        tri_aabb: &Aabb,
         triangle_index: usize,
     ) -> bool;
 }

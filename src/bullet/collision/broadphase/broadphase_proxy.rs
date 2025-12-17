@@ -1,6 +1,4 @@
-use crate::bullet::collision::dispatch::collision_object::CollisionObject;
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
+use crate::bullet::linear_math::aabb_util_2::Aabb;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -82,15 +80,19 @@ pub enum CollisionFilterGroups {
 
 #[derive(Clone, Default)]
 pub struct BroadphaseProxy {
-    pub client_object: Option<Rc<RefCell<CollisionObject>>>,
+    /// The index of the client `CollisionObject` in `CollisionWorld`
+    pub client_object_idx: Option<usize>,
     pub collision_filter_group: i32,
     pub collision_filter_mask: i32,
-    pub unique_id: u32,
-    pub aabb_min: Vec3A,
-    pub aabb_max: Vec3A,
+    pub unique_id: usize,
+    pub aabb: Aabb,
 }
 
 pub struct BroadphasePair {
     pub proxy0: usize,
     pub proxy1: usize,
+}
+
+pub trait BroadphaseAabbCallback {
+    fn process(&mut self, proxy: &BroadphaseProxy) -> bool;
 }

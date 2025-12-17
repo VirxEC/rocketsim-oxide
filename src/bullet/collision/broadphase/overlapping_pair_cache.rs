@@ -1,11 +1,19 @@
-use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
-use crate::bullet::collision::dispatch::collision_dispatcher::CollisionDispatcher;
-use ahash::AHashMap;
 use std::mem;
+
+use ahash::AHashMap;
+
+use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
+use crate::bullet::{
+    collision::{
+        dispatch::collision_dispatcher::CollisionDispatcher,
+        narrowphase::persistent_manifold::ContactAddedCallback,
+    },
+    dynamics::rigid_body::RigidBody,
+};
 
 pub struct HashedOverlappingPairCache {
     overlapping_pair_array: Vec<BroadphasePair>,
-    hash_table: AHashMap<(u32, u32), usize>,
+    hash_table: AHashMap<(usize, usize), usize>,
 }
 
 impl Default for HashedOverlappingPairCache {
@@ -23,9 +31,9 @@ impl Default for HashedOverlappingPairCache {
 impl HashedOverlappingPairCache {
     fn internal_add_pair(
         &mut self,
-        mut proxy0_id: u32,
+        mut proxy0_id: usize,
         mut proxy0_idx: usize,
-        mut proxy1_id: u32,
+        mut proxy1_id: usize,
         mut proxy1_idx: usize,
     ) {
         if proxy0_id > proxy1_id {
@@ -66,7 +74,7 @@ impl HashedOverlappingPairCache {
     }
 
     pub fn contains_pair<'a>(
-        &mut self,
+        &self,
         mut proxy0: &'a RsBroadphaseProxy,
         mut proxy1: &'a RsBroadphaseProxy,
     ) -> bool {
@@ -92,13 +100,20 @@ impl HashedOverlappingPairCache {
                 != 0
     }
 
-    pub fn process_all_overlapping_pairs(
+    pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
+        collision_objects: &[RigidBody],
         dispatcher: &mut CollisionDispatcher,
         handles: &[RsBroadphaseProxy],
+        contact_added_callback: &mut T,
     ) {
         for pair in &self.overlapping_pair_array {
-            dispatcher.near_callback(&handles[pair.proxy0], &handles[pair.proxy1]);
+            dispatcher.near_callback(
+                collision_objects,
+                &handles[pair.proxy0],
+                &handles[pair.proxy1],
+                contact_added_callback,
+            );
         }
 
         self.overlapping_pair_array.clear();

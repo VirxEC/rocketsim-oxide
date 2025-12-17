@@ -1,24 +1,25 @@
 [package]
 name = "rocketsim"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
 ahash = "0.8.12"
 arrayvec = "0.7.6"
 byteorder = "1.5.0"
+fastrand = "2.3.0"
 glam = "0.30.3"
 
 [profile.release]
-# debug = true
+debug = true
 lto = true
 codegen-units = 1
 panic = "abort"
 
 [lints.rust]
-dead_code = "allow"
+unused = "allow"
 
 [lints.clippy]
 all = "warn"
 # pedantic = "warn"
-# nursery = "warn"
+nursery = "warn"

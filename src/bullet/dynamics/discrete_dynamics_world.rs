@@ -1,3 +1,5 @@
+use glam::Vec3A;
+
 use super::{
     constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
     rigid_body::{RigidBody, RigidBodyFlags},
@@ -7,30 +9,17 @@ use crate::bullet::collision::{
     broadphase::{broadphase_proxy::CollisionFilterGroups, rs_broadphase::RsBroadphase},
     dispatch::{
         collision_dispatcher::CollisionDispatcher,
-        collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING, WANTS_DEACTIVATION},
+        collision_object::{ACTIVE_TAG, ISLAND_SLEEPING, WANTS_DEACTIVATION},
     },
+    narrowphase::persistent_manifold::ContactAddedCallback,
 };
-use glam::Vec3A;
-use std::{cell::RefCell, rc::Rc};
 
 pub struct DiscreteDynamicsWorld {
     pub dynamics_world: DynamicsWorld,
-    // sorted_constraints: Vec<TypedConstraint>,
     solver: SequentialImpulseConstraintSolver,
-    // island_manager: SimulationIslandManager,
-    // constraints: Vec<TypedConstraint>,
-    non_static_rigid_bodies: Vec<Rc<RefCell<RigidBody>>>,
+    non_static_rigid_bodies: Vec<usize>,
     gravity: Vec3A,
-    // bool m_ownsIslandManager;
-    // bool m_ownsConstraintSolver;
-    // synchronize_all_motion_states: bool,
     apply_speculative_contact_restitution: bool,
-    // btAlignedObjectArray<btActionInterface*> m_actions;
-    actions: Vec<()>,
-    // int m_profileTimings;
-    // latency_motion_state_interpolation: bool,
-    // predictive_manifolds: Vec<PersistentManifold>,
-    // btSpinMutex m_predictiveManifoldsMutex;
 }
 
 impl DiscreteDynamicsWorld {
@@ -42,58 +31,49 @@ impl DiscreteDynamicsWorld {
     ) -> Self {
         Self {
             dynamics_world: DynamicsWorld::new(dispatcher, pair_cache),
-            // sorted_constraints: Vec::new(),
             solver: constraint_solver,
             gravity: Vec3A::new(0.0, -10.0, 0.0),
-            // local_time: 0.0,
-            // fixed_time_step: 0.0,
-            // synchronize_all_motion_states: false,
             apply_speculative_contact_restitution: false,
-            // latency_motion_state_interpolation: true,
-            // island_manager: SimulationIslandManager::default(),
-            // constraints: Vec::new(),
             non_static_rigid_bodies: Vec::new(),
-            // predictive_manifolds: Vec::new(),
-            actions: Vec::new(),
         }
+    }
+
+    #[inline]
+    pub fn bodies_mut(&mut self) -> &mut [RigidBody] {
+        &mut self.dynamics_world.collision_world.collision_objects
+    }
+
+    #[inline]
+    pub fn bodies(&self) -> &[RigidBody] {
+        &self.dynamics_world.collision_world.collision_objects
     }
 
     pub const fn set_gravity(&mut self, gravity: Vec3A) {
         self.gravity = gravity;
     }
 
-    fn add_collision_object(&mut self, body: Rc<RefCell<CollisionObject>>, group: i32, mask: i32) {
+    fn add_collision_object(&mut self, body: RigidBody, group: i32, mask: i32) -> usize {
         self.dynamics_world
             .collision_world
-            .add_collision_object(body, group, mask);
+            .add_collision_object(body, group, mask)
     }
 
-    pub fn add_rigid_body_default(&mut self, body: Rc<RefCell<RigidBody>>) {
-        if !body
-            .borrow()
-            .collision_object
-            .borrow()
-            .is_static_or_kinematic_object()
-            && body.borrow().get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+    pub fn remove_collision_object(&mut self, world_index: usize) {
+        self.non_static_rigid_bodies.retain(|&x| x != world_index);
+        self.dynamics_world
+            .collision_world
+            .remove_collision_object(world_index);
+    }
+
+    pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> Option<usize> {
+        if !body.collision_object.is_static_or_kinematic_object()
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
         {
-            body.borrow_mut().set_gravity(self.gravity);
+            body.set_gravity(self.gravity);
         }
 
-        if body
-            .borrow()
-            .collision_object
-            .borrow()
-            .get_collision_shape()
-            .is_some()
-        {
-            let co = body.borrow().collision_object.clone();
-            if co.borrow().is_static_object() {
-                co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
-            } else {
-                self.non_static_rigid_bodies.push(body);
-            }
-
-            let (group, mask) = if co.borrow().is_static_or_kinematic_object() {
+        if body.collision_object.get_collision_shape().is_some() {
+            let (group, mask) = if body.collision_object.is_static_or_kinematic_object() {
                 (
                     CollisionFilterGroups::StaticFilter as i32,
                     CollisionFilterGroups::AllFilter as i32
@@ -106,93 +86,93 @@ impl DiscreteDynamicsWorld {
                 )
             };
 
-            self.add_collision_object(co, group, mask);
-        }
-    }
+            let rb_index = self.add_collision_object(body, group, mask);
 
-    pub fn add_rigid_body(&mut self, body: Rc<RefCell<RigidBody>>, group: i32, mask: i32) {
-        if !body
-            .borrow()
-            .collision_object
-            .borrow()
-            .is_static_or_kinematic_object()
-            && body.borrow().get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
-        {
-            body.borrow_mut().set_gravity(self.gravity);
-        }
-
-        if body
-            .borrow()
-            .collision_object
-            .borrow()
-            .get_collision_shape()
-            .is_some()
-        {
-            let co = body.borrow().collision_object.clone();
-            if co.borrow().is_static_object() {
-                co.borrow_mut().set_activation_state(ISLAND_SLEEPING);
+            let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
+            if rb.collision_object.is_static_object() {
+                rb.collision_object.set_activation_state(ISLAND_SLEEPING);
             } else {
-                self.non_static_rigid_bodies.push(body);
+                self.non_static_rigid_bodies.push(rb_index);
             }
 
-            self.add_collision_object(co, group, mask);
+            Some(rb_index)
+        } else {
+            None
         }
     }
 
-    fn apply_gravity(&self) {
-        for body in &self.non_static_rigid_bodies {
-            if body.borrow().collision_object.borrow().is_active() {
-                body.borrow_mut().apply_gravity();
+    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: i32, mask: i32) -> Option<usize> {
+        if !body.collision_object.is_static_or_kinematic_object()
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+        {
+            body.set_gravity(self.gravity);
+        }
+
+        if body.collision_object.get_collision_shape().is_some() {
+            let rb_index = self.add_collision_object(body, group, mask);
+
+            let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
+            if rb.collision_object.is_static_object() {
+                rb.collision_object.set_activation_state(ISLAND_SLEEPING);
+            } else {
+                self.non_static_rigid_bodies.push(rb_index);
+            }
+
+            Some(rb_index)
+        } else {
+            None
+        }
+    }
+
+    fn apply_gravity(&mut self) {
+        for &body in &self.non_static_rigid_bodies {
+            let body = &mut self.dynamics_world.collision_world.collision_objects[body];
+            if body.collision_object.is_active() {
+                body.apply_gravity();
             }
         }
     }
 
-    fn predict_unconstraint_motion(&self, time_step: f32) {
-        for body in &self.non_static_rigid_bodies {
-            debug_assert!(
-                !body
-                    .borrow()
-                    .collision_object
-                    .borrow()
-                    .is_static_or_kinematic_object()
-            );
+    fn predict_unconstraint_motion(&mut self, time_step: f32) {
+        for &body in &self.non_static_rigid_bodies {
+            let body = &mut self.dynamics_world.collision_world.collision_objects[body];
+            debug_assert!(!body.collision_object.is_static_or_kinematic_object());
 
-            let mut body = body.borrow_mut();
             body.apply_damping(time_step);
-
             let predicted_transform = body.predict_integration_transform(time_step);
-            body.collision_object
-                .borrow_mut()
-                .interpolation_world_transform = predicted_transform;
+            body.collision_object.interpolation_world_transform = predicted_transform;
         }
     }
 
-    fn calculation_simulation_islands(&self) {
+    fn calculation_simulation_islands(&mut self) {
         for manifold in &self.dynamics_world.collision_world.dispatcher1.manifolds {
-            let body0 = &manifold.body0;
-            let body1 = &manifold.body1;
+            let bodies = &mut self.dynamics_world.collision_world.collision_objects;
 
-            let mut body0_ref = body0.borrow_mut();
-            let mut body1_ref = body1.borrow_mut();
+            debug_assert!(manifold.body0_idx < bodies.len());
+            debug_assert!(manifold.body1_idx < bodies.len());
+            debug_assert_ne!(manifold.body0_idx, manifold.body1_idx);
+            let [body0, body1] = unsafe {
+                bodies.get_disjoint_unchecked_mut([manifold.body0_idx, manifold.body1_idx])
+            };
 
-            if body0_ref.get_activation_state() != ISLAND_SLEEPING
-                || body1_ref.get_activation_state() != ISLAND_SLEEPING
+            if body0.collision_object.get_activation_state() != ISLAND_SLEEPING
+                || body1.collision_object.get_activation_state() != ISLAND_SLEEPING
             {
-                if body0_ref.is_kinematic_object()
-                    && body0_ref.get_activation_state() != ISLAND_SLEEPING
+                if body0.collision_object.is_kinematic_object()
+                    && body0.collision_object.get_activation_state() != ISLAND_SLEEPING
                 {
-                    body1_ref.activate();
+                    body1.collision_object.activate();
                 }
 
-                if body1_ref.is_kinematic_object()
-                    && body1_ref.get_activation_state() != ISLAND_SLEEPING
+                if body1.collision_object.is_kinematic_object()
+                    && body1.collision_object.get_activation_state() != ISLAND_SLEEPING
                 {
-                    body0_ref.activate();
+                    body0.collision_object.activate();
                 }
 
                 debug_assert!(
-                    !body0_ref.is_static_or_kinematic_object()
-                        || !body1_ref.is_static_or_kinematic_object()
+                    !body0.collision_object.is_static_or_kinematic_object()
+                        || !body1.collision_object.is_static_or_kinematic_object()
                 );
             }
         }
@@ -200,30 +180,29 @@ impl DiscreteDynamicsWorld {
 
     fn solve_constraints(&mut self) {
         self.solver.solve_group(
+            &mut self.dynamics_world.collision_world.collision_objects,
             &self.non_static_rigid_bodies,
             &mut self.dynamics_world.collision_world.dispatcher1.manifolds,
             &self.dynamics_world.solver_info,
         );
     }
 
-    fn integrate_transforms_internal(&self, time_step: f32) {
-        for body in &self.non_static_rigid_bodies {
-            let mut body = body.borrow_mut();
-            let mut co = body.collision_object.borrow_mut();
-            co.hit_fraction = 1.0;
+    fn integrate_transforms_internal(&mut self, time_step: f32) {
+        for &body in &self.non_static_rigid_bodies {
+            let body = &mut self.dynamics_world.collision_world.collision_objects[body];
+            body.collision_object.hit_fraction = 1.0;
 
-            if !co.is_active() || co.is_static_or_kinematic_object() {
+            debug_assert!(!body.collision_object.is_static_or_kinematic_object());
+            if !body.collision_object.is_active() {
                 continue;
             }
-
-            drop(co);
 
             let predicted_trans = body.predict_integration_transform(time_step);
             body.set_center_of_mass_transform(predicted_trans);
         }
     }
 
-    fn integrate_transforms(&self, time_step: f32) {
+    fn integrate_transforms(&mut self, time_step: f32) {
         if !self.non_static_rigid_bodies.is_empty() {
             self.integrate_transforms_internal(time_step);
         }
@@ -231,43 +210,38 @@ impl DiscreteDynamicsWorld {
         debug_assert!(!self.apply_speculative_contact_restitution);
     }
 
-    fn update_actions(&mut self, _time_step: f32) {
-        assert!(self.actions.is_empty());
-    }
-
-    fn update_activation_state(&self, time_step: f32) {
-        for body in &self.non_static_rigid_bodies {
-            let mut body = body.borrow_mut();
-
+    fn update_activation_state(&mut self, time_step: f32) {
+        for &body in &self.non_static_rigid_bodies {
+            let body = &mut self.dynamics_world.collision_world.collision_objects[body];
             body.update_deactivation(time_step);
 
             if body.wants_sleeping() {
-                let mut co = body.collision_object.borrow_mut();
-                if co.is_static_or_kinematic_object() {
-                    co.set_activation_state(ISLAND_SLEEPING);
-                } else if co.activation_state_1 == ACTIVE_TAG {
-                    co.set_activation_state(WANTS_DEACTIVATION);
-                } else if co.activation_state_1 == ISLAND_SLEEPING {
-                    drop(co);
-
+                if body.collision_object.is_static_or_kinematic_object() {
+                    body.collision_object.set_activation_state(ISLAND_SLEEPING);
+                } else if body.collision_object.activation_state_1 == ACTIVE_TAG {
+                    body.collision_object
+                        .set_activation_state(WANTS_DEACTIVATION);
+                } else if body.collision_object.activation_state_1 == ISLAND_SLEEPING {
                     body.set_angular_velocity(Vec3A::ZERO);
                     body.set_linear_velocity(Vec3A::ZERO);
                 }
             } else {
-                body.collision_object
-                    .borrow_mut()
-                    .set_activation_state(ACTIVE_TAG);
+                body.collision_object.set_activation_state(ACTIVE_TAG);
             }
         }
     }
 
-    fn clear_forces(&self) {
-        for body in &self.non_static_rigid_bodies {
-            body.borrow_mut().clear_forces();
+    fn clear_forces(&mut self) {
+        for &body in &self.non_static_rigid_bodies {
+            self.dynamics_world.collision_world.collision_objects[body].clear_forces();
         }
     }
 
-    fn internal_single_step_simulation(&mut self, time_step: f32) {
+    fn internal_single_step_simulation<T: ContactAddedCallback>(
+        &mut self,
+        time_step: f32,
+        contact_added_callback: &mut T,
+    ) {
         self.predict_unconstraint_motion(time_step);
 
         let dispatcher_info = &mut self.dynamics_world.collision_world.dispatcher_info;
@@ -276,7 +250,7 @@ impl DiscreteDynamicsWorld {
 
         self.dynamics_world
             .collision_world
-            .perform_discrete_collision_detection();
+            .perform_discrete_collision_detection(contact_added_callback);
 
         self.calculation_simulation_islands();
 
@@ -284,13 +258,16 @@ impl DiscreteDynamicsWorld {
 
         self.solve_constraints();
         self.integrate_transforms(time_step);
-        self.update_actions(time_step);
         self.update_activation_state(time_step);
     }
 
-    pub fn step_simulation(&mut self, time_step: f32) {
+    pub fn step_simulation<T: ContactAddedCallback>(
+        &mut self,
+        time_step: f32,
+        contact_added_callback: &mut T,
+    ) {
         self.apply_gravity();
-        self.internal_single_step_simulation(time_step);
+        self.internal_single_step_simulation(time_step, contact_added_callback);
 
         self.clear_forces();
     }

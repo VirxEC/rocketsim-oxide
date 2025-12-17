@@ -1,16 +1,22 @@
-use super::manifold_point::ManifoldPoint;
-use crate::{
-    UserInfoTypes,
-    bullet::{
-        collision::dispatch::{
-            collision_object::CollisionObject, internal_edge_utility::adjust_internal_edge_contacts,
-        },
-        linear_math::{AffineTranspose, plane_space},
-    },
-};
+use std::mem;
+
 use arrayvec::ArrayVec;
 use glam::{Vec3A, Vec4};
-use std::{cell::RefCell, mem, rc::Rc};
+
+use super::manifold_point::ManifoldPoint;
+use crate::bullet::{
+    collision::dispatch::collision_object::CollisionObject,
+    linear_math::{AffineExt, plane_space_2},
+};
+
+pub trait ContactAddedCallback {
+    fn callback(
+        &mut self,
+        contact_point: &mut ManifoldPoint,
+        body_a: &CollisionObject,
+        body_b: &CollisionObject,
+    );
+}
 
 pub const CONTACT_BREAKING_THRESHOLD: f32 = 0.02;
 pub const MANIFOLD_CACHE_SIZE: usize = 4;
@@ -18,8 +24,8 @@ pub const MANIFOLD_CACHE_SIZE: usize = 4;
 pub struct PersistentManifold {
     // object_type: i32,
     pub point_cache: ArrayVec<ManifoldPoint, MANIFOLD_CACHE_SIZE>,
-    pub body0: Rc<RefCell<CollisionObject>>,
-    pub body1: Rc<RefCell<CollisionObject>>,
+    pub body0_idx: usize,
+    pub body1_idx: usize,
     pub contact_breaking_threshold: f32,
     pub contact_processing_threshold: f32,
     // pub companion_id_a: i32,
@@ -29,36 +35,29 @@ pub struct PersistentManifold {
 }
 
 impl PersistentManifold {
-    pub fn new(
-        body0: Rc<RefCell<CollisionObject>>,
-        body1: Rc<RefCell<CollisionObject>>,
-        is_swapped: bool,
-    ) -> Self {
+    pub fn new(body0: &CollisionObject, body1: &CollisionObject, is_swapped: bool) -> Self {
+        debug_assert_ne!(body0.world_array_index, body1.world_array_index);
+
         let body0_cbt = body0
-            .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let body1_cbt = body1
-            .borrow()
             .get_collision_shape()
             .unwrap()
-            .borrow()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let contact_breaking_threshold = body0_cbt.min(body1_cbt);
         let contact_processing_threshold = body0
-            .borrow()
             .contact_processing_threshold
-            .min(body1.borrow().contact_processing_threshold);
+            .min(body1.contact_processing_threshold);
 
         Self {
-            body0,
-            body1,
+            body0_idx: body0.world_array_index,
+            body1_idx: body1.world_array_index,
             contact_breaking_threshold,
             contact_processing_threshold,
             // object_type: ContactManifoldTypes::PersistentManifoldType as i32,
-            point_cache: const { ArrayVec::new_const() },
+            point_cache: ArrayVec::new(),
             // companion_id_a: 0,
             // companion_id_b: 0,
             // index_1a: 0,
@@ -188,22 +187,20 @@ impl PersistentManifold {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn add_contact_point(
+    pub fn add_contact_point<'a, T: ContactAddedCallback>(
         &mut self,
+        mut body0: &'a CollisionObject,
+        mut body1: &'a CollisionObject,
         normal_on_b_in_world: Vec3A,
         point_in_world: Vec3A,
         depth: f32,
-        part_id_0: i32,
-        part_id_1: i32,
         index_0: i32,
         index_1: i32,
+        contact_added_callback: &mut T,
     ) {
         if depth > self.contact_breaking_threshold {
             return;
         }
-
-        let body0 = self.body0.borrow();
-        let body1 = self.body1.borrow();
 
         let point_a = point_in_world + normal_on_b_in_world * depth;
         let (local_a, local_b) = (
@@ -215,98 +212,33 @@ impl PersistentManifold {
         new_pt.position_world_on_a = point_a;
         new_pt.position_world_on_b = point_in_world;
 
-        new_pt.combined_friction = Self::calculate_combined_friction(&body0, &body1);
-        new_pt.combined_restitution = Self::calculate_combined_restitution(&body0, &body1);
+        new_pt.combined_friction = Self::calculate_combined_friction(body0, body1);
+        new_pt.combined_restitution = Self::calculate_combined_restitution(body0, body1);
 
         (new_pt.lateral_friction_dir_1, new_pt.lateral_friction_dir_2) =
-            plane_space(new_pt.normal_world_on_b);
+            plane_space_2(new_pt.normal_world_on_b);
 
         if self.is_swapped {
-            new_pt.part_id_0 = part_id_1;
-            new_pt.part_id_1 = part_id_0;
             new_pt.index_0 = index_1;
             new_pt.index_1 = index_0;
         } else {
-            new_pt.part_id_0 = part_id_0;
-            new_pt.part_id_1 = part_id_1;
             new_pt.index_0 = index_0;
             new_pt.index_1 = index_1;
         }
 
-        drop(body0);
-        drop(body1);
-
         let insert_index = self.add_manifold_point(new_pt);
 
-        let (body0, body1) = if self.is_swapped {
-            (self.body1.borrow(), self.body0.borrow())
-        } else {
-            (self.body0.borrow(), self.body1.borrow())
-        };
-
-        Self::bullet_contact_added_callback(&mut self.point_cache[insert_index], &body0, &body1);
-    }
-
-    fn bullet_contact_added_callback<'a>(
-        contact_point: &mut ManifoldPoint,
-        mut body_a: &'a CollisionObject,
-        mut body_b: &'a CollisionObject,
-    ) {
-        debug_assert!(body_a.has_contact_response() || body_b.has_contact_response());
-
-        let should_swap = if body_a.user_index != -1 && body_b.user_index != -1 {
-            body_a.user_index > body_b.user_index
-        } else {
-            body_b.user_index != -1
-        };
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
+        if self.is_swapped {
+            mem::swap(&mut body0, &mut body1);
         }
 
-        let user_index_a = body_a.user_index;
-        let user_index_b = body_b.user_index;
-
-        if user_index_a == UserInfoTypes::Car as i32 {
-            todo!()
-        } else if user_index_a == UserInfoTypes::Ball as i32 {
-            if user_index_b == UserInfoTypes::DropshotTile as i32 {
-                todo!()
-            } else if user_index_b == -1 {
-                contact_point.is_special = true;
-            }
-        }
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
-
-        let (part_id, index) = if should_swap {
-            (contact_point.part_id_0, contact_point.index_0)
-        } else {
-            (contact_point.part_id_1, contact_point.index_1)
-        };
-
-        adjust_internal_edge_contacts(
-            contact_point,
-            body_a,
-            body_b,
-            part_id as usize,
-            index as usize,
-        );
+        contact_added_callback.callback(&mut self.point_cache[insert_index], body0, body1);
     }
 
-    fn remove_contact_point(&mut self, _idx: usize) {
-        todo!()
-    }
-
-    pub fn refresh_contact_points(&mut self) {
+    pub fn refresh_contact_points(&mut self, body0: &CollisionObject, body1: &CollisionObject) {
         if self.point_cache.is_empty() {
             return;
         }
-
-        let body0 = self.body0.borrow();
-        let body1 = self.body1.borrow();
 
         let tr_a = body0.get_world_transform();
         let tr_b = body1.get_world_transform();
@@ -319,27 +251,27 @@ impl PersistentManifold {
             manifold_point.distance_1 = (manifold_point.position_world_on_a
                 - manifold_point.position_world_on_b)
                 .dot(manifold_point.normal_world_on_b);
-            manifold_point.life_time += 1;
         }
 
-        drop(body0);
-        drop(body1);
+        #[cfg(debug_assertions)]
+        {
+            let contact_breaking_threshold_sq =
+                self.contact_breaking_threshold * self.contact_breaking_threshold;
 
-        let contact_breaking_threshold_sq =
-            self.contact_breaking_threshold * self.contact_breaking_threshold;
+            for i in (0..self.point_cache.len()).rev() {
+                let point = &self.point_cache[i];
+                assert!(
+                    point.distance_1 <= self.contact_breaking_threshold,
+                    "{:?} | {}",
+                    point,
+                    self.contact_breaking_threshold
+                );
 
-        for i in (0..self.point_cache.len()).rev() {
-            let point = &self.point_cache[i];
-            if point.distance_1 > self.contact_breaking_threshold {
-                self.remove_contact_point(i);
-            } else {
                 let projected_point =
                     point.position_world_on_a - point.normal_world_on_b * point.distance_1;
                 let projected_difference = point.position_world_on_b - projected_point;
                 let distance_2d = projected_difference.dot(projected_difference);
-                if distance_2d > contact_breaking_threshold_sq {
-                    self.remove_contact_point(i);
-                }
+                assert!(distance_2d <= contact_breaking_threshold_sq);
             }
         }
     }

@@ -1,15 +1,22 @@
 mod arena;
 mod ball;
+mod ball_hit_info;
 mod boost_pad;
 pub(crate) mod boost_pad_grid;
+mod car;
+mod car_config;
+mod car_controls;
 mod mutator_config;
 
 pub use arena::*;
 pub use ball::*;
+pub use ball_hit_info::*;
 pub use boost_pad::*;
-pub use mutator_config::*;
-
+pub use car::*;
+pub use car_config::*;
+pub use car_controls::*;
 use glam::{Mat3A, Vec3A};
+pub use mutator_config::*;
 
 pub(crate) enum CollisionMasks {
     HoopsNet = (1 << 8),
@@ -17,6 +24,9 @@ pub(crate) enum CollisionMasks {
     DropshotFloor = (1 << 10),
 }
 
+/// Default is not implemented for this struct,
+/// because the initial start height of the ball/car is different.
+/// The correct values are set in `BallState::default()` and `CarState::default()`
 #[derive(Clone, Copy, Debug)]
 pub struct PhysState {
     pub pos: Vec3A,
@@ -25,20 +35,7 @@ pub struct PhysState {
     pub ang_vel: Vec3A,
 }
 
-impl Default for PhysState {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
 impl PhysState {
-    pub const DEFAULT: Self = Self {
-        pos: Vec3A::ZERO,
-        rot_mat: Mat3A::IDENTITY,
-        vel: Vec3A::ZERO,
-        ang_vel: Vec3A::ZERO,
-    };
-
     #[must_use]
     pub fn get_inverted_y(mut self) -> Self {
         const INVERT_SCALE: Vec3A = Vec3A::new(-1.0, -1.0, 1.0);

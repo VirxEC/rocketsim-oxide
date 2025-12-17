@@ -1,5 +1,11 @@
-use super::solver_body::SolverBody;
 use glam::Vec3A;
+
+use super::solver_body::SolverBody;
+
+fn bullet_dot(vec0: Vec3A, vec1: Vec3A) -> f32 {
+    let result = vec0 * vec1;
+    result.x + (result.y + result.z)
+}
 
 #[derive(Default)]
 pub struct SolverConstraint {
@@ -31,14 +37,10 @@ impl SolverConstraint {
     ) -> f32 {
         let mut delta_impulse = self.rhs;
 
-        let delta_vel_1_dot_n = self.contact_normal_1.dot(body_a.delta_linear_velocity)
-            + self
-                .rel_pos1_cross_normal
-                .dot(body_a.delta_angular_velocity);
-        let delta_vel_2_dot_n = self.contact_normal_2.dot(body_b.delta_linear_velocity)
-            + self
-                .rel_pos2_cross_normal
-                .dot(body_b.delta_angular_velocity);
+        let delta_vel_1_dot_n = bullet_dot(self.contact_normal_1, body_a.delta_linear_velocity)
+            + bullet_dot(self.rel_pos1_cross_normal, body_a.delta_angular_velocity);
+        let delta_vel_2_dot_n = bullet_dot(self.contact_normal_2, body_b.delta_linear_velocity)
+            + bullet_dot(self.rel_pos2_cross_normal, body_b.delta_angular_velocity);
 
         delta_impulse -= delta_vel_1_dot_n * self.jac_diag_ab_inv;
         delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
@@ -54,15 +56,11 @@ impl SolverConstraint {
             self.applied_impulse = sum;
         }
 
-        body_a.delta_linear_velocity +=
-            self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
-        body_a.delta_angular_velocity +=
-            self.angular_component_a * delta_impulse * body_a.angular_factor;
+        body_a.delta_linear_velocity += self.contact_normal_1 * body_a.inv_mass * delta_impulse;
+        body_a.delta_angular_velocity += self.angular_component_a * delta_impulse;
 
-        body_b.delta_linear_velocity +=
-            self.contact_normal_2 * body_b.inv_mass * delta_impulse * body_b.linear_factor;
-        body_b.delta_angular_velocity +=
-            self.angular_component_b * delta_impulse * body_b.angular_factor;
+        body_b.delta_linear_velocity += self.contact_normal_2 * body_b.inv_mass * delta_impulse;
+        body_b.delta_angular_velocity += self.angular_component_b * delta_impulse;
 
         delta_impulse / self.jac_diag_ab_inv
     }
@@ -74,14 +72,10 @@ impl SolverConstraint {
     ) -> f32 {
         let mut delta_impulse = self.rhs;
 
-        let delta_vel_1_dot_n = self.contact_normal_1.dot(body_a.delta_linear_velocity)
-            + self
-                .rel_pos1_cross_normal
-                .dot(body_a.delta_angular_velocity);
-        let delta_vel_2_dot_n = self.contact_normal_2.dot(body_b.delta_linear_velocity)
-            + self
-                .rel_pos2_cross_normal
-                .dot(body_b.delta_angular_velocity);
+        let delta_vel_1_dot_n = bullet_dot(self.contact_normal_1, body_a.delta_linear_velocity)
+            + bullet_dot(self.rel_pos1_cross_normal, body_a.delta_angular_velocity);
+        let delta_vel_2_dot_n = bullet_dot(self.contact_normal_2, body_b.delta_linear_velocity)
+            + bullet_dot(self.rel_pos2_cross_normal, body_b.delta_angular_velocity);
 
         delta_impulse -= delta_vel_1_dot_n * self.jac_diag_ab_inv;
         delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
@@ -94,15 +88,11 @@ impl SolverConstraint {
             self.applied_impulse = sum;
         }
 
-        body_a.delta_linear_velocity +=
-            self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
-        body_a.delta_angular_velocity +=
-            self.angular_component_a * delta_impulse * body_a.angular_factor;
+        body_a.delta_linear_velocity += self.contact_normal_1 * body_a.inv_mass * delta_impulse;
+        body_a.delta_angular_velocity += self.angular_component_a * delta_impulse;
 
-        body_b.delta_linear_velocity +=
-            self.contact_normal_2 * body_b.inv_mass * delta_impulse * body_b.linear_factor;
-        body_b.delta_angular_velocity +=
-            self.angular_component_b * delta_impulse * body_b.angular_factor;
+        body_b.delta_linear_velocity += self.contact_normal_2 * body_b.inv_mass * delta_impulse;
+        body_b.delta_angular_velocity += self.angular_component_b * delta_impulse;
 
         delta_impulse / self.jac_diag_ab_inv
     }
@@ -118,30 +108,27 @@ impl SolverConstraint {
 
         let mut delta_impulse = self.rhs_penetration;
 
-        let delta_vel_1_dot_n = self.contact_normal_1.dot(body_a.push_velocity)
-            + self.rel_pos1_cross_normal.dot(body_a.turn_velocity);
-        let delta_vel_2_dot_n = self.contact_normal_2.dot(body_b.push_velocity)
-            + self.rel_pos2_cross_normal.dot(body_b.turn_velocity);
+        let delta_vel_1_dot_n = bullet_dot(self.contact_normal_1, body_a.push_velocity)
+            + bullet_dot(self.rel_pos1_cross_normal, body_a.turn_velocity);
+        let delta_vel_2_dot_n = bullet_dot(self.contact_normal_2, body_b.push_velocity)
+            + bullet_dot(self.rel_pos2_cross_normal, body_b.turn_velocity);
 
         delta_impulse -= delta_vel_1_dot_n * self.jac_diag_ab_inv;
         delta_impulse -= delta_vel_2_dot_n * self.jac_diag_ab_inv;
 
         let sum = self.applied_push_impulse + delta_impulse;
-        delta_impulse = if sum < self.lower_limit {
-            self.lower_limit - self.applied_push_impulse
+        if sum < self.lower_limit {
+            delta_impulse = self.lower_limit - self.applied_push_impulse;
+            self.applied_push_impulse = self.lower_limit;
         } else {
-            delta_impulse
-        };
+            self.applied_push_impulse = sum;
+        }
 
-        self.applied_push_impulse = sum.max(self.lower_limit);
+        body_a.push_velocity += self.contact_normal_1 * body_a.inv_mass * delta_impulse;
+        body_a.turn_velocity += self.angular_component_a * delta_impulse;
 
-        body_a.push_velocity +=
-            self.contact_normal_1 * body_a.inv_mass * delta_impulse * body_a.linear_factor;
-        body_a.turn_velocity += self.angular_component_a * delta_impulse * body_a.angular_factor;
-
-        body_b.push_velocity +=
-            self.contact_normal_2 * body_b.inv_mass * delta_impulse * body_b.linear_factor;
-        body_b.turn_velocity += self.angular_component_b * delta_impulse * body_b.angular_factor;
+        body_b.push_velocity += self.contact_normal_2 * body_b.inv_mass * delta_impulse;
+        body_b.turn_velocity += self.angular_component_b * delta_impulse;
 
         delta_impulse / self.jac_diag_ab_inv
     }

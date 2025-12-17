@@ -1,0 +1,73 @@
+use std::time::Instant;
+
+use glam::{Mat3A, Vec3A};
+use rocketsim::{
+    GameMode, init_from_default,
+    sim::{Arena, CarConfig, Team},
+};
+
+const NUM_CARS: u8 = 8;
+
+fn main() {
+    init_from_default(true).unwrap();
+    let mut arena = Arena::new(GameMode::Soccar);
+
+    fastrand::seed(0);
+
+    let mut ids = Vec::new();
+    for i in 0..NUM_CARS {
+        let id = arena.add_car(Team::try_from(i % 2).unwrap(), CarConfig::OCTANE);
+        ids.push(id);
+    }
+
+    arena.reset_to_random_kickoff();
+
+    let mut ball_state = *arena.get_ball();
+    ball_state.physics.pos.z += 1000.;
+    ball_state.physics.vel.z = -10.;
+    arena.set_ball(ball_state);
+
+    let mut states = Vec::new();
+    for &id in &ids {
+        let car = arena.get_car_mut(id).unwrap();
+        car.controls.throttle = 1.0;
+
+        let mut state = *car.get_state();
+        state.physics.pos.z = 43.0;
+        state.is_on_ground = false;
+
+        let f = Vec3A::new(1., 1., 1.).normalize();
+        let up = Vec3A::Z;
+        let tr = up.cross(f);
+        let u = f.cross(tr).normalize();
+        let r = u.cross(f).normalize();
+        state.physics.rot_mat = Mat3A::from_cols(f, r, u);
+        states.push(state);
+    }
+
+    let start = Instant::now();
+    for _ in 0..2_000 {
+        arena.set_ball(ball_state);
+        for (&id, &state) in ids.iter().zip(&states) {
+            arena.set_car_state(id, state);
+        }
+
+        arena.step(720);
+
+        // for id in &ids {
+        //     let state = arena.objects.cars.get(id).unwrap().get_state();
+        //     println!("\npos: {}", state.physics.pos);
+        //     println!("vel: {}", state.physics.vel);
+        //     println!("ang_vel: {}", state.physics.ang_vel);
+        //     println!("rot_mat: {}", state.physics.rot_mat);
+        //     println!("is_demoed: {:?}", state.is_demoed);
+        //     println!("car_contact: {:?}", state.car_contact);
+        //     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
+        // }
+    }
+    let elapsed = Instant::now().duration_since(start).as_secs_f32();
+    println!(
+        "Elapsed: {elapsed}\nTPS: {}",
+        (2_000 * 720) as f32 / elapsed
+    );
+}
