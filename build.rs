@@ -54,9 +54,8 @@ fn main() {
     println!("cargo:rerun-if-changed=./spec");
     println!("cargo:rerun-if-changed=build.rs");
 
-    let rlbot_fbs_path = PathBuf::from(SCHEMA_DIR).join("game_state.fbs");
-    let mut declarations =
-        planus_translation::translate_files(&[rlbot_fbs_path.as_path()]).unwrap();
+    let fbs_path = PathBuf::from(SCHEMA_DIR).join("core.fbs");
+    let declarations = planus_translation::translate_files(&[fbs_path.as_path()]).unwrap();
     let raw_out = planus_codegen::generate_rust(&declarations)
         .unwrap()
         .replace("::serde::Serialize,", "")

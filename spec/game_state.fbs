@@ -1,3 +1,5 @@
+include "common.fbs";
+
 namespace rocketsim;
 
 enum GameMode: ubyte {
@@ -18,12 +20,6 @@ enum TileState: ubyte {
     Full = 0,
     Damaged = 1,
     Broken = 2
-}
-
-struct Vec3 {
-    x: float;
-    y: float;
-    z: float;
 }
 
 struct Mat3 {

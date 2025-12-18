@@ -300,6 +300,7 @@ impl Ball {
                 self.internal_state.hs_info.y_target_dir =
                     f32::from(car.team == Team::Blue) * 2.0 - 1.0;
 
+                #[allow(clippy::eq_op)]
                 if can_increase
                     && self.internal_state.hs_info.y_target_dir
                         != self.internal_state.hs_info.y_target_dir

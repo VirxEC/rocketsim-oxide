@@ -291,7 +291,7 @@ pub struct Arena {
     rng: Rng,
     tick_time: f32,
     last_car_id: u64,
-    config: ArenaConfig,
+    _config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
     objects: Objects,
 }
@@ -384,7 +384,7 @@ impl Arena {
 
         Self {
             rng,
-            config,
+            _config: config,
             bullet_world,
             last_car_id: 0,
             tick_time: 1. / f32::from(tick_rate),

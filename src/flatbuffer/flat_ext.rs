@@ -80,8 +80,8 @@ impl From<glam::Vec3A> for super::Vec3 {
     }
 }
 
-impl From<super::DropshotTile> for sim::DropshotTile {
-    fn from(value: super::DropshotTile) -> Self {
+impl From<&super::DropshotTile> for sim::DropshotTile {
+    fn from(value: &super::DropshotTile) -> Self {
         Self {
             pos: value.pos.into(),
             state: value.state.into(),
@@ -89,8 +89,8 @@ impl From<super::DropshotTile> for sim::DropshotTile {
     }
 }
 
-impl From<sim::DropshotTile> for super::DropshotTile {
-    fn from(value: sim::DropshotTile) -> Self {
+impl From<&sim::DropshotTile> for super::DropshotTile {
+    fn from(value: &sim::DropshotTile) -> Self {
         Self {
             pos: value.pos.into(),
             state: value.state.into(),
@@ -162,8 +162,8 @@ impl From<sim::BoostPadState> for super::BoostPadState {
     }
 }
 
-impl From<super::BoostPadInfo> for sim::BoostPadInfo {
-    fn from(value: super::BoostPadInfo) -> Self {
+impl From<&super::BoostPadInfo> for sim::BoostPadInfo {
+    fn from(value: &super::BoostPadInfo) -> Self {
         Self {
             config: value.config.into(),
             state: value.state.into(),
@@ -171,8 +171,8 @@ impl From<super::BoostPadInfo> for sim::BoostPadInfo {
     }
 }
 
-impl From<sim::BoostPadInfo> for super::BoostPadInfo {
-    fn from(value: sim::BoostPadInfo) -> Self {
+impl From<&sim::BoostPadInfo> for super::BoostPadInfo {
+    fn from(value: &sim::BoostPadInfo) -> Self {
         Self {
             config: value.config.into(),
             state: value.state.into(),
@@ -268,8 +268,8 @@ impl From<sim::PhysState> for super::PhysState {
     }
 }
 
-impl From<Box<super::CarContact>> for sim::CarContact {
-    fn from(value: Box<super::CarContact>) -> Self {
+impl From<&super::CarContact> for sim::CarContact {
+    fn from(value: &super::CarContact) -> Self {
         Self {
             other_car_id: value.other_car_id,
             cooldown_timer: value.cooldown_timer,
@@ -317,8 +317,8 @@ impl From<sim::CarControls> for super::CarControls {
     }
 }
 
-impl From<Box<super::BallHitInfo>> for sim::BallHitInfo {
-    fn from(value: Box<super::BallHitInfo>) -> Self {
+impl From<&super::BallHitInfo> for sim::BallHitInfo {
+    fn from(value: &super::BallHitInfo) -> Self {
         Self {
             relative_pos_on_ball: value.relative_pos_on_ball.into(),
             ball_pos: value.ball_pos.into(),
@@ -364,8 +364,8 @@ impl From<[bool; 4]> for super::WheelsWithContact {
     }
 }
 
-impl From<Box<super::CarState>> for sim::CarState {
-    fn from(value: Box<super::CarState>) -> Self {
+impl From<&super::CarState> for sim::CarState {
+    fn from(value: &super::CarState) -> Self {
         Self {
             physics: value.physics.into(),
             tick_count_since_update: value.tick_count_since_update,
@@ -392,10 +392,10 @@ impl From<Box<super::CarState>> for sim::CarState {
             auto_flip_timer: value.auto_flip_timer,
             auto_flip_torque_scale: value.auto_flip_torque_scale,
             world_contact_normal: value.world_contact_normal.map(Into::into),
-            car_contact: value.car_contact.map(Into::into),
+            car_contact: value.car_contact.as_deref().map(Into::into),
             is_demoed: value.is_demoed,
             demo_respawn_timer: value.demo_respawn_timer,
-            ball_hit_info: value.ball_hit_info.map(Into::into),
+            ball_hit_info: value.ball_hit_info.as_deref().map(Into::into),
             last_controls: value.last_controls.into(),
         }
     }
@@ -439,19 +439,19 @@ impl From<sim::CarState> for Box<super::CarState> {
     }
 }
 
-impl From<super::CarInfo> for sim::CarInfo {
-    fn from(value: super::CarInfo) -> Self {
+impl From<&super::CarInfo> for sim::CarInfo {
+    fn from(value: &super::CarInfo) -> Self {
         Self {
             id: value.id,
             team: value.team.into(),
-            state: value.state.into(),
+            state: value.state.as_ref().into(),
             config: value.config.into(),
         }
     }
 }
 
-impl From<sim::CarInfo> for super::CarInfo {
-    fn from(value: sim::CarInfo) -> Self {
+impl From<&sim::CarInfo> for super::CarInfo {
+    fn from(value: &sim::CarInfo) -> Self {
         Self {
             id: value.id,
             team: value.team.into(),
@@ -503,39 +503,62 @@ impl From<sim::BallState> for super::BallState {
     }
 }
 
-impl From<Box<super::DropshotTilesByTeam>> for [Vec<sim::DropshotTile>; 2] {
-    fn from(value: Box<super::DropshotTilesByTeam>) -> Self {
+impl From<&super::DropshotTilesByTeam> for [Vec<sim::DropshotTile>; 2] {
+    fn from(value: &super::DropshotTilesByTeam) -> Self {
         [
-            value.blue_tiles.into_iter().map(Into::into).collect(),
-            value.orange_tiles.into_iter().map(Into::into).collect(),
+            value.blue_tiles.iter().map(Into::into).collect(),
+            value.orange_tiles.iter().map(Into::into).collect(),
         ]
     }
 }
 
-impl From<[Vec<sim::DropshotTile>; 2]> for Box<super::DropshotTilesByTeam> {
-    fn from([blue_tiles, orange_tiles]: [Vec<sim::DropshotTile>; 2]) -> Self {
+impl From<&[Vec<sim::DropshotTile>; 2]> for Box<super::DropshotTilesByTeam> {
+    fn from([blue_tiles, orange_tiles]: &[Vec<sim::DropshotTile>; 2]) -> Self {
         let mut new = Self::default();
-        new.blue_tiles = blue_tiles.into_iter().map(Into::into).collect();
-        new.orange_tiles = orange_tiles.into_iter().map(Into::into).collect();
+        new.blue_tiles = blue_tiles.iter().map(Into::into).collect();
+        new.orange_tiles = orange_tiles.iter().map(Into::into).collect();
 
         new
     }
 }
 
-impl From<super::GameState> for sim::GameState {
-    fn from(value: super::GameState) -> Self {
+impl From<&super::GameState> for sim::GameState {
+    fn from(value: &super::GameState) -> Self {
         Self {
             tick_rate: value.tick_rate,
             tick_count: value.tick_count,
             game_mode: value.game_mode.into(),
             cars: value
                 .cars
-                .map(|cars| cars.into_iter().map(Into::into).collect()),
+                .as_ref()
+                .map(|cars| cars.iter().map(Into::into).collect()),
             ball: value.ball.into(),
             pads: value
                 .pads
-                .map(|pads| pads.into_iter().map(Into::into).collect()),
-            tiles: value.tiles.map(Into::into),
+                .as_ref()
+                .map(|pads| pads.iter().map(Into::into).collect()),
+            tiles: value.tiles.as_deref().map(Into::into),
         }
+    }
+}
+
+impl From<&sim::GameState> for Box<super::GameState> {
+    fn from(value: &sim::GameState) -> Self {
+        let mut new = Self::default();
+        new.tick_rate = value.tick_rate;
+        new.tick_count = value.tick_count;
+        new.game_mode = value.game_mode.into();
+        new.cars = value
+            .cars
+            .as_ref()
+            .map(|cars| cars.iter().map(Into::into).collect());
+        new.ball = value.ball.into();
+        new.pads = value
+            .pads
+            .as_ref()
+            .map(|pads| pads.iter().map(Into::into).collect());
+        new.tiles = value.tiles.as_ref().map(Into::into);
+
+        new
     }
 }
