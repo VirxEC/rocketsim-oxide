@@ -150,10 +150,10 @@ impl Ball {
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::DefaultFilter as i32
+                CollisionFilterGroups::Default as i32
                     | CollisionMasks::HoopsNet as i32
                     | CollisionMasks::DropshotTile as i32,
-                CollisionFilterGroups::AllFilter as i32,
+                CollisionFilterGroups::All as i32,
             )
             .unwrap();
 

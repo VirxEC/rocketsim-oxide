@@ -43,8 +43,8 @@ impl Default for RayResultCallbackBase {
         Self {
             closest_hit_fraction: 1.0,
             collision_object_index: None,
-            collision_filter_group: CollisionFilterGroups::DefaultFilter as i32,
-            collision_filter_mask: CollisionFilterGroups::AllFilter as i32,
+            collision_filter_group: CollisionFilterGroups::Default as i32,
+            collision_filter_mask: CollisionFilterGroups::All as i32,
             ignore_object_world_index: None,
             // flags: 0,
         }

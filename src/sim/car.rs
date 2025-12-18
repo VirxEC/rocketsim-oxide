@@ -242,8 +242,8 @@ impl Car {
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
-                CollisionFilterGroups::AllFilter as i32,
+                CollisionFilterGroups::Default as i32 | CollisionMasks::DropshotFloor as i32,
+                CollisionFilterGroups::All as i32,
             )
             .unwrap();
 

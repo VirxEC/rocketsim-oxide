@@ -75,14 +75,13 @@ impl DiscreteDynamicsWorld {
         if body.collision_object.get_collision_shape().is_some() {
             let (group, mask) = if body.collision_object.is_static_or_kinematic_object() {
                 (
-                    CollisionFilterGroups::StaticFilter as i32,
-                    CollisionFilterGroups::AllFilter as i32
-                        ^ CollisionFilterGroups::StaticFilter as i32,
+                    CollisionFilterGroups::Static as i32,
+                    CollisionFilterGroups::All as i32 ^ CollisionFilterGroups::Static as i32,
                 )
             } else {
                 (
-                    CollisionFilterGroups::DefaultFilter as i32,
-                    CollisionFilterGroups::AllFilter as i32,
+                    CollisionFilterGroups::Default as i32,
+                    CollisionFilterGroups::All as i32,
                 )
             };
 

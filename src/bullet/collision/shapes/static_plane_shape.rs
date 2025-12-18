@@ -67,9 +67,9 @@ impl StaticPlaneShape {
             const PLANE_CONSTANT_OFFSET: f32 = 0.2;
 
             min[self.single_axis_idx] =
-                t.translation[self.single_axis_idx] + self.plane_constant - PLANE_CONSTANT_OFFSET;
+                t.translation[self.single_axis_idx] + (self.plane_constant - PLANE_CONSTANT_OFFSET);
             max[self.single_axis_idx] =
-                t.translation[self.single_axis_idx] + self.plane_constant + PLANE_CONSTANT_OFFSET;
+                t.translation[self.single_axis_idx] + (self.plane_constant + PLANE_CONSTANT_OFFSET);
 
             (if self.single_axis_backwards {
                 &mut max

@@ -55,15 +55,13 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         let plane_normal = plane_shape.get_plane_normal();
         let plane_constant = plane_shape.get_plane_constant();
 
-        let plane_in_convex = self.convex_obj.world_transform.matrix3.transpose()
-            * self.plane_obj.get_world_transform().matrix3;
+        let plane_trans = self.plane_obj.get_world_transform();
+        let plane_in_convex =
+            self.convex_obj.world_transform.matrix3.transpose() * plane_trans.matrix3;
         let convex_in_plane_trans = Affine3A {
-            matrix3: self.plane_obj.get_world_transform().matrix3
-                * self.convex_obj.world_transform.matrix3.transpose(),
-            translation: self
-                .plane_obj
-                .get_world_transform()
-                .transform_point3a(self.convex_obj.world_transform.translation),
+            matrix3: plane_trans.matrix3.transpose() * self.convex_obj.world_transform.matrix3,
+            translation: plane_trans.matrix3 * self.convex_obj.world_transform.translation
+                - plane_trans.translation,
         };
 
         let vtx = col_shape.local_get_supporting_vertex(plane_in_convex * -plane_normal);

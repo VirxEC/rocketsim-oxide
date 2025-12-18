@@ -56,26 +56,10 @@ pub enum BroadphaseNativeTypes {
     MaxBroadphaseCollisionTypes,
 }
 
-impl BroadphaseNativeTypes {
-    #[must_use]
-    pub fn is_convex(self) -> bool {
-        self < Self::ConcaveShapesStartHere
-    }
-
-    #[must_use]
-    pub fn is_concave(self) -> bool {
-        self > Self::ConcaveShapesStartHere && self < Self::ConcaveShapesEndHere
-    }
-}
-
 pub enum CollisionFilterGroups {
-    DefaultFilter = 1,
-    StaticFilter = 2,
-    KinematicFilter = 4,
-    DebrisFilter = 8,
-    SensorTrigger = 16,
-    CharacterFilter = 32,
-    AllFilter = -1,
+    Default = 1,
+    Static = 2,
+    All = -1,
 }
 
 #[derive(Clone, Default)]
