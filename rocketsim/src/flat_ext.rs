@@ -1,21 +1,19 @@
-#![cfg(feature = "flatbuffer")]
+use rocketsim_flat as flat;
 
-use crate::sim;
-
-impl From<super::GameMode> for crate::GameMode {
-    fn from(value: super::GameMode) -> Self {
+impl From<flat::GameMode> for crate::GameMode {
+    fn from(value: flat::GameMode) -> Self {
         match value {
-            super::GameMode::Soccar => Self::Soccar,
-            super::GameMode::Hoops => Self::Hoops,
-            super::GameMode::Heatseeker => Self::Heatseeker,
-            super::GameMode::Snowday => Self::Snowday,
-            super::GameMode::Dropshot => Self::Dropshot,
-            super::GameMode::TheVoid => Self::TheVoid,
+            flat::GameMode::Soccar => Self::Soccar,
+            flat::GameMode::Hoops => Self::Hoops,
+            flat::GameMode::Heatseeker => Self::Heatseeker,
+            flat::GameMode::Snowday => Self::Snowday,
+            flat::GameMode::Dropshot => Self::Dropshot,
+            flat::GameMode::TheVoid => Self::TheVoid,
         }
     }
 }
 
-impl From<crate::GameMode> for super::GameMode {
+impl From<crate::GameMode> for flat::GameMode {
     fn from(value: crate::GameMode) -> Self {
         match value {
             crate::GameMode::Soccar => Self::Soccar,
@@ -28,62 +26,46 @@ impl From<crate::GameMode> for super::GameMode {
     }
 }
 
-impl From<super::Team> for sim::Team {
-    fn from(value: super::Team) -> Self {
+impl From<flat::Team> for crate::Team {
+    fn from(value: flat::Team) -> Self {
         match value {
-            super::Team::Blue => Self::Blue,
-            super::Team::Orange => Self::Orange,
+            flat::Team::Blue => Self::Blue,
+            flat::Team::Orange => Self::Orange,
         }
     }
 }
 
-impl From<sim::Team> for super::Team {
-    fn from(value: sim::Team) -> Self {
+impl From<crate::Team> for flat::Team {
+    fn from(value: crate::Team) -> Self {
         match value {
-            sim::Team::Blue => Self::Blue,
-            sim::Team::Orange => Self::Orange,
+            crate::Team::Blue => Self::Blue,
+            crate::Team::Orange => Self::Orange,
         }
     }
 }
 
-impl From<sim::TileState> for super::TileState {
-    fn from(value: sim::TileState) -> Self {
+impl From<crate::TileState> for flat::TileState {
+    fn from(value: crate::TileState) -> Self {
         match value {
-            sim::TileState::Full => Self::Full,
-            sim::TileState::Damaged => Self::Damaged,
-            sim::TileState::Broken => Self::Broken,
+            crate::TileState::Full => Self::Full,
+            crate::TileState::Damaged => Self::Damaged,
+            crate::TileState::Broken => Self::Broken,
         }
     }
 }
 
-impl From<super::TileState> for sim::TileState {
-    fn from(value: super::TileState) -> Self {
+impl From<flat::TileState> for crate::TileState {
+    fn from(value: flat::TileState) -> Self {
         match value {
-            super::TileState::Full => Self::Full,
-            super::TileState::Damaged => Self::Damaged,
-            super::TileState::Broken => Self::Broken,
+            flat::TileState::Full => Self::Full,
+            flat::TileState::Damaged => Self::Damaged,
+            flat::TileState::Broken => Self::Broken,
         }
     }
 }
 
-impl From<super::Vec3> for glam::Vec3A {
-    fn from(value: super::Vec3) -> Self {
-        Self::new(value.x, value.y, value.z)
-    }
-}
-
-impl From<glam::Vec3A> for super::Vec3 {
-    fn from(value: glam::Vec3A) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-            z: value.z,
-        }
-    }
-}
-
-impl From<&super::DropshotTile> for sim::DropshotTile {
-    fn from(value: &super::DropshotTile) -> Self {
+impl From<&flat::DropshotTile> for crate::DropshotTile {
+    fn from(value: &flat::DropshotTile) -> Self {
         Self {
             pos: value.pos.into(),
             state: value.state.into(),
@@ -91,8 +73,8 @@ impl From<&super::DropshotTile> for sim::DropshotTile {
     }
 }
 
-impl From<&sim::DropshotTile> for super::DropshotTile {
-    fn from(value: &sim::DropshotTile) -> Self {
+impl From<&crate::DropshotTile> for flat::DropshotTile {
+    fn from(value: &crate::DropshotTile) -> Self {
         Self {
             pos: value.pos.into(),
             state: value.state.into(),
@@ -100,8 +82,8 @@ impl From<&sim::DropshotTile> for super::DropshotTile {
     }
 }
 
-impl From<super::DropshotInfo> for sim::DropshotInfo {
-    fn from(value: super::DropshotInfo) -> Self {
+impl From<flat::DropshotInfo> for crate::DropshotInfo {
+    fn from(value: flat::DropshotInfo) -> Self {
         Self {
             charge_level: value.charge_level,
             accumulated_hit_force: value.accumulated_hit_force,
@@ -112,8 +94,8 @@ impl From<super::DropshotInfo> for sim::DropshotInfo {
     }
 }
 
-impl From<sim::DropshotInfo> for super::DropshotInfo {
-    fn from(value: sim::DropshotInfo) -> Self {
+impl From<crate::DropshotInfo> for flat::DropshotInfo {
+    fn from(value: crate::DropshotInfo) -> Self {
         Self {
             charge_level: value.charge_level,
             accumulated_hit_force: value.accumulated_hit_force,
@@ -124,8 +106,8 @@ impl From<sim::DropshotInfo> for super::DropshotInfo {
     }
 }
 
-impl From<super::BoostPadConfig> for sim::BoostPadConfig {
-    fn from(value: super::BoostPadConfig) -> Self {
+impl From<flat::BoostPadConfig> for crate::BoostPadConfig {
+    fn from(value: flat::BoostPadConfig) -> Self {
         Self {
             pos: value.pos.into(),
             is_big: value.is_big,
@@ -133,8 +115,8 @@ impl From<super::BoostPadConfig> for sim::BoostPadConfig {
     }
 }
 
-impl From<sim::BoostPadConfig> for super::BoostPadConfig {
-    fn from(value: sim::BoostPadConfig) -> Self {
+impl From<crate::BoostPadConfig> for flat::BoostPadConfig {
+    fn from(value: crate::BoostPadConfig) -> Self {
         Self {
             pos: value.pos.into(),
             is_big: value.is_big,
@@ -142,8 +124,8 @@ impl From<sim::BoostPadConfig> for super::BoostPadConfig {
     }
 }
 
-impl From<super::BoostPadState> for sim::BoostPadState {
-    fn from(value: super::BoostPadState) -> Self {
+impl From<flat::BoostPadState> for crate::BoostPadState {
+    fn from(value: flat::BoostPadState) -> Self {
         Self {
             is_active: value.is_active,
             cooldown: value.cooldown,
@@ -153,8 +135,8 @@ impl From<super::BoostPadState> for sim::BoostPadState {
     }
 }
 
-impl From<sim::BoostPadState> for super::BoostPadState {
-    fn from(value: sim::BoostPadState) -> Self {
+impl From<crate::BoostPadState> for flat::BoostPadState {
+    fn from(value: crate::BoostPadState) -> Self {
         Self {
             is_active: value.is_active,
             cooldown: value.cooldown,
@@ -164,8 +146,8 @@ impl From<sim::BoostPadState> for super::BoostPadState {
     }
 }
 
-impl From<&super::BoostPadInfo> for sim::BoostPadInfo {
-    fn from(value: &super::BoostPadInfo) -> Self {
+impl From<&flat::BoostPadInfo> for crate::BoostPadInfo {
+    fn from(value: &flat::BoostPadInfo) -> Self {
         Self {
             config: value.config.into(),
             state: value.state.into(),
@@ -173,8 +155,8 @@ impl From<&super::BoostPadInfo> for sim::BoostPadInfo {
     }
 }
 
-impl From<&sim::BoostPadInfo> for super::BoostPadInfo {
-    fn from(value: &sim::BoostPadInfo) -> Self {
+impl From<&crate::BoostPadInfo> for flat::BoostPadInfo {
+    fn from(value: &crate::BoostPadInfo) -> Self {
         Self {
             config: value.config.into(),
             state: value.state.into(),
@@ -182,8 +164,8 @@ impl From<&sim::BoostPadInfo> for super::BoostPadInfo {
     }
 }
 
-impl From<super::WheelPairConfig> for sim::WheelPairConfig {
-    fn from(value: super::WheelPairConfig) -> Self {
+impl From<flat::WheelPairConfig> for crate::WheelPairConfig {
+    fn from(value: flat::WheelPairConfig) -> Self {
         Self {
             wheel_radius: value.wheel_radius,
             suspension_rest_length: value.suspension_rest_length,
@@ -192,8 +174,8 @@ impl From<super::WheelPairConfig> for sim::WheelPairConfig {
     }
 }
 
-impl From<sim::WheelPairConfig> for super::WheelPairConfig {
-    fn from(value: sim::WheelPairConfig) -> Self {
+impl From<crate::WheelPairConfig> for flat::WheelPairConfig {
+    fn from(value: crate::WheelPairConfig) -> Self {
         Self {
             wheel_radius: value.wheel_radius,
             suspension_rest_length: value.suspension_rest_length,
@@ -202,8 +184,8 @@ impl From<sim::WheelPairConfig> for super::WheelPairConfig {
     }
 }
 
-impl From<super::CarConfig> for sim::CarConfig {
-    fn from(value: super::CarConfig) -> Self {
+impl From<flat::CarConfig> for crate::CarConfig {
+    fn from(value: flat::CarConfig) -> Self {
         Self {
             hitbox_size: value.hitbox_size.into(),
             hitbox_pos_offset: value.hitbox_pos_offset.into(),
@@ -215,8 +197,8 @@ impl From<super::CarConfig> for sim::CarConfig {
     }
 }
 
-impl From<sim::CarConfig> for super::CarConfig {
-    fn from(value: sim::CarConfig) -> Self {
+impl From<crate::CarConfig> for flat::CarConfig {
+    fn from(value: crate::CarConfig) -> Self {
         Self {
             hitbox_size: value.hitbox_size.into(),
             hitbox_pos_offset: value.hitbox_pos_offset.into(),
@@ -228,28 +210,8 @@ impl From<sim::CarConfig> for super::CarConfig {
     }
 }
 
-impl From<super::Mat3> for glam::Mat3A {
-    fn from(value: super::Mat3) -> Self {
-        Self {
-            x_axis: value.forward.into(),
-            y_axis: value.right.into(),
-            z_axis: value.up.into(),
-        }
-    }
-}
-
-impl From<glam::Mat3A> for super::Mat3 {
-    fn from(value: glam::Mat3A) -> Self {
-        Self {
-            forward: value.x_axis.into(),
-            right: value.y_axis.into(),
-            up: value.z_axis.into(),
-        }
-    }
-}
-
-impl From<super::PhysState> for sim::PhysState {
-    fn from(value: super::PhysState) -> Self {
+impl From<flat::PhysState> for crate::PhysState {
+    fn from(value: flat::PhysState) -> Self {
         Self {
             pos: value.pos.into(),
             rot_mat: value.rot_mat.into(),
@@ -259,8 +221,8 @@ impl From<super::PhysState> for sim::PhysState {
     }
 }
 
-impl From<sim::PhysState> for super::PhysState {
-    fn from(value: sim::PhysState) -> Self {
+impl From<crate::PhysState> for flat::PhysState {
+    fn from(value: crate::PhysState) -> Self {
         Self {
             pos: value.pos.into(),
             rot_mat: value.rot_mat.into(),
@@ -270,8 +232,8 @@ impl From<sim::PhysState> for super::PhysState {
     }
 }
 
-impl From<&super::CarContact> for sim::CarContact {
-    fn from(value: &super::CarContact) -> Self {
+impl From<&flat::CarContact> for crate::CarContact {
+    fn from(value: &flat::CarContact) -> Self {
         Self {
             other_car_id: value.other_car_id,
             cooldown_timer: value.cooldown_timer,
@@ -279,8 +241,8 @@ impl From<&super::CarContact> for sim::CarContact {
     }
 }
 
-impl From<sim::CarContact> for Box<super::CarContact> {
-    fn from(value: sim::CarContact) -> Self {
+impl From<crate::CarContact> for Box<flat::CarContact> {
+    fn from(value: crate::CarContact) -> Self {
         let mut new = Self::default();
         new.other_car_id = value.other_car_id;
         new.cooldown_timer = value.cooldown_timer;
@@ -289,8 +251,8 @@ impl From<sim::CarContact> for Box<super::CarContact> {
     }
 }
 
-impl From<super::CarControls> for sim::CarControls {
-    fn from(value: super::CarControls) -> Self {
+impl From<flat::CarControls> for crate::CarControls {
+    fn from(value: flat::CarControls) -> Self {
         Self {
             throttle: value.throttle,
             steer: value.steer,
@@ -304,8 +266,8 @@ impl From<super::CarControls> for sim::CarControls {
     }
 }
 
-impl From<sim::CarControls> for super::CarControls {
-    fn from(value: sim::CarControls) -> Self {
+impl From<crate::CarControls> for flat::CarControls {
+    fn from(value: crate::CarControls) -> Self {
         Self {
             throttle: value.throttle,
             steer: value.steer,
@@ -319,8 +281,8 @@ impl From<sim::CarControls> for super::CarControls {
     }
 }
 
-impl From<&super::BallHitInfo> for sim::BallHitInfo {
-    fn from(value: &super::BallHitInfo) -> Self {
+impl From<&flat::BallHitInfo> for crate::BallHitInfo {
+    fn from(value: &flat::BallHitInfo) -> Self {
         Self {
             relative_pos_on_ball: value.relative_pos_on_ball.into(),
             ball_pos: value.ball_pos.into(),
@@ -331,8 +293,8 @@ impl From<&super::BallHitInfo> for sim::BallHitInfo {
     }
 }
 
-impl From<sim::BallHitInfo> for Box<super::BallHitInfo> {
-    fn from(value: sim::BallHitInfo) -> Self {
+impl From<crate::BallHitInfo> for Box<flat::BallHitInfo> {
+    fn from(value: crate::BallHitInfo) -> Self {
         let mut new = Self::default();
         new.relative_pos_on_ball = value.relative_pos_on_ball.into();
         new.ball_pos = value.ball_pos.into();
@@ -344,30 +306,8 @@ impl From<sim::BallHitInfo> for Box<super::BallHitInfo> {
     }
 }
 
-impl From<super::WheelsWithContact> for [bool; 4] {
-    fn from(value: super::WheelsWithContact) -> Self {
-        [
-            value.front_left,
-            value.front_right,
-            value.rear_left,
-            value.rear_right,
-        ]
-    }
-}
-
-impl From<[bool; 4]> for super::WheelsWithContact {
-    fn from(value: [bool; 4]) -> Self {
-        Self {
-            front_left: value[0],
-            front_right: value[1],
-            rear_left: value[2],
-            rear_right: value[3],
-        }
-    }
-}
-
-impl From<&super::CarState> for sim::CarState {
-    fn from(value: &super::CarState) -> Self {
+impl From<&flat::CarState> for crate::CarState {
+    fn from(value: &flat::CarState) -> Self {
         Self {
             phys: value.physics.into(),
             tick_count_since_update: value.tick_count_since_update,
@@ -403,8 +343,8 @@ impl From<&super::CarState> for sim::CarState {
     }
 }
 
-impl From<sim::CarState> for Box<super::CarState> {
-    fn from(value: sim::CarState) -> Self {
+impl From<crate::CarState> for Box<flat::CarState> {
+    fn from(value: crate::CarState) -> Self {
         let mut new = Self::default();
         new.physics = value.phys.into();
         new.tick_count_since_update = value.tick_count_since_update;
@@ -441,8 +381,8 @@ impl From<sim::CarState> for Box<super::CarState> {
     }
 }
 
-impl From<&super::CarInfo> for sim::CarInfo {
-    fn from(value: &super::CarInfo) -> Self {
+impl From<&flat::CarInfo> for crate::CarInfo {
+    fn from(value: &flat::CarInfo) -> Self {
         Self {
             id: value.id,
             team: value.team.into(),
@@ -452,8 +392,8 @@ impl From<&super::CarInfo> for sim::CarInfo {
     }
 }
 
-impl From<&sim::CarInfo> for super::CarInfo {
-    fn from(value: &sim::CarInfo) -> Self {
+impl From<&crate::CarInfo> for flat::CarInfo {
+    fn from(value: &crate::CarInfo) -> Self {
         Self {
             id: value.id,
             team: value.team.into(),
@@ -463,8 +403,8 @@ impl From<&sim::CarInfo> for super::CarInfo {
     }
 }
 
-impl From<super::HeatseekerInfo> for sim::HeatseekerInfo {
-    fn from(value: super::HeatseekerInfo) -> Self {
+impl From<flat::HeatseekerInfo> for crate::HeatseekerInfo {
+    fn from(value: flat::HeatseekerInfo) -> Self {
         Self {
             y_target_dir: value.y_target_dir,
             cur_target_speed: value.cur_target_speed,
@@ -473,8 +413,8 @@ impl From<super::HeatseekerInfo> for sim::HeatseekerInfo {
     }
 }
 
-impl From<sim::HeatseekerInfo> for super::HeatseekerInfo {
-    fn from(value: sim::HeatseekerInfo) -> Self {
+impl From<crate::HeatseekerInfo> for flat::HeatseekerInfo {
+    fn from(value: crate::HeatseekerInfo) -> Self {
         Self {
             y_target_dir: value.y_target_dir,
             cur_target_speed: value.cur_target_speed,
@@ -483,8 +423,8 @@ impl From<sim::HeatseekerInfo> for super::HeatseekerInfo {
     }
 }
 
-impl From<super::BallState> for sim::BallState {
-    fn from(value: super::BallState) -> Self {
+impl From<flat::BallState> for crate::BallState {
+    fn from(value: flat::BallState) -> Self {
         Self {
             phys: value.physics.into(),
             ticks_since_update: value.tick_count_since_update,
@@ -494,8 +434,8 @@ impl From<super::BallState> for sim::BallState {
     }
 }
 
-impl From<sim::BallState> for super::BallState {
-    fn from(value: sim::BallState) -> Self {
+impl From<crate::BallState> for flat::BallState {
+    fn from(value: crate::BallState) -> Self {
         Self {
             physics: value.phys.into(),
             tick_count_since_update: value.ticks_since_update,
@@ -505,27 +445,8 @@ impl From<sim::BallState> for super::BallState {
     }
 }
 
-impl From<&super::DropshotTilesByTeam> for [Vec<sim::DropshotTile>; 2] {
-    fn from(value: &super::DropshotTilesByTeam) -> Self {
-        [
-            value.blue_tiles.iter().map(Into::into).collect(),
-            value.orange_tiles.iter().map(Into::into).collect(),
-        ]
-    }
-}
-
-impl From<&[Vec<sim::DropshotTile>; 2]> for Box<super::DropshotTilesByTeam> {
-    fn from([blue_tiles, orange_tiles]: &[Vec<sim::DropshotTile>; 2]) -> Self {
-        let mut new = Self::default();
-        new.blue_tiles = blue_tiles.iter().map(Into::into).collect();
-        new.orange_tiles = orange_tiles.iter().map(Into::into).collect();
-
-        new
-    }
-}
-
-impl From<&super::GameState> for sim::GameState {
-    fn from(value: &super::GameState) -> Self {
+impl From<&flat::GameState> for crate::GameState {
+    fn from(value: &flat::GameState) -> Self {
         Self {
             tick_rate: value.tick_rate,
             tick_count: value.tick_count,
@@ -539,13 +460,18 @@ impl From<&super::GameState> for sim::GameState {
                 .pads
                 .as_ref()
                 .map(|pads| pads.iter().map(Into::into).collect()),
-            tiles: value.tiles.as_deref().map(Into::into),
+            tiles: value.tiles.as_deref().map(|tiles| {
+                [
+                    tiles.blue_tiles.iter().map(Into::into).collect(),
+                    tiles.orange_tiles.iter().map(Into::into).collect(),
+                ]
+            }),
         }
     }
 }
 
-impl From<&sim::GameState> for Box<super::GameState> {
-    fn from(value: &sim::GameState) -> Self {
+impl From<&crate::GameState> for Box<flat::GameState> {
+    fn from(value: &crate::GameState) -> Self {
         let mut new = Self::default();
         new.tick_rate = value.tick_rate;
         new.tick_count = value.tick_count;
@@ -559,7 +485,13 @@ impl From<&sim::GameState> for Box<super::GameState> {
             .pads
             .as_ref()
             .map(|pads| pads.iter().map(Into::into).collect());
-        new.tiles = value.tiles.as_ref().map(Into::into);
+        new.tiles = value.tiles.as_ref().map(|[blue_tiles, orange_tiles]| {
+            let mut new = Box::<flat::DropshotTilesByTeam>::default();
+            new.blue_tiles = blue_tiles.iter().map(Into::into).collect();
+            new.orange_tiles = orange_tiles.iter().map(Into::into).collect();
+
+            new
+        });
 
         new
     }

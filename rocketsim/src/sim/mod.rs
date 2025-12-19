@@ -2,11 +2,13 @@ mod arena;
 mod ball;
 mod ball_hit_info;
 mod boost_pad;
+#[allow(clippy::redundant_pub_crate)]
 pub(crate) mod boost_pad_grid;
 mod car;
 mod car_config;
 mod car_controls;
 mod collision_masks;
+#[allow(clippy::redundant_pub_crate)]
 pub(crate) mod collision_meshes;
 pub mod consts;
 mod game_mode;
@@ -29,4 +31,5 @@ pub use game_state::*;
 pub use mutator_config::*;
 pub use phys_state::*;
 pub use team::*;
+#[allow(clippy::redundant_pub_crate)]
 pub(crate) use user_info_types::*;

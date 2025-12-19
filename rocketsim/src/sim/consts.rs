@@ -223,6 +223,7 @@ pub mod car {
 
         pub const RESPAWN_TIME: f32 = 3.0;
 
+        #[must_use]
         pub const fn get_respawn_locations(game_mode: GameMode) -> &'static [CarSpawnPos] {
             const LOCATIONS_SOCCAR: [CarSpawnPos; 4] = [
                 CarSpawnPos::new(-2304., -4608., FRAC_PI_2),

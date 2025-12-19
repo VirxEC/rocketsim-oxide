@@ -44,8 +44,8 @@ impl CollisionMeshFile {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     fn calculate_hash(indices: &Vec<usize>, vertices: &[Vec3A]) -> u32 {
-        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D9F3B);
-        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E3779B9);
+        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D_9F3B);
+        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E37_79B9);
 
         let mut hash = Wrapping((vertices.len() + (indices.len() / 3 * vertices.len())) as u32);
 

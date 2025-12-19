@@ -1,7 +1,10 @@
 #![allow(clippy::suboptimal_flops)]
 
 #[cfg(feature = "flatbuffer")]
-pub mod flatbuffer;
+pub use rocketsim_flat;
+
+#[cfg(feature = "flatbuffer")]
+pub mod flat_ext;
 #[cfg(feature = "rlviser")]
 pub mod rlviser;
 mod sim;

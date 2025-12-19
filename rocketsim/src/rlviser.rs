@@ -7,12 +7,10 @@ use std::{
 };
 
 use ahash::{AHashSet, AHasher};
-use planus::{Builder, ReadAsRoot};
+use rocketsim_flat::planus::{Builder, ReadAsRoot};
+use rocketsim_flat::{AddRender, Message, Packet, PacketRef, RemoveRender, Render};
 
-use crate::{
-    flatbuffer::{AddRender, Color, Message, Packet, PacketRef, RemoveRender, Render},
-    sim::{Arena, GameState},
-};
+use crate::sim::{Arena, GameState};
 
 /// Pass this into rlviser as the first argument
 /// default: 45243
@@ -21,26 +19,6 @@ pub const RLVISER_PORT: u16 = 45243;
 /// Pass this into rlviser as the second argument
 /// default: 34254
 pub const ROCKETSIM_PORT: u16 = 34254;
-
-impl Color {
-    pub const BLACK: Self = Self::rgb(0., 0., 0.);
-    pub const WHITE: Self = Self::rgb(1., 1., 1.);
-    pub const RED: Self = Self::rgb(1., 0., 0.);
-    pub const GREEN: Self = Self::rgb(0., 1., 0.);
-    pub const BLUE: Self = Self::rgb(0., 0., 1.);
-
-    #[inline]
-    #[must_use]
-    pub const fn rgb(r: f32, g: f32, b: f32) -> Self {
-        Self { r, g, b, a: 1. }
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
-    }
-}
 
 #[derive(Default)]
 pub struct RenderingManager {

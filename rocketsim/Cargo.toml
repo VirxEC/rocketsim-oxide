@@ -1,0 +1,25 @@
+[package]
+name = "rocketsim"
+edition = "2024"
+license-file.workspace = true
+version.workspace = true
+
+[dependencies]
+ahash = "0.8.12"
+arrayvec = "0.7.6"
+byteorder = "1.5.0"
+fastrand = "2.3.0"
+log = "0.4.29"
+env_logger = "0.11.8"
+rocketsim_flat = { path = "../rocketsim_flat", optional = true }
+glam = { workspace = true }
+
+[features]
+default = ["rlviser"]
+rlviser = ["flatbuffer"]
+flatbuffer = ["dep:rocketsim_flat"]
+
+[lints.clippy]
+all = "warn"
+nursery = "warn"
+# pedantic = "warn"
