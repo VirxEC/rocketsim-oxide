@@ -13,11 +13,15 @@ log = "0.4.29"
 env_logger = "0.11.8"
 rocketsim_flat = { path = "../rocketsim_flat", optional = true }
 glam = { workspace = true }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+rkyv = { version = "0.8.12", optional = true }
 
 [features]
 default = ["rlviser"]
 rlviser = ["flatbuffer"]
 flatbuffer = ["dep:rocketsim_flat"]
+serde = ["dep:serde", "glam/serde"]
+rkyv = ["dep:rkyv", "glam/rkyv"]
 
 [lints.clippy]
 all = "warn"

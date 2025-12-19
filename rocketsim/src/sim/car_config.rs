@@ -47,6 +47,11 @@ pub const BACK_WHEELS_OFFSET: [Vec3A; 7] = [
 ];
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "rkyv",
+    derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
+)]
 pub struct WheelPairConfig {
     /// Radius of both wheels
     pub wheel_radius: f32,
@@ -59,6 +64,11 @@ pub struct WheelPairConfig {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "rkyv",
+    derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
+)]
 pub struct CarConfig {
     /// Full size of hitbox (NOT the half-size/extent)
     pub hitbox_size: Vec3A,
