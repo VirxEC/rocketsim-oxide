@@ -1,13 +1,11 @@
+#![cfg(feature = "rlviser")]
+
 use std::{
     thread::sleep,
     time::{Duration, Instant},
 };
 
-use rocketsim::{
-    GameMode, init_from_default,
-    rlviser::RLViser,
-    sim::{Arena, CarConfig, Team},
-};
+use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default, rlviser::RLViser};
 
 fn main() {
     init_from_default(true).unwrap();

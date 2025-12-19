@@ -1,14 +1,13 @@
 #![allow(clippy::suboptimal_flops)]
 
-pub mod consts;
 #[cfg(feature = "flatbuffer")]
 pub mod flatbuffer;
 #[cfg(feature = "rlviser")]
 pub mod rlviser;
-pub mod sim;
+mod sim;
 
 mod bullet;
-mod collision_meshes;
+mod logging;
 
 use std::{
     fs,
@@ -20,106 +19,15 @@ use std::{
 
 use ahash::AHashMap;
 use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
-use collision_meshes::{
+use log::{error, info};
+use sim::collision_meshes::{
     COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
+pub use sim::*;
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<Arc<BvhTriangleMeshShape>>>>,
 > = RwLock::new(None);
-
-/// `BulletPhysics` Units (1m) to Unreal Units (2cm) conversion scale
-pub(crate) const BT_TO_UU: f32 = 50.0;
-
-/// Unreal Units (2cm) to `BulletPhysics` Units (1m) conversion scale
-pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum UserInfoTypes {
-    #[default]
-    None,
-    Car,
-    Ball,
-    DropshotTile,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum GameMode {
-    #[default]
-    Soccar,
-    Hoops,
-    Heatseeker,
-    Snowday,
-    Dropshot,
-    /// Soccar but without goals, boost pads, or the arena hull. The cars and ball will fall infinitely.
-    TheVoid,
-}
-
-impl GameMode {
-    const NAMES: [&'static str; 7] = [
-        "soccar",
-        "hoops",
-        "heatseeker",
-        "snowday",
-        "dropshot",
-        "dropshot",
-        "void",
-    ];
-
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        Self::NAMES[self as usize]
-    }
-
-    pub(crate) fn get_hashes(self) -> AHashMap<u32, u32> {
-        macro_rules! zero_iter {
-            ($($i:literal),+) => {
-                [
-                    $(($i, 0)),+
-                ].into_iter()
-            }
-        }
-
-        match self {
-            Self::Soccar => zero_iter![
-                0xA160_BAF9,
-                0x2811_EEE8,
-                0xB81A_C8B9,
-                0x7603_58D3,
-                0x73AE_4940,
-                0x918F_4A4E,
-                0x1F8E_E550,
-                0x255B_A8C1,
-                0x14B8_4668,
-                0xEC75_9EBF,
-                0x94FB_0D5C,
-                0xDEA0_7102,
-                0xBD4F_BEA8,
-                0x39A4_7F63,
-                0x3D79_D25D,
-                0xD84C_7A68
-            ]
-            .collect(),
-            Self::Hoops => zero_iter![
-                0x72F2_359E,
-                0x5ED1_4A26,
-                0xFD5A_0D07,
-                0x92AF_A5B5,
-                0x0E41_33C7,
-                0x399E_8B5F,
-                0xBB9D_4FB5,
-                0x8C87_FB93,
-                0x1CFD_0E16,
-                0xE19E_1DF6,
-                0x9CA1_79DC,
-                0x16F3_CC19
-            ]
-            .collect(),
-            Self::Dropshot => zero_iter![0x7EB0_B2D3, 0x9110_41D2].collect(),
-            _ => AHashMap::new(),
-        }
-    }
-}
 
 pub fn init_from_default(silent: bool) -> IoResult<()> {
     init(COLLISION_MESH_BASE_PATH, silent)
@@ -181,8 +89,10 @@ pub fn init_from_mem(
     silent: bool,
 ) -> IoResult<()> {
     if !silent {
-        println!("Initializing RocketSim, originally by Zealan and ported to Rust by Virx...");
+        let _ = logging::try_init();
     }
+
+    info!("Initializing RocketSim, originally by ZealanL and ported to Rust by VirxEC...");
 
     let start_time = Instant::now();
 
@@ -191,14 +101,10 @@ pub fn init_from_mem(
     let mut arena_collision_shapes = AHashMap::new();
 
     for (game_mode, mesh_files) in mesh_file_map {
-        if !silent {
-            println!("Loading arena meshes for {}...", game_mode.name());
-        }
+        info!("Loading arena meshes for {}...", game_mode.name());
 
         if mesh_files.is_empty() {
-            if !silent {
-                println!("No meshes, skipping");
-            }
+            info!("\tNo meshes, skipping");
             continue;
         }
 
@@ -206,10 +112,10 @@ pub fn init_from_mem(
         let mut target_hashes = game_mode.get_hashes();
 
         for (i, entry) in mesh_files.into_iter().enumerate() {
-            let mesh_file = CollisionMeshFile::read_from_bytes(&entry, silent)?;
+            let mesh_file = CollisionMeshFile::read_from_bytes(&entry)?;
             let hash = mesh_file.get_hash();
             let Some(hash_count) = target_hashes.get_mut(&hash) else {
-                eprintln!(
+                error!(
                     "Collision mesh [{i}] does not match any known {} collision mesh ({hash:#x}), make sure they were dumped form a normal {} arena.",
                     game_mode.name(),
                     game_mode.name()
@@ -217,8 +123,8 @@ pub fn init_from_mem(
                 continue;
             };
 
-            if *hash_count > 0 && !silent {
-                eprintln!(
+            if *hash_count > 0 {
+                error!(
                     "Collision mesh [{i}] is a duplicate ({hash:#x}), already loaded a mesh with the same hash."
                 );
             }
@@ -233,29 +139,29 @@ pub fn init_from_mem(
         arena_collision_shapes.insert(game_mode, meshes);
     }
 
-    if !silent {
-        println!("Finished loading arena collision meshes:");
-        println!(
-            " > Soccar: {}",
+    {
+        info!("Finished loading arena collision meshes:");
+        info!(
+            "\tSoccar: {}",
             arena_collision_shapes
                 .get(&GameMode::Soccar)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
-        println!(
-            " > Hoops: {}",
+        info!(
+            "\tHoops: {}",
             arena_collision_shapes
                 .get(&GameMode::Hoops)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
-        println!(
-            " > Dropshot: {}",
+        info!(
+            "\tDropshot: {}",
             arena_collision_shapes
                 .get(&GameMode::Dropshot)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
 
         let elapsed_time = Instant::now().duration_since(start_time);
-        println!(
+        info!(
             "Finished initializing RocketSim in {:.3}s!",
             elapsed_time.as_secs_f32()
         );
@@ -265,7 +171,7 @@ pub fn init_from_mem(
         let mut arena_collision_shapes_lock = ARENA_COLLISION_SHAPES.write().unwrap();
         assert!(
             arena_collision_shapes_lock.is_none(),
-            "Called init(..) twice"
+            "RocketSim initialization called twice"
         );
         *arena_collision_shapes_lock = Some(arena_collision_shapes);
     }

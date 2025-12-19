@@ -84,14 +84,6 @@ impl Default for CarConfig {
 }
 
 impl CarConfig {
-    pub const OCTANE: Self = Self::make_car_config(0, false);
-    pub const DOMINUS: Self = Self::make_car_config(1, false);
-    pub const PLANK: Self = Self::make_car_config(2, false);
-    pub const BREAKOUT: Self = Self::make_car_config(3, false);
-    pub const HYBRID: Self = Self::make_car_config(4, false);
-    pub const MERC: Self = Self::make_car_config(5, false);
-    pub const PSYCLOPS: Self = Self::make_car_config(6, true);
-
     const fn make_car_config(index: usize, three_wheels: bool) -> Self {
         Self {
             hitbox_size: HITBOX_SIZES[index],
@@ -110,4 +102,12 @@ impl CarConfig {
             dodge_deadzone: 0.5,
         }
     }
+
+    pub const OCTANE: Self = Self::make_car_config(0, false);
+    pub const DOMINUS: Self = Self::make_car_config(1, false);
+    pub const PLANK: Self = Self::make_car_config(2, false);
+    pub const BREAKOUT: Self = Self::make_car_config(3, false);
+    pub const HYBRID: Self = Self::make_car_config(4, false);
+    pub const MERC: Self = Self::make_car_config(5, false);
+    pub const PSYCLOPS: Self = Self::make_car_config(6, true);
 }

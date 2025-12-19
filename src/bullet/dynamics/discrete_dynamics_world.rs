@@ -6,7 +6,7 @@ use super::{
     world::DynamicsWorld,
 };
 use crate::bullet::collision::{
-    broadphase::{broadphase_proxy::CollisionFilterGroups, rs_broadphase::RsBroadphase},
+    broadphase::{CollisionFilterGroups, GridBroadphase},
     dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::ActivationState},
     narrowphase::persistent_manifold::ContactAddedCallback,
 };
@@ -23,7 +23,7 @@ impl DiscreteDynamicsWorld {
     #[must_use]
     pub fn new(
         dispatcher: CollisionDispatcher,
-        pair_cache: RsBroadphase,
+        pair_cache: GridBroadphase,
         constraint_solver: SequentialImpulseConstraintSolver,
     ) -> Self {
         Self {

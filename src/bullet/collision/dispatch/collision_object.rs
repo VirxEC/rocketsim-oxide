@@ -1,6 +1,6 @@
 use glam::{Affine3A, Vec3A};
 
-use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
+use crate::{bullet::collision::shapes::collision_shape::CollisionShapes, sim::UserInfoTypes};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActivationState {

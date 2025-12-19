@@ -9,7 +9,9 @@ arrayvec = "0.7.6"
 byteorder = "1.5.0"
 fastrand = "2.3.0"
 glam = "0.30.3"
+log = "0.4.29"
 planus = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", optional = true }
+env_logger = "0.11.8"
 
 [build-dependencies]
 planus-translation = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", optional = true }
@@ -17,7 +19,7 @@ planus-codegen = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", o
 planus-types = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", optional = true }
 
 [features]
-default = ["rlviser"]
+default = []
 rlviser = ["flatbuffer"]
 flatbuffer = ["dep:planus", "dep:planus-translation", "dep:planus-codegen", "dep:planus-types"]
 

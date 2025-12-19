@@ -5,7 +5,7 @@ use glam::{Quat, Vec3, Vec3A};
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
-        broadphase::bvh::{Bvh, MyNodeOverlapCallback},
+        broadphase::{Bvh, BvhNodeOverlapCallback},
         narrowphase::manifold_point::ManifoldPoint,
         shapes::{
             collision_shape::CollisionShapes,
@@ -186,7 +186,7 @@ pub fn generate_internal_edge_info(bvh: &Bvh, mesh_interface: &TriangleMesh) -> 
         };
 
         let mut my_node_callback =
-            MyNodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
+            BvhNodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
         bvh.report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 

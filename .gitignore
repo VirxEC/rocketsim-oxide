@@ -4,3 +4,4 @@
 /src/flatbuffer/planus_flat.rs
 *.data*
 *.svg
+/.idea

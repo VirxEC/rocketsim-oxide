@@ -3,7 +3,7 @@ use glam::Vec3A;
 use crate::bullet::{
     collision::dispatch::{
         collision_object::CollisionObject,
-        collision_world::{ClosestRayResultCallback, RayResultCallback},
+        ray_callbacks::{ClosestRayResultCallback, RayResultCallback},
     },
     dynamics::{discrete_dynamics_world::DiscreteDynamicsWorld, rigid_body::RigidBody},
 };

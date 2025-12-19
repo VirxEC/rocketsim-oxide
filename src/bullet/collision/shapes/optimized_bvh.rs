@@ -2,7 +2,7 @@ use glam::Vec3A;
 
 use super::triangle_mesh::TriangleMesh;
 use crate::bullet::{
-    collision::broadphase::bvh::{Bvh, BvhNode, NodeType},
+    collision::broadphase::{Bvh, BvhNode, NodeType},
     linear_math::aabb_util_2::Aabb,
 };
 

@@ -1,9 +1,6 @@
 use std::time::Instant;
 
-use rocketsim::{
-    GameMode, init_from_default,
-    sim::{Arena, BallState},
-};
+use rocketsim::{Arena, BallState, GameMode, init_from_default};
 
 fn main() {
     init_from_default(true).unwrap();
@@ -12,9 +9,9 @@ fn main() {
     let start = Instant::now();
     for _ in 0..20_000 {
         let mut ball = BallState::DEFAULT;
-        ball.physics.vel.x = 600.0;
-        ball.physics.vel.y = 1550.0;
-        ball.physics.vel.z = 0.0;
+        ball.phys.vel.x = 600.0;
+        ball.phys.vel.y = 1550.0;
+        ball.phys.vel.z = 0.0;
 
         arena.set_ball(ball);
         arena.step(720);

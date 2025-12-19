@@ -3,8 +3,8 @@ use glam::{Affine3A, Vec3A};
 use super::concave_shape::ConcaveShape;
 use crate::bullet::{
     collision::{
-        broadphase::broadphase_proxy::BroadphaseNativeTypes,
-        dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+        broadphase::BroadphaseNativeTypes,
+        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
         shapes::collision_shape::CollisionShape,
     },
     linear_math::{

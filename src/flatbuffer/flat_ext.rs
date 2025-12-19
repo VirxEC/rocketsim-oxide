@@ -1,3 +1,5 @@
+#![cfg(feature = "flatbuffer")]
+
 use crate::sim;
 
 impl From<super::GameMode> for crate::GameMode {
@@ -367,7 +369,7 @@ impl From<[bool; 4]> for super::WheelsWithContact {
 impl From<&super::CarState> for sim::CarState {
     fn from(value: &super::CarState) -> Self {
         Self {
-            physics: value.physics.into(),
+            phys: value.physics.into(),
             tick_count_since_update: value.tick_count_since_update,
             is_on_ground: value.is_on_ground,
             wheels_with_contact: value.wheels_with_contact.into(),
@@ -404,7 +406,7 @@ impl From<&super::CarState> for sim::CarState {
 impl From<sim::CarState> for Box<super::CarState> {
     fn from(value: sim::CarState) -> Self {
         let mut new = Self::default();
-        new.physics = value.physics.into();
+        new.physics = value.phys.into();
         new.tick_count_since_update = value.tick_count_since_update;
         new.is_on_ground = value.is_on_ground;
         new.wheels_with_contact = value.wheels_with_contact.into();
@@ -484,8 +486,8 @@ impl From<sim::HeatseekerInfo> for super::HeatseekerInfo {
 impl From<super::BallState> for sim::BallState {
     fn from(value: super::BallState) -> Self {
         Self {
-            physics: value.physics.into(),
-            tick_count_since_update: value.tick_count_since_update,
+            phys: value.physics.into(),
+            ticks_since_update: value.tick_count_since_update,
             hs_info: value.hs_info.into(),
             ds_info: value.ds_info.into(),
         }
@@ -495,8 +497,8 @@ impl From<super::BallState> for sim::BallState {
 impl From<sim::BallState> for super::BallState {
     fn from(value: sim::BallState) -> Self {
         Self {
-            physics: value.physics.into(),
-            tick_count_since_update: value.tick_count_since_update,
+            physics: value.phys.into(),
+            tick_count_since_update: value.ticks_since_update,
             hs_info: value.hs_info.into(),
             ds_info: value.ds_info.into(),
         }
