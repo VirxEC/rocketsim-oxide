@@ -13,26 +13,20 @@ pub struct TriangleMesh {
 
 impl TriangleMesh {
     #[must_use]
-    pub fn new(verts: Vec<Vec3A>, ids: Vec<usize>) -> Self {
+    pub fn new(verts: &[Vec3A], ids: &[usize]) -> Self {
         debug_assert_eq!(ids.len() % 3, 0);
 
-        let aabbs = ids
+        let triangles: Box<[TriangleShape]> = ids
             .chunks_exact(3)
-            .map(|ids| {
-                let p0 = verts[ids[0]];
-                let p1 = verts[ids[1]];
-                let p2 = verts[ids[2]];
-
-                Aabb {
-                    min: p0.min(p1).min(p2),
-                    max: p0.max(p1).max(p2),
-                }
-            })
+            .map(|ids| TriangleShape::from_points_iter(ids.iter().map(|&j| verts[j])))
             .collect();
 
-        let triangles = (0..ids.len() / 3)
-            .map(|i| i * 3)
-            .map(|i| TriangleShape::from_points_iter(ids[i..i + 3].iter().map(|&j| verts[j])))
+        let aabbs = triangles
+            .iter()
+            .map(|tri| Aabb {
+                min: tri.points[0].min(tri.points[1]).min(tri.points[2]),
+                max: tri.points[0].max(tri.points[1]).max(tri.points[2]),
+            })
             .collect();
 
         Self { triangles, aabbs }

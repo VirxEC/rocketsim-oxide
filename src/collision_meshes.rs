@@ -107,6 +107,6 @@ impl CollisionMeshFile {
     }
 
     pub fn make_bullet_mesh(self) -> TriangleMesh {
-        TriangleMesh::new(self.vertices, self.indices)
+        TriangleMesh::new(&self.vertices, &self.indices)
     }
 }

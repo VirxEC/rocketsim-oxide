@@ -372,18 +372,20 @@ impl Car {
             ..Default::default()
         };
 
-        self.set_state(rb, new_state);
+        self.set_state(rb, &new_state);
     }
 
+    #[must_use]
     pub const fn get_state(&self) -> &CarState {
         &self.internal_state
     }
 
+    #[must_use]
     pub const fn get_config(&self) -> &CarConfig {
         &self.config
     }
 
-    pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: CarState) {
+    pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: &CarState) {
         debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Car);
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
 
@@ -397,7 +399,7 @@ impl Car {
         rb.update_inertia_tensor();
 
         self.velocity_impulse_cache = Vec3A::ZERO;
-        self.internal_state = state;
+        self.internal_state = *state;
         self.internal_state.tick_count_since_update = 0;
     }
 

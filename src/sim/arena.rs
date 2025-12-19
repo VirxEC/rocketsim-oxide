@@ -660,7 +660,7 @@ impl Arena {
 
                 car.set_state(
                     &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-                    spawn_state,
+                    &spawn_state,
                 );
             }
         }
@@ -869,7 +869,7 @@ impl Arena {
 
         car.set_state(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            state,
+            &state,
         );
     }
 
@@ -887,6 +887,7 @@ impl Arena {
         );
     }
 
+    #[must_use]
     pub fn get_game_state(&self) -> GameState {
         GameState {
             tick_rate: self.get_tick_rate(),

@@ -182,7 +182,8 @@ impl CollisionDispatcher {
                 _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },
             BroadphaseNativeTypes::CompoundShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
+                BroadphaseNativeTypes::StaticPlaneProxytype
+                | BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
                     Algorithms::new_compound(col_obj_0, col_obj_1, false, contact_added_callback)
                 }
                 BroadphaseNativeTypes::SphereShapeProxytype => Algorithms::new_sphere_obb(
@@ -194,9 +195,6 @@ impl CollisionDispatcher {
                     true,
                     contact_added_callback,
                 ),
-                BroadphaseNativeTypes::StaticPlaneProxytype => {
-                    Algorithms::new_compound(col_obj_0, col_obj_1, false, contact_added_callback)
-                }
                 BroadphaseNativeTypes::CompoundShapeProxytype => Algorithms::new_obb_obb(
                     CollisionObjectWrapper {
                         object: col_obj_0,

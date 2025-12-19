@@ -49,12 +49,14 @@ pub struct RenderingManager {
 }
 
 impl RenderingManager {
+    #[allow(clippy::cast_possible_truncation)]
     const fn reduce_hash(hash: u64) -> u32 {
         let upper = (hash >> 32) as u32;
         let lower = hash as u32;
         upper ^ lower
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     pub fn add_renders(&mut self, id: &str, commands: Vec<Render>) {
         let mut hasher = AHasher::default();
         id.hash(&mut hasher);
@@ -65,6 +67,7 @@ impl RenderingManager {
             .push(Message::AddRender(Box::new(AddRender { id, commands })));
     }
 
+    #[allow(clippy::cast_possible_wrap)]
     pub fn remove_renders(&mut self, id: &str) {
         let mut hasher = AHasher::default();
         id.hash(&mut hasher);
@@ -147,6 +150,7 @@ impl RLViser {
         })
     }
 
+    #[must_use]
     pub const fn is_paused(&self) -> bool {
         self.paused
     }
@@ -211,8 +215,8 @@ impl RLViser {
                 }
             }
 
-            let packet_size =
-                packet_size_buffer.len() + u64::from_be_bytes(packet_size_buffer) as usize;
+            let packet_size = packet_size_buffer.len()
+                + usize::try_from(u64::from_be_bytes(packet_size_buffer)).unwrap();
             self.udp_buffer.resize(packet_size, 0);
             if self.socket.recv_from(&mut self.udp_buffer).is_err() {
                 continue;
@@ -220,7 +224,7 @@ impl RLViser {
 
             let Ok(packet): Result<Packet, _> =
                 PacketRef::read_as_root(&self.udp_buffer[packet_size_buffer.len()..])
-                    .and_then(|packet| packet.try_into())
+                    .and_then(TryInto::try_into)
             else {
                 continue;
             };

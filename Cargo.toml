@@ -27,10 +27,7 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-[lints.rust]
-unused = "allow"
-
 [lints.clippy]
 all = "warn"
-# pedantic = "warn"
 nursery = "warn"
+# pedantic = "warn"
