@@ -6,6 +6,7 @@ use std::{
 use byteorder::{LittleEndian, ReadBytesExt};
 use glam::Vec3A;
 use log::info;
+
 use crate::bullet::collision::shapes::triangle_mesh::TriangleMesh;
 
 pub const COLLISION_MESH_BASE_PATH: &str = "./collision_meshes/";

@@ -72,10 +72,7 @@ impl GameMode {
                 0x16F3_CC19
             ]
             .collect(),
-            Self::Dropshot => zero_iter![
-                0x7EB0_B2D3,
-                0x9110_41D2
-            ].collect(),
+            Self::Dropshot => zero_iter![0x7EB0_B2D3, 0x9110_41D2].collect(),
             _ => AHashMap::new(),
         }
     }

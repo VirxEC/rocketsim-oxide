@@ -1,11 +1,13 @@
 use glam::Vec3A;
-use crate::bullet::collision::broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups};
-use crate::bullet::collision::dispatch::collision_object::CollisionObject;
-use crate::bullet::collision::dispatch::collision_world::CollisionWorld;
-use crate::bullet::collision::shapes::triangle_callback::TriangleCallback;
-use crate::bullet::collision::shapes::triangle_shape::TriangleShape;
-use crate::bullet::linear_math::aabb_util_2::Aabb;
-use crate::bullet::linear_math::interpolate_3;
+
+use crate::bullet::{
+    collision::{
+        broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
+        dispatch::{collision_object::CollisionObject, collision_world::CollisionWorld},
+        shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
+    },
+    linear_math::{aabb_util_2::Aabb, interpolate_3},
+};
 
 pub struct LocalRayResult {
     collision_object_index: usize,

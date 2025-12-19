@@ -1,7 +1,6 @@
 use glam::Vec3A;
 
-use crate::GameMode;
-use crate::sim::consts;
+use crate::{GameMode, sim::consts};
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 pub enum DemoMode {

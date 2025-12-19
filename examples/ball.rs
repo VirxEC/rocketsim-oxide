@@ -1,9 +1,6 @@
 use std::time::Instant;
 
-use rocketsim::{
-    GameMode, init_from_default,
-    Arena, BallState
-};
+use rocketsim::{Arena, BallState, GameMode, init_from_default};
 
 fn main() {
     init_from_default(true).unwrap();

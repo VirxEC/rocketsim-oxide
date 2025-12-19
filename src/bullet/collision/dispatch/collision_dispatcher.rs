@@ -5,7 +5,7 @@ use super::{
 use crate::bullet::{
     collision::{
         broadphase::{
-            BroadphaseNativeTypes, CollisionAlgorithm, {GridBroadphase, GridBroadpraseProxy},
+            BroadphaseNativeTypes, CollisionAlgorithm, GridBroadphase, GridBroadpraseProxy,
         },
         dispatch::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,

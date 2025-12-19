@@ -9,9 +9,6 @@ mod sim;
 mod bullet;
 mod logging;
 
-// Public uses
-pub use sim::*;
-
 use std::{
     fs,
     io::{Error as IoError, ErrorKind, Result as IoResult},
@@ -26,6 +23,7 @@ use log::{error, info};
 use sim::collision_meshes::{
     COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
+pub use sim::*;
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<Arc<BvhTriangleMeshShape>>>>,

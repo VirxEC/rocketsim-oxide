@@ -1,11 +1,12 @@
-use crate::sim::linear_piece_curve::LinearPieceCurve;
-use crate::GameMode;
 use std::f32::consts::{FRAC_1_SQRT_2, PI};
+
 use glam::Vec3A;
+
+use crate::{GameMode, sim::linear_piece_curve::LinearPieceCurve};
 
 pub struct PhysicsCoefs {
     pub friction: f32,
-    pub restitution: f32
+    pub restitution: f32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -157,7 +158,7 @@ pub mod car {
 
     pub mod autoflip {
         use super::*;
-        
+
         pub const IMPULSE: f32 = 200.0;
         pub const TORQUE: f32 = 50.0;
         pub const TIME: f32 = 0.4;
@@ -176,14 +177,14 @@ pub mod car {
     }
 
     pub mod spawn {
-        use super::*;
         use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+
+        use super::*;
 
         pub const REST_Z: f32 = 17.0;
         pub const SPAWN_Z: f32 = 36.0;
 
         pub const fn get_kickoff_spawn_locations(game_mode: GameMode) -> &'static [CarSpawnPos] {
-
             pub const LOCATIONS_SOCCAR: [CarSpawnPos; 5] = [
                 CarSpawnPos::new(-2048., -2560., FRAC_PI_4 * 1.),
                 CarSpawnPos::new(2048., -2560., FRAC_PI_4 * 3.),
@@ -216,7 +217,7 @@ pub mod car {
                 GameMode::Hoops => &LOCATIONS_HOOPS,
                 GameMode::Dropshot => &LOCATIONS_DROPSHOT,
                 GameMode::Heatseeker => &LOCATIONS_HEATSEEKER,
-                _ => &LOCATIONS_SOCCAR
+                _ => &LOCATIONS_SOCCAR,
             }
         }
 
@@ -245,7 +246,7 @@ pub mod car {
             match game_mode {
                 GameMode::Hoops => &LOCATIONS_HOOPS,
                 GameMode::Dropshot => &LOCATIONS_DROPSHOT,
-                _ => &LOCATIONS_SOCCAR
+                _ => &LOCATIONS_SOCCAR,
             }
         }
     }
@@ -262,7 +263,7 @@ pub mod ball {
             GameMode::Hoops => RADIUS_HOOPS,
             GameMode::Dropshot => RADIUS_DROPSHOT,
             GameMode::Snowday => f32::NAN,
-            _ => RADIUS_SOCCAR
+            _ => RADIUS_SOCCAR,
         }
     }
 
@@ -299,7 +300,6 @@ pub mod goal {
     pub const SOCCAR_GOAL_SCORE_BASE_THRESHOLD_Y: f32 = 5124.25;
     pub const HOOPS_GOAL_SCORE_THRESHOLD_Z: f32 = 270.0;
 }
-
 
 pub mod bullet_vehicle {
     pub const SUSPENSION_FORCE_SCALE_FRONT: f32 = 36.0 - (1.0 / 4.);
@@ -515,8 +515,20 @@ pub mod boost_pads {
         ];
 
         match game_mode {
-            GameMode::Hoops => if is_big { &LOCS_BIG_HOOPS } else { &LOCS_SMALL_HOOPS },
-            _ => if is_big { &LOCS_BIG_SOCCAR } else { &LOCS_SMALL_SOCCAR },
+            GameMode::Hoops => {
+                if is_big {
+                    &LOCS_BIG_HOOPS
+                } else {
+                    &LOCS_SMALL_HOOPS
+                }
+            }
+            _ => {
+                if is_big {
+                    &LOCS_BIG_SOCCAR
+                } else {
+                    &LOCS_SMALL_SOCCAR
+                }
+            }
         }
     }
 }

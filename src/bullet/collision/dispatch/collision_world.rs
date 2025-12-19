@@ -6,15 +6,15 @@ use super::{
 };
 use crate::bullet::{
     collision::{
-        broadphase::{
-            GridBroadphase,
+        broadphase::GridBroadphase,
+        dispatch::ray_callbacks::{
+            BridgeTriangleRaycastCallback, RayResultCallback, SingleRayCallback,
         },
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
     },
     dynamics::rigid_body::RigidBody,
     linear_math::AffineExt,
 };
-use crate::bullet::collision::dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback, SingleRayCallback};
 
 pub struct CollisionWorld {
     pub collision_objects: Vec<RigidBody>,

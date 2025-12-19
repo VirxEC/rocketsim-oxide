@@ -5,31 +5,34 @@ use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
-use crate::{bullet::{
-    collision::{
-        broadphase::{
-            HashedOverlappingPairCache, GridBroadphase,
+use crate::{
+    ARENA_COLLISION_SHAPES, GameMode,
+    bullet::{
+        collision::{
+            broadphase::{GridBroadphase, HashedOverlappingPairCache},
+            dispatch::{
+                collision_dispatcher::CollisionDispatcher,
+                collision_object::{ActivationState, CollisionObject},
+                internal_edge_utility::adjust_internal_edge_contacts,
+            },
+            narrowphase::{
+                manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
+            },
+            shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
         },
-        dispatch::{
-            collision_dispatcher::CollisionDispatcher,
-            collision_object::{ActivationState, CollisionObject},
-            internal_edge_utility::adjust_internal_edge_contacts,
+        dynamics::{
+            constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
+            discrete_dynamics_world::DiscreteDynamicsWorld,
+            rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
-        narrowphase::{
-            manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
-        },
-        shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
     },
-    dynamics::{
-        constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
-        discrete_dynamics_world::DiscreteDynamicsWorld,
-        rigid_body::{RigidBody, RigidBodyConstructionInfo},
+    consts,
+    consts::{BT_TO_UU, UU_TO_BT},
+    sim::{
+        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState, UserInfoTypes,
+        collision_masks::CollisionMasks,
     },
-}, consts, sim::{
-    collision_masks::CollisionMasks, BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState,
-}, GameMode, ARENA_COLLISION_SHAPES};
-use crate::consts::{BT_TO_UU, UU_TO_BT};
-use crate::sim::UserInfoTypes;
+};
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 pub enum ArenaMemWeightMode {
@@ -210,7 +213,8 @@ impl ArenaData {
 
                 let bump_impulse = vel_dir * base_scale
                     + hit_up_dir
-                        * consts::curves::BUMP_UPWARD_VEL_AMOUNT.get_output(speed_towards_other_car)
+                        * consts::curves::BUMP_UPWARD_VEL_AMOUNT
+                            .get_output(speed_towards_other_car)
                         * self.mutator_config.bump_force_scale;
 
                 car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
@@ -300,7 +304,10 @@ impl Arena {
     }
 
     pub fn new_with_config(game_mode: GameMode, config: ArenaConfig, tick_rate: u8) -> Self {
-        assert!(tick_rate >= 15 && tick_rate <= 120, "tick_rate must be between 15 and 120");
+        assert!(
+            (15..=120).contains(&tick_rate),
+            "tick_rate must be between 15 and 120"
+        );
 
         let mutator_config = MutatorConfig::new(game_mode);
 
@@ -352,14 +359,16 @@ impl Arena {
                 boost_pads.reserve(small_pad_locs.len() + big_pad_locs.len());
 
                 for small_pos in small_pad_locs {
-                    boost_pads.push(BoostPad::new(
-                        BoostPadConfig { pos: *small_pos, is_big: false }
-                    ));
+                    boost_pads.push(BoostPad::new(BoostPadConfig {
+                        pos: *small_pos,
+                        is_big: false,
+                    }));
                 }
                 for big_pos in big_pad_locs {
-                    boost_pads.push(BoostPad::new(
-                        BoostPadConfig { pos: *big_pos, is_big: true }
-                    ));
+                    boost_pads.push(BoostPad::new(BoostPadConfig {
+                        pos: *big_pos,
+                        is_big: true,
+                    }));
                 }
             }
         }
@@ -442,8 +451,16 @@ impl Arena {
 
         // TODO: Move to consts
         let (extent_x, floor, height) = match game_mode {
-            GameMode::Hoops => (consts::arena::EXTENT_X_HOOPS, 0.0, consts::arena::HEIGHT_HOOPS),
-            GameMode::Dropshot => (consts::arena::EXTENT_X, consts::arena::FLOOR_HEIGHT_DROPSHOT, consts::arena::HEIGHT_DROPSHOT),
+            GameMode::Hoops => (
+                consts::arena::EXTENT_X_HOOPS,
+                0.0,
+                consts::arena::HEIGHT_HOOPS,
+            ),
+            GameMode::Dropshot => (
+                consts::arena::EXTENT_X,
+                consts::arena::FLOOR_HEIGHT_DROPSHOT,
+                consts::arena::HEIGHT_DROPSHOT,
+            ),
             _ => (consts::arena::EXTENT_X, 0.0, consts::arena::HEIGHT),
         };
 
@@ -571,8 +588,7 @@ impl Arena {
             .push(car);
         }
 
-        let mut num_cars_at_respawn_pos: Vec<usize> = Vec::with_capacity(respawn_locs.len());
-        num_cars_at_respawn_pos.resize(respawn_locs.len(), 0);
+        let mut num_cars_at_respawn_pos: Vec<usize> = vec![0; respawn_locs.len()];
 
         let kickoff_position_amount = blue_cars.len().max(orange_cars.len());
         for i in 0..kickoff_position_amount {

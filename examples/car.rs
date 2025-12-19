@@ -1,10 +1,7 @@
 use std::time::Instant;
 
 use glam::{Mat3A, Vec3A};
-use rocketsim::{
-    GameMode, init_from_default,
-    Arena, CarConfig, Team
-};
+use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default};
 
 fn main() {
     init_from_default(false).unwrap();

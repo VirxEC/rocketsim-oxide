@@ -8,11 +8,7 @@ pub enum Team {
 impl Team {
     #[must_use]
     pub const fn from_team_y(y: f32) -> Self {
-        if y <= 0.0 {
-            Self::Blue
-        } else {
-            Self::Orange
-        }
+        if y <= 0.0 { Self::Blue } else { Self::Orange }
     }
 
     #[must_use]

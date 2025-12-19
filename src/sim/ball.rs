@@ -1,7 +1,8 @@
 use glam::{Affine3A, Mat3A, Vec3A};
 
-use super::{collision_masks::CollisionMasks, MutatorConfig, PhysState};
+use super::{MutatorConfig, PhysState, collision_masks::CollisionMasks};
 use crate::{
+    GameMode,
     bullet::{
         collision::{
             broadphase::{BroadphaseNativeTypes, CollisionFilterGroups},
@@ -13,11 +14,11 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    sim::{BallHitInfo, Car, Team},
-    GameMode,
+    sim::{
+        BallHitInfo, Car, Team, UserInfoTypes,
+        consts::{self, dropshot, heatseeker},
+    },
 };
-use crate::sim::consts::{self, dropshot, heatseeker};
-use crate::sim::UserInfoTypes;
 
 #[derive(Clone, Copy, Debug)]
 pub struct HeatseekerInfo {
@@ -322,8 +323,7 @@ impl Ball {
 
                 let dir_from_car =
                     (self.internal_state.phys.pos - car.internal_state.phys.pos).normalize();
-                let rel_vel_from_car =
-                    car.internal_state.phys.vel - self.internal_state.phys.vel;
+                let rel_vel_from_car = car.internal_state.phys.vel - self.internal_state.phys.vel;
                 let vel_info_ball = dir_from_car.dot(rel_vel_from_car);
 
                 if vel_info_ball >= dropshot::MIN_CHARGE_HIT_SPEED {
