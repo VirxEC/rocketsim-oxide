@@ -3,7 +3,7 @@ use std::time::Instant;
 use glam::Vec3A;
 use rocketsim::{
     GameMode, init_from_default,
-    sim::{Arena, ArenaConfig, CarConfig, Team},
+    Arena, ArenaConfig, CarConfig, Team
 };
 
 fn hex_vec3a(v: Vec3A) -> String {

@@ -2,36 +2,34 @@ use std::f32::consts::PI;
 
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
-use super::{BallHitInfo, CarConfig, CarControls, CollisionMasks, MutatorConfig, PhysState};
-use crate::{
-    GameMode, UserInfoTypes,
-    bullet::{
-        collision::{
-            broadphase::broadphase_proxy::CollisionFilterGroups,
-            dispatch::collision_object::{ActivationState, CollisionFlags},
-            shapes::{
-                box_shape::BoxShape, collision_shape::CollisionShapes,
-                compound_shape::CompoundShape,
-            },
+use super::{collision_masks::CollisionMasks, BallHitInfo, CarConfig, CarControls, MutatorConfig, PhysState};
+use crate::{bullet::{
+    collision::{
+        broadphase::broadphase_proxy::CollisionFilterGroups,
+        dispatch::collision_object::{ActivationState, CollisionFlags},
+        shapes::{
+            box_shape::BoxShape, collision_shape::CollisionShapes,
+            compound_shape::CompoundShape,
         },
-        dynamics::{
-            discrete_dynamics_world::DiscreteDynamicsWorld,
-            rigid_body::{RigidBody, RigidBodyConstructionInfo},
-            vehicle::{
-                raycaster::VehicleRaycaster,
-                vehicle_rl::{VehicleRL, VehicleTuning},
-            },
-        },
-        linear_math::Mat3AExt,
     },
-    consts::{
-        btvehicle::{
-            MAX_SUSPENSION_TRAVEL, SUSPENSION_FORCE_SCALE_BACK, SUSPENSION_FORCE_SCALE_FRONT,
-            SUSPENSION_STIFFNESS, WHEELS_DAMPING_COMPRESSION, WHEELS_DAMPING_RELAXATION,
+    dynamics::{
+        discrete_dynamics_world::DiscreteDynamicsWorld,
+        rigid_body::{RigidBody, RigidBodyConstructionInfo},
+        vehicle::{
+            raycaster::VehicleRaycaster,
+            vehicle_rl::{VehicleRL, VehicleTuning},
         },
-        *,
     },
+    linear_math::Mat3AExt,
+}, GameMode, Team};
+use crate::sim::consts::{
+    btvehicle::{
+        MAX_SUSPENSION_TRAVEL, SUSPENSION_FORCE_SCALE_BACK, SUSPENSION_FORCE_SCALE_FRONT,
+        SUSPENSION_STIFFNESS, WHEELS_DAMPING_COMPRESSION, WHEELS_DAMPING_RELAXATION,
+    },
+    *,
 };
+use crate::sim::UserInfoTypes;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CarContact {
@@ -163,40 +161,6 @@ impl CarState {
     #[must_use]
     pub const fn got_flip_reset(&self) -> bool {
         !self.is_on_ground && !self.has_jumped
-    }
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Team {
-    #[default]
-    Blue,
-    Orange,
-}
-
-impl Team {
-    #[must_use]
-    pub const fn from_team_y(y: f32) -> Self {
-        if y.is_sign_negative() {
-            Self::Blue
-        } else {
-            Self::Orange
-        }
-    }
-
-    #[must_use]
-    pub fn into_team_y(self) -> f32 {
-        f32::from(self as i8 * 2 - 1)
-    }
-}
-
-impl TryFrom<u8> for Team {
-    type Error = ();
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Blue),
-            1 => Ok(Self::Orange),
-            _ => Err(()),
-        }
     }
 }
 

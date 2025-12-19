@@ -5,20 +5,18 @@ use super::{
     raycaster::VehicleRaycaster,
     wheel_info::{WheelInfo, WheelInfoConstructionInfo},
 };
-use crate::{
-    bullet::{
-        collision::dispatch::collision_object::CollisionObject,
-        dynamics::{
-            constraint_solver::contact_constraint::{
-                resolve_single_bilateral, resolve_single_collision,
-            },
-            discrete_dynamics_world::DiscreteDynamicsWorld,
-            rigid_body::RigidBody,
+use crate::bullet::{
+    collision::dispatch::collision_object::CollisionObject,
+    dynamics::{
+        constraint_solver::contact_constraint::{
+            resolve_single_bilateral, resolve_single_collision,
         },
-        linear_math::{Mat3AExt, QuatExt},
+        discrete_dynamics_world::DiscreteDynamicsWorld,
+        rigid_body::RigidBody,
     },
-    consts::btvehicle::SUSPENSION_SUBTRACTION,
+    linear_math::{Mat3AExt, QuatExt},
 };
+use crate::sim::consts::btvehicle::SUSPENSION_SUBTRACTION;
 
 const NUM_WHEELS: usize = 4;
 

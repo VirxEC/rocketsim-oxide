@@ -6,7 +6,7 @@ use std::{
 use rocketsim::{
     GameMode, init_from_default,
     rlviser::RLViser,
-    sim::{Arena, CarConfig, Team},
+    Arena, CarConfig, Team
 };
 
 fn main() {

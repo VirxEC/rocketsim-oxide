@@ -3,7 +3,7 @@ use std::time::Instant;
 use glam::{Mat3A, Vec3A};
 use rocketsim::{
     GameMode, init_from_default,
-    sim::{Arena, ArenaConfig, CarConfig, Team},
+    Arena, ArenaConfig, CarConfig, Team
 };
 
 const NUM_CARS: u8 = 8;

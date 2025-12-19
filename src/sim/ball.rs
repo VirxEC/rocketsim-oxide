@@ -1,8 +1,7 @@
 use glam::{Affine3A, Mat3A, Vec3A};
 
-use super::{CollisionMasks, MutatorConfig, PhysState};
+use super::{collision_masks::CollisionMasks, MutatorConfig, PhysState};
 use crate::{
-    GameMode, UserInfoTypes,
     bullet::{
         collision::{
             broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
@@ -14,9 +13,11 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts::{self, dropshot, heatseeker},
     sim::{BallHitInfo, Car, Team},
+    GameMode,
 };
+use crate::sim::consts::{self, dropshot, heatseeker};
+use crate::sim::UserInfoTypes;
 
 #[derive(Clone, Copy, Debug)]
 pub struct HeatseekerInfo {

@@ -1,6 +1,6 @@
 use glam::Vec3A;
 
-use crate::{consts};
+use crate::sim::consts;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct BoostPadConfig {

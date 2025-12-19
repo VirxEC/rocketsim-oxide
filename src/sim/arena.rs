@@ -6,7 +6,6 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
-    ARENA_COLLISION_SHAPES, GameMode, UserInfoTypes,
     bullet::{
         collision::{
             broadphase::{
@@ -28,11 +27,14 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts::*,
     sim::{
-        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, CollisionMasks, DemoMode, GameState,
+        collision_masks::CollisionMasks, BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState,
     },
+    GameMode,
+    ARENA_COLLISION_SHAPES,
 };
+use crate::sim::consts::*;
+use crate::sim::UserInfoTypes;
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
 pub enum ArenaMemWeightMode {

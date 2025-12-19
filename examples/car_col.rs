@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use rocketsim::{
     GameMode, init_from_default,
-    sim::{Arena, CarConfig, Team},
+    Arena, CarConfig, Team
 };
 
 fn main() {
