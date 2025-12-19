@@ -43,8 +43,8 @@ impl CollisionMeshFile {
     #[allow(clippy::cast_sign_loss)]
     #[allow(clippy::cast_possible_truncation)]
     fn calculate_hash(indices: &Vec<usize>, vertices: &[Vec3A]) -> u32 {
-        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D_9F3B);
-        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E37_79B9);
+        const HASH_VAL_MUELLER: Wrapping<u32> = Wrapping(0x45D9F3B);
+        const HASH_VAL_SHIFT: Wrapping<u32> = Wrapping(0x9E3779B9);
 
         let mut hash = Wrapping((vertices.len() + (indices.len() / 3 * vertices.len())) as u32);
 
@@ -61,7 +61,7 @@ impl CollisionMeshFile {
         hash.0
     }
 
-    pub fn read_from_bytes(bytes: &[u8], silent: bool) -> IoResult<Self> {
+    pub fn read_from_bytes(bytes: &[u8]) -> IoResult<Self> {
         const MAX_VERT_OR_TRI_COUNT: usize = 1_000_000;
 
         let mut bytes = Cursor::new(bytes);
@@ -71,7 +71,7 @@ impl CollisionMeshFile {
 
         assert!(
             num_tris.min(num_vertices) != 0 && num_tris.max(num_vertices) <= MAX_VERT_OR_TRI_COUNT,
-            "Invalid collision mesh file (bad triangle/vertex count: [{num_tris}, {num_vertices}])"
+            "Invalid collision mesh file (bad triangle/vertex count: [{num_tris}/{num_vertices}])"
         );
 
         let indices = (0..num_indices)
@@ -94,9 +94,7 @@ impl CollisionMeshFile {
 
         let hash = Self::calculate_hash(&indices, &vertices);
 
-        if !silent {
-            info!("\tLoaded {num_vertices} verts and {num_tris} tris, hash: {hash:#x}");
-        }
+        info!("\tLoaded {num_vertices} verts and {num_tris} tris, hash: {hash:#x}");
 
         Ok(Self {
             indices,

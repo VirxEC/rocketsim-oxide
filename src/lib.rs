@@ -21,10 +21,10 @@ use std::{
 };
 
 use ahash::AHashMap;
-use log::{error, info};
 use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
+use log::{error, info};
 use sim::collision_meshes::{
-    CollisionMeshFile, COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION,
+    COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
 
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
@@ -92,8 +92,9 @@ pub fn init_from_mem(
 ) -> IoResult<()> {
     if !silent {
         let _ = logging::try_init();
-        info!("Initializing RocketSim, originally by ZealanL and ported to Rust by VirxEC...");
     }
+
+    info!("Initializing RocketSim, originally by ZealanL and ported to Rust by VirxEC...");
 
     let start_time = Instant::now();
 
@@ -102,14 +103,10 @@ pub fn init_from_mem(
     let mut arena_collision_shapes = AHashMap::new();
 
     for (game_mode, mesh_files) in mesh_file_map {
-        if !silent {
-            info!("Loading arena meshes for {}...", game_mode.name());
-        }
+        info!("Loading arena meshes for {}...", game_mode.name());
 
         if mesh_files.is_empty() {
-            if !silent {
-                info!("\tNo meshes, skipping");
-            }
+            info!("\tNo meshes, skipping");
             continue;
         }
 
@@ -117,7 +114,7 @@ pub fn init_from_mem(
         let mut target_hashes = game_mode.get_hashes();
 
         for (i, entry) in mesh_files.into_iter().enumerate() {
-            let mesh_file = CollisionMeshFile::read_from_bytes(&entry, silent)?;
+            let mesh_file = CollisionMeshFile::read_from_bytes(&entry)?;
             let hash = mesh_file.get_hash();
             let Some(hash_count) = target_hashes.get_mut(&hash) else {
                 error!(
@@ -128,7 +125,7 @@ pub fn init_from_mem(
                 continue;
             };
 
-            if *hash_count > 0 && !silent {
+            if *hash_count > 0 {
                 error!(
                     "Collision mesh [{i}] is a duplicate ({hash:#x}), already loaded a mesh with the same hash."
                 );
@@ -144,7 +141,7 @@ pub fn init_from_mem(
         arena_collision_shapes.insert(game_mode, meshes);
     }
 
-    if !silent {
+    {
         info!("Finished loading arena collision meshes:");
         info!(
             "\tSoccar: {}",
