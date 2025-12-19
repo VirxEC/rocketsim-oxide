@@ -7,8 +7,10 @@ use std::{
 };
 
 use ahash::{AHashSet, AHasher};
-use rocketsim_flat::planus::{Builder, ReadAsRoot};
-use rocketsim_flat::{AddRender, Message, Packet, PacketRef, RemoveRender, Render};
+use rocketsim_flat::{
+    AddRender, Message, Packet, PacketRef, RemoveRender, Render,
+    planus::{Builder, ReadAsRoot},
+};
 
 use crate::sim::{Arena, GameState};
 

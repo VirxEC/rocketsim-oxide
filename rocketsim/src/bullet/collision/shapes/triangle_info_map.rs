@@ -1,16 +1,20 @@
-use std::f32::consts::PI;
+use std::{
+    f32::consts::TAU,
+    ops::{Deref, DerefMut},
+};
 
-pub const TRI_INFO_V0V1_CONVEX: i32 = 1;
-pub const TRI_INFO_V1V2_CONVEX: i32 = 2;
-pub const TRI_INFO_V2V0_CONVEX: i32 = 4;
-
-pub const TRI_INFO_V0V1_SWAP_NORMALB: i32 = 8;
-pub const TRI_INFO_V1V2_SWAP_NORMALB: i32 = 16;
-pub const TRI_INFO_V2V0_SWAP_NORMALB: i32 = 32;
+pub enum TriInfoFlag {
+    V0V1Convex = 1,
+    V1V2Convex = 1 << 1,
+    V2V0Convex = 1 << 2,
+    V0V1SwapNormalB = 1 << 3,
+    V1V2SwapNormalB = 1 << 4,
+    V2V0SwapNormalB = 1 << 5,
+}
 
 #[derive(Clone, Copy)]
 pub struct TriangleInfo {
-    pub flags: i32,
+    pub flags: u8,
     pub edge_v0_v1_angle: f32,
     pub edge_v1_v2_angle: f32,
     pub edge_v2_v0_angle: f32,
@@ -20,34 +24,38 @@ impl Default for TriangleInfo {
     fn default() -> Self {
         Self {
             flags: 0,
-            edge_v0_v1_angle: PI * 2.0,
-            edge_v1_v2_angle: PI * 2.0,
-            edge_v2_v0_angle: PI * 2.0,
+            edge_v0_v1_angle: TAU,
+            edge_v1_v2_angle: TAU,
+            edge_v2_v0_angle: TAU,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct TriangleInfoMap {
-    pub internal_map: Vec<TriangleInfo>,
-    pub convex_epsilon: f32,
-    pub planar_epsilon: f32,
-    pub equal_vertex_threshold: f32,
-    pub edge_distance_threshold: f32,
-    pub max_edge_angle_threshold: f32,
-    // pub zero_area_threshold: f32,
+pub struct TriangleInfoMap(Box<[TriangleInfo]>);
+
+impl TriangleInfoMap {
+    pub const CONVEX_EPSILON: f32 = 0.0;
+    pub const PLANAR_EPSILON: f32 = 0.0001;
+    pub const EQUAL_VERTEX_THRESHOLD: f32 = 0.0001 * 0.0001;
+    pub const EDGE_DISTANCE_THRESHOLD: f32 = 0.1;
+    pub const MAX_EDGE_ANGLE_THRESHOLD: f32 = TAU;
+
+    pub fn new(map_size: usize) -> Self {
+        Self((0..map_size).map(|_| TriangleInfo::default()).collect())
+    }
 }
 
-impl Default for TriangleInfoMap {
-    fn default() -> Self {
-        Self {
-            internal_map: Vec::new(),
-            convex_epsilon: 0.0,
-            planar_epsilon: 0.0001,
-            equal_vertex_threshold: 0.0001 * 0.0001,
-            edge_distance_threshold: 0.1,
-            // zero_area_threshold: 0.0001 * 0.0001,
-            max_edge_angle_threshold: PI * 2.0,
-        }
+impl Deref for TriangleInfoMap {
+    type Target = [TriangleInfo];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TriangleInfoMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
