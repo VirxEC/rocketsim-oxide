@@ -6,7 +6,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
-            dispatch::collision_object::{ACTIVE_TAG, CollisionFlags},
+            dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{collision_shape::CollisionShapes, sphere_shape::SphereShape},
         },
         dynamics::{
@@ -14,8 +14,7 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts,
-    consts::{dropshot, heatseeker},
+    consts::{self, dropshot, heatseeker},
     sim::{BallHitInfo, Car, Team},
 };
 
@@ -143,17 +142,17 @@ impl Ball {
 
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Ball;
-        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::DefaultFilter as i32
-                    | CollisionMasks::HoopsNet as i32
-                    | CollisionMasks::DropshotTile as i32,
-                CollisionFilterGroups::AllFilter as i32,
+                CollisionFilterGroups::Default as u8
+                    | CollisionMasks::HoopsNet as u8
+                    | CollisionMasks::DropshotTile as u8,
+                CollisionFilterGroups::All as u8,
             )
             .unwrap();
 
@@ -166,6 +165,9 @@ impl Ball {
     }
 
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: BallState) {
+        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
+        debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Ball);
+
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
             translation: state.physics.pos * UU_TO_BT,
@@ -176,7 +178,8 @@ impl Ball {
         rb.update_inertia_tensor();
 
         if state.physics.vel != Vec3A::ZERO || state.physics.ang_vel != Vec3A::ZERO {
-            rb.collision_object.set_activation_state(ACTIVE_TAG);
+            rb.collision_object
+                .set_activation_state(ActivationState::Active);
         }
 
         self.internal_state = state;
@@ -300,6 +303,7 @@ impl Ball {
                 self.internal_state.hs_info.y_target_dir =
                     f32::from(car.team == Team::Blue) * 2.0 - 1.0;
 
+                #[allow(clippy::eq_op)]
                 if can_increase
                     && self.internal_state.hs_info.y_target_dir
                         != self.internal_state.hs_info.y_target_dir

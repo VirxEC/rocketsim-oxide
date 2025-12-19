@@ -14,7 +14,7 @@ use crate::{
             },
             dispatch::{
                 collision_dispatcher::CollisionDispatcher,
-                collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING},
+                collision_object::{ActivationState, CollisionObject},
                 internal_edge_utility::adjust_internal_edge_contacts,
             },
             narrowphase::{
@@ -29,7 +29,9 @@ use crate::{
         },
     },
     consts::*,
-    sim::{BallState, BoostPad, CarContact, CollisionMasks, DemoMode},
+    sim::{
+        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, CollisionMasks, DemoMode, GameState,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
@@ -289,7 +291,7 @@ pub struct Arena {
     rng: Rng,
     tick_time: f32,
     last_car_id: u64,
-    config: ArenaConfig,
+    _config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
     objects: Objects,
 }
@@ -382,7 +384,7 @@ impl Arena {
 
         Self {
             rng,
-            config,
+            _config: config,
             bullet_world,
             last_car_id: 0,
             tick_time: 1. / f32::from(tick_rate),
@@ -401,8 +403,8 @@ impl Arena {
         bullet_world: &mut DiscreteDynamicsWorld,
         shape: CollisionShapes,
         pos_bt: Vec3A,
-        group: i32,
-        mask: i32,
+        group: u8,
+        mask: u8,
     ) {
         let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
         rb_constrution_info.restitution = ARENA_COLLISION_BASE_RESTITUTION;
@@ -438,7 +440,7 @@ impl Arena {
             };
 
             let mask = if is_hoops_net {
-                CollisionMasks::HoopsNet as i32
+                CollisionMasks::HoopsNet as u8
             } else {
                 0
             };
@@ -460,7 +462,7 @@ impl Arena {
             _ => (ARENA_EXTENT_X, 0.0, ARENA_HEIGHT),
         };
 
-        let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: i32| {
+        let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: u8| {
             debug_assert!(normal.is_normalized());
             let mut plane_shape = StaticPlaneShape::new(normal, 0.0);
 
@@ -485,7 +487,7 @@ impl Arena {
         };
 
         let floor_mask = if game_mode == GameMode::Dropshot {
-            CollisionMasks::DropshotFloor as i32
+            CollisionMasks::DropshotFloor as u8
         } else {
             0
         };
@@ -720,6 +722,7 @@ impl Arena {
             for other_car in self.objects.cars.values_mut() {
                 if car.rigid_body_idx < other_car.rigid_body_idx {
                     other_car.rigid_body_idx -= 1;
+                    other_car.bullet_vehicle.chassis_body_idx -= 1;
                 }
             }
 
@@ -740,9 +743,9 @@ impl Arena {
             ball_rb
                 .collision_object
                 .set_activation_state(if should_sleep {
-                    ISLAND_SLEEPING
+                    ActivationState::Sleeping
                 } else {
-                    ACTIVE_TAG
+                    ActivationState::Active
                 });
         }
 
@@ -798,8 +801,7 @@ impl Arena {
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
-        for i in 0..ticks_to_simulate {
-            // println!("\nstep {i}");
+        for _ in 0..ticks_to_simulate {
             self.internal_step();
         }
     }
@@ -870,7 +872,7 @@ impl Arena {
             state,
         );
     }
-    
+
     pub fn respawn_car(&mut self, car_id: u64) {
         let car = self
             .objects
@@ -883,5 +885,65 @@ impl Arena {
             self.objects.game_mode,
             self.objects.mutator_config.car_spawn_boost_amount,
         );
+    }
+
+    pub fn get_game_state(&self) -> GameState {
+        GameState {
+            tick_rate: self.get_tick_rate(),
+            tick_count: self.tick_count(),
+            game_mode: self.game_mode(),
+            cars: if self.cars().is_empty() {
+                None
+            } else {
+                Some(
+                    self.cars()
+                        .iter()
+                        .map(|(&id, car)| CarInfo {
+                            id,
+                            team: car.team,
+                            state: *car.get_state(),
+                            config: *car.get_config(),
+                        })
+                        .collect(),
+                )
+            },
+            ball: *self.get_ball(),
+            pads: if self.boost_pads().is_empty() {
+                None
+            } else {
+                Some(
+                    self.boost_pads()
+                        .iter()
+                        .map(|pad| BoostPadInfo {
+                            config: *pad.get_config(),
+                            state: *pad.get_state(),
+                        })
+                        .collect(),
+                )
+            },
+            tiles: None,
+        }
+    }
+
+    pub fn set_game_state(&mut self, state: GameState) {
+        assert_eq!(self.game_mode(), state.game_mode, "Game mode mismatch");
+
+        if let Some(cars) = state.cars {
+            if cars.len() != self.cars().len() {
+                panic!(
+                    "Car count mismatch: expected {}, got {}",
+                    self.cars().len(),
+                    cars.len()
+                );
+            }
+
+            for car_info in cars {
+                self.set_car_state(car_info.id, car_info.state);
+            }
+        }
+
+        self.set_ball(state.ball);
+
+        // todo: boost pads, tiles
     }
 }

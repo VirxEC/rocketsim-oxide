@@ -22,15 +22,11 @@ pub const CONTACT_BREAKING_THRESHOLD: f32 = 0.02;
 pub const MANIFOLD_CACHE_SIZE: usize = 4;
 
 pub struct PersistentManifold {
-    // object_type: i32,
     pub point_cache: ArrayVec<ManifoldPoint, MANIFOLD_CACHE_SIZE>,
     pub body0_idx: usize,
     pub body1_idx: usize,
     pub contact_breaking_threshold: f32,
     pub contact_processing_threshold: f32,
-    // pub companion_id_a: i32,
-    // pub companion_id_b: i32,
-    // index_1a: i32,
     pub is_swapped: bool,
 }
 
@@ -56,11 +52,7 @@ impl PersistentManifold {
             body1_idx: body1.world_array_index,
             contact_breaking_threshold,
             contact_processing_threshold,
-            // object_type: ContactManifoldTypes::PersistentManifoldType as i32,
             point_cache: ArrayVec::new(),
-            // companion_id_a: 0,
-            // companion_id_b: 0,
-            // index_1a: 0,
             is_swapped,
         }
     }

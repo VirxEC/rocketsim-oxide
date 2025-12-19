@@ -266,10 +266,10 @@ impl WheelInfoRL {
             return;
         }
 
-        let contact_point_offset = self.wheel_info.raycast_info.contact_point_ws
-            - cb.collision_object.get_world_transform().translation;
         let base_force_scale =
             self.wheel_info.wheels_suspension_force * delta_time + self.extra_pushback;
+        let contact_point_offset = self.wheel_info.raycast_info.contact_point_ws
+            - cb.collision_object.get_world_transform().translation;
         let force = self.wheel_info.raycast_info.contact_normal_ws * base_force_scale;
         cb.apply_impulse(force, contact_point_offset);
     }
@@ -318,7 +318,7 @@ pub struct VehicleRL {
     raycaster: VehicleRaycaster,
     // pitch_control: f32,
     // steering_value: f32,
-    chassis_body_idx: usize,
+    pub chassis_body_idx: usize,
     pub wheels: ArrayVec<WheelInfoRL, NUM_WHEELS>,
 }
 

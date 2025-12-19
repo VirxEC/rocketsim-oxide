@@ -112,7 +112,6 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for Algorithms<'_, T> {
 
 #[derive(Default)]
 pub struct CollisionDispatcher {
-    // dispatcher_flags: i32,
     pub manifolds: Vec<PersistentManifold>,
 }
 

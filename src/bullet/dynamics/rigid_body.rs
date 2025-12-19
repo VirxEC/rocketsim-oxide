@@ -3,8 +3,7 @@ use glam::{Affine3A, Mat3A, Vec3A};
 use crate::bullet::{
     collision::{
         dispatch::collision_object::{
-            CollisionFlags, CollisionObject, CollisionObjectTypes, DISABLE_DEACTIVATION,
-            ISLAND_SLEEPING, WANTS_DEACTIVATION,
+            ActivationState, CollisionFlags, CollisionObject, CollisionObjectTypes,
         },
         shapes::collision_shape::CollisionShapes,
     },
@@ -26,11 +25,6 @@ pub struct RigidBodyConstructionInfo {
     pub restitution: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    pub additional_damping: bool,
-    // pub additional_damping_factor: f32,
-    // pub additional_linear_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_factor: f32,
 }
 
 impl RigidBodyConstructionInfo {
@@ -46,11 +40,6 @@ impl RigidBodyConstructionInfo {
             restitution: 0.0,
             linear_sleeping_threshold: 0.0,
             angular_sleeping_threshold: 1.0,
-            additional_damping: false,
-            // additional_damping_factor: 0.005,
-            // additional_linear_damping_threshold_sqr: 0.01,
-            // additional_angular_damping_threshold_sqr: 0.01,
-            // additional_angular_damping_factor: 0.01,
             start_world_transform: Affine3A::IDENTITY,
         }
     }
@@ -69,28 +58,17 @@ pub struct RigidBody {
     pub total_torque: Vec3A,
     pub linear_damping: f32,
     pub angular_damping: f32,
-    pub additional_damping: bool,
-    // pub additional_damping_factor: f32,
-    // pub additional_linear_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_factor: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    // pub motion_state: Option<Box<dyn MotionState>>,
-    // pub constraint_refs: Vec<TypedConstraint>,
-    pub rigidbody_flags: i32,
-    // pub delta_linear_velocity: Vec3A,
-    // pub delta_angular_velocity: Vec3A,
+    pub rigidbody_flags: u8,
     pub inv_mass: Vec3A,
-    // pub push_velocity: Vec3A,
-    // pub turn_velocity: Vec3A,
 }
 
 impl RigidBody {
     #[must_use]
     pub fn new(info: RigidBodyConstructionInfo) -> Self {
         let mut collision_object = CollisionObject::default();
-        collision_object.internal_type = CollisionObjectTypes::RigidBody as i32;
+        collision_object.internal_type = CollisionObjectTypes::RigidBody;
         collision_object.set_world_transform(info.start_world_transform);
 
         collision_object.interpolation_world_transform = *collision_object.get_world_transform();
@@ -99,10 +77,10 @@ impl RigidBody {
         collision_object.set_collision_shape(info.collision_shape);
 
         let inverse_mass = if info.mass == 0.0 {
-            collision_object.collision_flags |= CollisionFlags::StaticObject as i32;
+            collision_object.collision_flags |= CollisionFlags::StaticObject as u8;
             0.0
         } else {
-            collision_object.collision_flags &= !(CollisionFlags::StaticObject as i32);
+            collision_object.collision_flags &= !(CollisionFlags::StaticObject as u8);
             1.0 / info.mass
         };
 
@@ -130,26 +108,15 @@ impl RigidBody {
             total_torque: Vec3A::ZERO,
             linear_damping: info.linear_damping.clamp(0.0, 1.0),
             angular_damping: info.angular_damping.clamp(0.0, 1.0),
-            additional_damping: info.additional_damping,
-            // additional_damping_factor: info.additional_damping_factor,
-            // additional_linear_damping_threshold_sqr: info.additional_linear_damping_threshold_sqr,
-            // additional_angular_damping_threshold_sqr: info.additional_angular_damping_threshold_sqr,
-            // additional_angular_damping_factor: info.additional_angular_damping_factor,
             linear_sleeping_threshold: info.linear_sleeping_threshold,
             angular_sleeping_threshold: info.angular_sleeping_threshold,
-            // motion_state: info.motion_state,
-            // constraint_refs: Vec::new(),
             rigidbody_flags: 0,
-            // delta_linear_velocity: Vec3A::ZERO,
-            // delta_angular_velocity: Vec3A::ZERO,
             inv_mass: Vec3A::splat(inverse_mass),
-            // push_velocity: Vec3A::ZERO,
-            // turn_velocity: Vec3A::ZERO,
         }
     }
 
     #[must_use]
-    pub const fn get_flags(&self) -> i32 {
+    pub const fn get_flags(&self) -> u8 {
         self.rigidbody_flags
     }
 
@@ -224,10 +191,6 @@ impl RigidBody {
     pub fn apply_damping(&mut self, time_step: f32) {
         self.linear_velocity *= (1.0 - self.linear_damping).powf(time_step);
         self.angular_velocity *= (1.0 - self.angular_damping).powf(time_step);
-
-        if self.additional_damping {
-            unimplemented!()
-        }
     }
 
     #[must_use]
@@ -265,9 +228,12 @@ impl RigidBody {
     }
 
     pub fn update_deactivation(&mut self, time_step: f32) {
-        let activation_state = self.collision_object.activation_state_1;
+        let activation_state = self.collision_object.activation_state;
 
-        if activation_state == ISLAND_SLEEPING || activation_state == DISABLE_DEACTIVATION {
+        if matches!(
+            activation_state,
+            ActivationState::Sleeping | ActivationState::DisableDeactivation
+        ) {
             return;
         }
 
@@ -279,18 +245,20 @@ impl RigidBody {
             self.collision_object.deactivation_time += time_step;
         } else {
             self.collision_object.deactivation_time = 0.0;
-            self.collision_object.set_activation_state(0);
+            self.collision_object
+                .set_activation_state(ActivationState::Active);
         }
     }
 
     #[must_use]
     pub fn wants_sleeping(&self) -> bool {
-        let activation_state = self.collision_object.activation_state_1;
+        let activation_state = self.collision_object.activation_state;
 
-        activation_state == DISABLE_DEACTIVATION
-            && (activation_state == ISLAND_SLEEPING
-                || activation_state == WANTS_DEACTIVATION
-                || self.collision_object.deactivation_time > 2.0)
+        activation_state == ActivationState::DisableDeactivation
+            && (matches!(
+                activation_state,
+                ActivationState::Active | ActivationState::WantsDeactivation
+            ) || self.collision_object.deactivation_time > 2.0)
     }
 
     pub const fn clear_forces(&mut self) {

@@ -1,3 +1,5 @@
+use glam::{Mat3A, Vec3A};
+
 mod arena;
 mod ball;
 mod ball_hit_info;
@@ -6,6 +8,7 @@ pub(crate) mod boost_pad_grid;
 mod car;
 mod car_config;
 mod car_controls;
+pub mod game_state;
 mod mutator_config;
 
 pub use arena::*;
@@ -15,13 +18,13 @@ pub use boost_pad::*;
 pub use car::*;
 pub use car_config::*;
 pub use car_controls::*;
-use glam::{Mat3A, Vec3A};
+pub use game_state::*;
 pub use mutator_config::*;
 
 pub(crate) enum CollisionMasks {
-    HoopsNet = (1 << 8),
-    DropshotTile = (1 << 9),
-    DropshotFloor = (1 << 10),
+    HoopsNet = (1 << 2),
+    DropshotTile = (1 << 3),
+    DropshotFloor = (1 << 4),
 }
 
 /// Default is not implemented for this struct,

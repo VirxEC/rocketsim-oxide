@@ -10,6 +10,7 @@ pub struct ContactInfo {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TriangleShape {
     pub points: [Vec3A; 3],
+    /// `edges` = \[`p1 - p0`, `p2 - p1`, `p0 - p2`]
     pub edges: [Vec3A; 3],
     pub normal: Vec3A,
     pub normal_length: f32,

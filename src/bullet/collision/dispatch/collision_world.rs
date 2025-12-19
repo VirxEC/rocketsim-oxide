@@ -8,7 +8,6 @@ use crate::bullet::{
     collision::{
         broadphase::{
             broadphase_proxy::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
-            dispatcher::DispatcherInfo,
             rs_broadphase::RsBroadphase,
         },
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
@@ -18,14 +17,8 @@ use crate::bullet::{
     linear_math::{AffineExt, aabb_util_2::Aabb, interpolate_3},
 };
 
-// struct LocalShapeInfo {
-//     shape_part: usize,
-//     triangle_index: usize,
-// }
-
 pub struct LocalRayResult {
     collision_object_index: usize,
-    // local_shape_info: LocalShapeInfo,
     hit_normal_world: Vec3A,
     hit_fraction: f32,
 }
@@ -34,9 +27,8 @@ pub struct RayResultCallbackBase {
     pub closest_hit_fraction: f32,
     pub collision_object_index: Option<usize>,
     pub ignore_object_world_index: Option<usize>,
-    pub collision_filter_group: i32,
-    pub collision_filter_mask: i32,
-    // pub flags: u32,
+    pub collision_filter_group: u8,
+    pub collision_filter_mask: u8,
 }
 
 impl Default for RayResultCallbackBase {
@@ -44,10 +36,9 @@ impl Default for RayResultCallbackBase {
         Self {
             closest_hit_fraction: 1.0,
             collision_object_index: None,
-            collision_filter_group: CollisionFilterGroups::DefaultFilter as i32,
-            collision_filter_mask: CollisionFilterGroups::AllFilter as i32,
+            collision_filter_group: CollisionFilterGroups::Default as u8,
+            collision_filter_mask: CollisionFilterGroups::All as u8,
             ignore_object_world_index: None,
-            // flags: 0,
         }
     }
 }
@@ -168,9 +159,8 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
 }
 
 pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
+    to: Vec3A,
     from: Vec3A,
-    dir: Vec3A,
-    dist: f32,
     hit_fraction: f32,
     result_callback: &'a mut T,
     collision_object: &'a CollisionObject,
@@ -185,18 +175,15 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
         collision_object: &'a CollisionObject,
         collision_object_index: usize,
     ) -> Self {
-        let delta = from - to;
-        let dist = delta.length();
         let hit_fraction = result_callback.get_base().closest_hit_fraction;
 
         Self {
+            to,
             from,
-            dist,
             hit_fraction,
             result_callback,
             collision_object,
             collision_object_index,
-            dir: delta / dist,
         }
     }
 
@@ -225,37 +212,45 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
         _tri_aabb: &Aabb,
         _triangle_index: usize,
     ) -> bool {
-        let dir_align = self.dir.dot(triangle.normal);
-        if dir_align > -f32::EPSILON {
+        const EDGE_TOLERANCE: f32 = -0.0001;
+
+        let dist = triangle.points[0].dot(triangle.normal);
+        let dist_a = triangle.normal.dot(self.from) - dist;
+        let dist_b = triangle.normal.dot(self.to) - dist;
+        if dist_a * dist_b >= 0.0 {
+            return true; // same sign
+        }
+
+        let proj_length = dist_a - dist_b;
+        let distance = dist_a / proj_length;
+        if distance >= self.hit_fraction {
             return true;
         }
 
-        let d = -triangle.normal.dot(triangle.points[0]);
-        let normal_start = triangle.normal.dot(self.from);
-        let t = -(normal_start + d) / dir_align;
-        if t <= 0.0 {
+        let point = self.from.lerp(self.to, distance);
+        let v0p = triangle.points[0] - point;
+        let v1p = triangle.points[1] - point;
+        let cp0 = v0p.cross(v1p);
+        if cp0.dot(triangle.normal) < EDGE_TOLERANCE {
             return true;
         }
 
-        let p = self.from + self.dir * t;
-        let inside_edges = triangle
-            .normal
-            .dot(triangle.edges[0].cross(p - triangle.points[0]))
-            >= 0.0
-            && triangle
-                .normal
-                .dot(triangle.edges[1].cross(p - triangle.points[1]))
-                >= 0.0
-            && triangle
-                .normal
-                .dot(triangle.edges[2].cross(p - triangle.points[2]))
-                >= 0.0;
-        if !inside_edges {
+        let v2p = triangle.points[2] - point;
+        let cp1 = v1p.cross(v2p);
+        if cp1.dot(triangle.normal) < EDGE_TOLERANCE {
             return true;
         }
 
-        let hit_fraction = t / self.dist;
-        self.report_hit(triangle.normal, hit_fraction);
+        let cp2 = v2p.cross(v0p);
+        if cp2.dot(triangle.normal) < EDGE_TOLERANCE {
+            return true;
+        }
+
+        if dist_a <= 0.0 {
+            self.report_hit(-triangle.normal, distance);
+        } else {
+            self.report_hit(triangle.normal, distance);
+        }
 
         true
     }
@@ -264,17 +259,15 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
 pub struct CollisionWorld {
     pub collision_objects: Vec<RigidBody>,
     pub dispatcher1: CollisionDispatcher,
-    pub dispatcher_info: DispatcherInfo,
     broadphase_pair_cache: RsBroadphase,
     num_skippable_statics: usize,
 }
 
 impl CollisionWorld {
-    pub fn new(dispatcher: CollisionDispatcher, pair_cache: RsBroadphase) -> Self {
+    pub const fn new(dispatcher: CollisionDispatcher, pair_cache: RsBroadphase) -> Self {
         Self {
             collision_objects: Vec::new(),
             dispatcher1: dispatcher,
-            dispatcher_info: DispatcherInfo::default(),
             broadphase_pair_cache: pair_cache,
             num_skippable_statics: 0,
         }
@@ -283,8 +276,8 @@ impl CollisionWorld {
     pub fn add_collision_object(
         &mut self,
         mut object: RigidBody,
-        filter_group: i32,
-        filter_mask: i32,
+        filter_group: u8,
+        filter_mask: u8,
     ) -> usize {
         {
             let obj = &mut object.collision_object;
@@ -306,7 +299,18 @@ impl CollisionWorld {
         index
     }
 
-    pub fn remove_collision_object(&mut self, _world_index: usize) {
+    pub fn remove_collision_object(&mut self, world_index: usize) {
+        self.collision_objects.remove(world_index);
+
+        for (i, rb) in self
+            .collision_objects
+            .iter_mut()
+            .enumerate()
+            .skip(world_index)
+        {
+            rb.collision_object.world_array_index = i;
+        }
+
         todo!("remove_collision_object not implemented");
     }
 
@@ -339,7 +343,7 @@ impl CollisionWorld {
             aabb.min -= CBT;
             aabb.max += CBT;
 
-            if col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
+            if col_obj.internal_type == CollisionObjectTypes::RigidBody
                 && !col_obj.is_static_or_kinematic_object()
             {
                 let mut aabb2 = col_obj

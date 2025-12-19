@@ -1,5 +1,6 @@
 /target
 /Cargo.lock
 /collision_meshes
+/src/flatbuffer/planus_flat.rs
 *.data*
 *.svg

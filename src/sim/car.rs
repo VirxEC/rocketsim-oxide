@@ -8,7 +8,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::broadphase_proxy::CollisionFilterGroups,
-            dispatch::collision_object::{ACTIVE_TAG, CollisionFlags, DISABLE_SIMULATION},
+            dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{
                 box_shape::BoxShape, collision_shape::CollisionShapes,
                 compound_shape::CompoundShape,
@@ -204,8 +204,8 @@ pub struct Car {
     pub team: Team,
     /// The controls to simulate the car with
     pub controls: CarControls,
-    pub(crate) config: CarConfig,
-    bullet_vehicle: VehicleRL,
+    config: CarConfig,
+    pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
     pub(crate) velocity_impulse_cache: Vec3A,
     pub(crate) internal_state: CarState,
@@ -237,13 +237,13 @@ impl Car {
 
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Car;
-        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
 
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::DefaultFilter as i32 | CollisionMasks::DropshotFloor as i32,
-                CollisionFilterGroups::AllFilter as i32,
+                CollisionFilterGroups::Default as u8 | CollisionMasks::DropshotFloor as u8,
+                CollisionFilterGroups::All as u8,
             )
             .unwrap();
 
@@ -255,7 +255,7 @@ impl Car {
             max_suspension_travel_cm: MAX_SUSPENSION_TRAVEL * UU_TO_BT * 100.0,
             // max_suspension_force: f32::MAX,
         };
-        let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32) };
+        let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as u8) };
         let mut bullet_vehicle = VehicleRL::new(rigid_body_idx, raycaster);
 
         let wheel_direction_cs = Vec3A::new(0.0, 0.0, -1.0);
@@ -379,7 +379,14 @@ impl Car {
         &self.internal_state
     }
 
+    pub const fn get_config(&self) -> &CarConfig {
+        &self.config
+    }
+
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: CarState) {
+        debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Car);
+        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
+
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
             translation: state.physics.pos * UU_TO_BT,
@@ -919,11 +926,11 @@ impl Car {
                     self.respawn(rb, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
-                rb.collision_object.activation_state_1 = DISABLE_SIMULATION;
-                rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as i32;
+                rb.collision_object.activation_state = ActivationState::DisableSimulation;
+                rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as u8;
             } else {
-                rb.collision_object.activation_state_1 = ACTIVE_TAG;
-                rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as i32);
+                rb.collision_object.activation_state = ActivationState::Active;
+                rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as u8);
             }
 
             if self.internal_state.is_demoed {

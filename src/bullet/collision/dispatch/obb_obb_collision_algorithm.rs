@@ -185,17 +185,17 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         let child_1_trans = child_1.transform;
         let child_1_world_trans = org_1_trans * child_1_trans;
 
-        let obb0 = Obb {
-            center: child_0_world_trans.translation,
-            axis: child_0_world_trans.matrix3,
-            extent: child_0.child_shape.get_half_extents(),
-        };
+        let obb0 = Obb::new(
+            child_0_world_trans.translation,
+            child_0_world_trans.matrix3,
+            child_0.child_shape.get_half_extents(),
+        );
 
-        let obb1 = Obb {
-            center: child_1_world_trans.translation,
-            axis: child_1_world_trans.matrix3,
-            extent: child_1.child_shape.get_half_extents(),
-        };
+        let obb1 = Obb::new(
+            child_1_world_trans.translation,
+            child_1_world_trans.matrix3,
+            child_1.child_shape.get_half_extents(),
+        );
 
         let hit = collide_obb_sat(&obb0, &obb1)?;
         let normal_on_b_in_world = child_1_trans.transform_vector3a(hit.normal);

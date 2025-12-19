@@ -77,6 +77,12 @@ pub struct CarConfig {
     pub dodge_deadzone: f32,
 }
 
+impl Default for CarConfig {
+    fn default() -> Self {
+        Self::OCTANE
+    }
+}
+
 impl CarConfig {
     pub const OCTANE: Self = Self::make_car_config(0, false);
     pub const DOMINUS: Self = Self::make_car_config(1, false);

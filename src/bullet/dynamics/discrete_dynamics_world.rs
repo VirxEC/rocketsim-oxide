@@ -7,10 +7,7 @@ use super::{
 };
 use crate::bullet::collision::{
     broadphase::{broadphase_proxy::CollisionFilterGroups, rs_broadphase::RsBroadphase},
-    dispatch::{
-        collision_dispatcher::CollisionDispatcher,
-        collision_object::{ACTIVE_TAG, ISLAND_SLEEPING, WANTS_DEACTIVATION},
-    },
+    dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::ActivationState},
     narrowphase::persistent_manifold::ContactAddedCallback,
 };
 
@@ -52,7 +49,7 @@ impl DiscreteDynamicsWorld {
         self.gravity = gravity;
     }
 
-    fn add_collision_object(&mut self, body: RigidBody, group: i32, mask: i32) -> usize {
+    fn add_collision_object(&mut self, body: RigidBody, group: u8, mask: u8) -> usize {
         self.dynamics_world
             .collision_world
             .add_collision_object(body, group, mask)
@@ -67,7 +64,7 @@ impl DiscreteDynamicsWorld {
 
     pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> Option<usize> {
         if !body.collision_object.is_static_or_kinematic_object()
-            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }
@@ -75,14 +72,13 @@ impl DiscreteDynamicsWorld {
         if body.collision_object.get_collision_shape().is_some() {
             let (group, mask) = if body.collision_object.is_static_or_kinematic_object() {
                 (
-                    CollisionFilterGroups::StaticFilter as i32,
-                    CollisionFilterGroups::AllFilter as i32
-                        ^ CollisionFilterGroups::StaticFilter as i32,
+                    CollisionFilterGroups::Static as u8,
+                    CollisionFilterGroups::All as u8 ^ CollisionFilterGroups::Static as u8,
                 )
             } else {
                 (
-                    CollisionFilterGroups::DefaultFilter as i32,
-                    CollisionFilterGroups::AllFilter as i32,
+                    CollisionFilterGroups::Default as u8,
+                    CollisionFilterGroups::All as u8,
                 )
             };
 
@@ -90,7 +86,8 @@ impl DiscreteDynamicsWorld {
 
             let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
             if rb.collision_object.is_static_object() {
-                rb.collision_object.set_activation_state(ISLAND_SLEEPING);
+                rb.collision_object
+                    .set_activation_state(ActivationState::Sleeping);
             } else {
                 self.non_static_rigid_bodies.push(rb_index);
             }
@@ -101,9 +98,9 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: i32, mask: i32) -> Option<usize> {
+    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: u8, mask: u8) -> Option<usize> {
         if !body.collision_object.is_static_or_kinematic_object()
-            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }
@@ -113,7 +110,8 @@ impl DiscreteDynamicsWorld {
 
             let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
             if rb.collision_object.is_static_object() {
-                rb.collision_object.set_activation_state(ISLAND_SLEEPING);
+                rb.collision_object
+                    .set_activation_state(ActivationState::Sleeping);
             } else {
                 self.non_static_rigid_bodies.push(rb_index);
             }
@@ -155,17 +153,17 @@ impl DiscreteDynamicsWorld {
                 bodies.get_disjoint_unchecked_mut([manifold.body0_idx, manifold.body1_idx])
             };
 
-            if body0.collision_object.get_activation_state() != ISLAND_SLEEPING
-                || body1.collision_object.get_activation_state() != ISLAND_SLEEPING
+            if body0.collision_object.get_activation_state() != ActivationState::Sleeping
+                || body1.collision_object.get_activation_state() != ActivationState::Sleeping
             {
                 if body0.collision_object.is_kinematic_object()
-                    && body0.collision_object.get_activation_state() != ISLAND_SLEEPING
+                    && body0.collision_object.get_activation_state() != ActivationState::Sleeping
                 {
                     body1.collision_object.activate();
                 }
 
                 if body1.collision_object.is_kinematic_object()
-                    && body1.collision_object.get_activation_state() != ISLAND_SLEEPING
+                    && body1.collision_object.get_activation_state() != ActivationState::Sleeping
                 {
                     body0.collision_object.activate();
                 }
@@ -217,16 +215,18 @@ impl DiscreteDynamicsWorld {
 
             if body.wants_sleeping() {
                 if body.collision_object.is_static_or_kinematic_object() {
-                    body.collision_object.set_activation_state(ISLAND_SLEEPING);
-                } else if body.collision_object.activation_state_1 == ACTIVE_TAG {
                     body.collision_object
-                        .set_activation_state(WANTS_DEACTIVATION);
-                } else if body.collision_object.activation_state_1 == ISLAND_SLEEPING {
+                        .set_activation_state(ActivationState::Sleeping);
+                } else if body.collision_object.activation_state == ActivationState::Active {
+                    body.collision_object
+                        .set_activation_state(ActivationState::WantsDeactivation);
+                } else if body.collision_object.activation_state == ActivationState::Sleeping {
                     body.set_angular_velocity(Vec3A::ZERO);
                     body.set_linear_velocity(Vec3A::ZERO);
                 }
             } else {
-                body.collision_object.set_activation_state(ACTIVE_TAG);
+                body.collision_object
+                    .set_activation_state(ActivationState::Active);
             }
         }
     }
@@ -243,10 +243,6 @@ impl DiscreteDynamicsWorld {
         contact_added_callback: &mut T,
     ) {
         self.predict_unconstraint_motion(time_step);
-
-        let dispatcher_info = &mut self.dynamics_world.collision_world.dispatcher_info;
-        dispatcher_info.time_step = time_step;
-        dispatcher_info.step_count = 0;
 
         self.dynamics_world
             .collision_world

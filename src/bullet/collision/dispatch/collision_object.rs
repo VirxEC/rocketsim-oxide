@@ -2,36 +2,27 @@ use glam::{Affine3A, Vec3A};
 
 use crate::{UserInfoTypes, bullet::collision::shapes::collision_shape::CollisionShapes};
 
-pub const ACTIVE_TAG: i32 = 1;
-pub const ISLAND_SLEEPING: i32 = 2;
-pub const WANTS_DEACTIVATION: i32 = 3;
-pub const DISABLE_DEACTIVATION: i32 = 4;
-pub const DISABLE_SIMULATION: i32 = 5;
-pub const FIXED_BASE_MULTI_BODY: i32 = 6;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActivationState {
+    Active,
+    Sleeping,
+    WantsDeactivation,
+    DisableDeactivation,
+    DisableSimulation,
+}
 
 pub enum CollisionFlags {
     // DynamicObject = 0,
     StaticObject = 1,
-    KinematicObject = 2,
-    NoContactResponse = 4,
-    CustomMaterialCallback = 8,
-    // CharacterObject = 16,
-    // DisableVisualizeObject = 32,
-    // DisableSpuCollisionProcessing = 64,
-    // HasContactStiffnessDamping = 128,
-    // HasCustomDebugRenderingColor = 256,
-    // HasFrictionAnchor = 512,
-    // HasCollisionSoundTrigger = 1024,
+    KinematicObject = (1 << 1),
+    NoContactResponse = (1 << 2),
+    CustomMaterialCallback = (1 << 3),
 }
 
+#[derive(PartialEq, Eq)]
 pub enum CollisionObjectTypes {
     CollisionObject = 1,
     RigidBody = 2,
-    // GhostObject = 4,
-    // SoftBody = 8,
-    // HfFluid = 16,
-    // UserType = 32,
-    // FeatherstoneLink = 64,
 }
 
 pub struct SpecialResolveInfo {
@@ -63,37 +54,22 @@ pub struct CollisionObject {
     pub interpolation_world_transform: Affine3A,
     pub interpolation_linear_velocity: Vec3A,
     pub interpolation_angular_velocity: Vec3A,
-    // pub anisotropic_friction: Vec3A,
-    // pub has_anisotropic_friction: bool,
     pub contact_processing_threshold: f32,
     broadphase_handle: Option<usize>,
     collision_shape: Option<CollisionShapes>,
-    // void* m_extensionPointer;
-    // pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
-    pub collision_flags: i32,
-    // pub island_tag_1: i32,
+    pub collision_flags: u8,
     pub companion_id: Option<usize>,
     /// The index of this object in `CollisionWorld`
     pub world_array_index: usize,
-    pub activation_state_1: i32,
+    pub activation_state: ActivationState,
     pub deactivation_time: f32,
     pub friction: f32,
     pub restitution: f32,
-    // pub contact_damping: f32,
-    // pub contact_stiffness: f32,
     pub no_rot: bool,
-    pub internal_type: i32,
-    // void* m_userObjectPointer;
+    pub internal_type: CollisionObjectTypes,
     pub user_pointer: u64,
     pub user_index: UserInfoTypes,
-    // pub user_index_2: i32,
-    // pub user_index_3: i32,
     pub hit_fraction: f32,
-    // pub ccd_swept_sphere_radius: f32,
-    // pub ccd_motion_threshold: f32,
-    // pub check_collide_with: bool,
-    // btAlignedObjectArray<const btCollisionObject*> m_objectsWithoutCollisionCheck;
-    // pub update_revision: u32,
     pub special_resolve_info: SpecialResolveInfo,
 }
 
@@ -104,33 +80,21 @@ impl Default for CollisionObject {
             interpolation_world_transform: Affine3A::IDENTITY,
             interpolation_linear_velocity: Vec3A::ZERO,
             interpolation_angular_velocity: Vec3A::ZERO,
-            // anisotropic_friction: Vec3A::ONE,
-            // has_anisotropic_friction: false,
             contact_processing_threshold: f32::MAX,
             broadphase_handle: None,
             collision_shape: None,
-            // root_collision_shape: None,
             collision_flags: 0,
-            // island_tag_1: -1,
             companion_id: None,
             world_array_index: 0,
-            activation_state_1: ACTIVE_TAG,
+            activation_state: ActivationState::Active,
             deactivation_time: 0.0,
             friction: 0.5,
             restitution: 0.0,
-            // contact_damping: 0.1,
-            // contact_stiffness: f32::MAX,
             no_rot: false,
-            internal_type: CollisionObjectTypes::CollisionObject as i32,
+            internal_type: CollisionObjectTypes::CollisionObject,
             user_pointer: 0,
             user_index: UserInfoTypes::default(),
-            // user_index_2: -1,
-            // user_index_3: -1,
             hit_fraction: 1.0,
-            // ccd_swept_sphere_radius: 0.0,
-            // ccd_motion_threshold: 0.0,
-            // check_collide_with: false,
-            // update_revision: 0,
             special_resolve_info: SpecialResolveInfo::default(),
         }
     }
@@ -138,7 +102,6 @@ impl Default for CollisionObject {
 
 impl CollisionObject {
     pub const fn set_world_transform(&mut self, world_trans: Affine3A) {
-        // self.update_revision += 1;
         self.world_transform = world_trans;
     }
 
@@ -148,9 +111,7 @@ impl CollisionObject {
     }
 
     pub fn set_collision_shape(&mut self, collision_shape: CollisionShapes) {
-        // self.update_revision += 1;
         self.collision_shape = Some(collision_shape);
-        // self.root_collision_shape = Some(collision_shape);
     }
 
     #[must_use]
@@ -160,49 +121,51 @@ impl CollisionObject {
 
     #[must_use]
     pub const fn is_static_object(&self) -> bool {
-        self.collision_flags & CollisionFlags::StaticObject as i32 != 0
+        self.collision_flags & CollisionFlags::StaticObject as u8 != 0
     }
 
     #[must_use]
     pub const fn is_kinematic_object(&self) -> bool {
-        self.collision_flags & CollisionFlags::KinematicObject as i32 != 0
+        self.collision_flags & CollisionFlags::KinematicObject as u8 != 0
     }
 
     #[must_use]
     pub const fn is_static_or_kinematic_object(&self) -> bool {
         self.collision_flags
-            & (CollisionFlags::KinematicObject as i32 | CollisionFlags::StaticObject as i32)
+            & (CollisionFlags::KinematicObject as u8 | CollisionFlags::StaticObject as u8)
             != 0
     }
 
     #[must_use]
     pub const fn is_active(&self) -> bool {
-        self.activation_state_1 != FIXED_BASE_MULTI_BODY
-            && self.activation_state_1 != ISLAND_SLEEPING
-            && self.activation_state_1 != DISABLE_SIMULATION
+        !matches!(
+            self.activation_state,
+            ActivationState::Sleeping | ActivationState::DisableSimulation
+        )
     }
 
     #[must_use]
     pub const fn has_contact_response(&self) -> bool {
-        self.collision_flags & CollisionFlags::NoContactResponse as i32 == 0
+        self.collision_flags & CollisionFlags::NoContactResponse as u8 == 0
     }
 
     #[must_use]
-    pub const fn get_activation_state(&self) -> i32 {
-        self.activation_state_1
+    pub const fn get_activation_state(&self) -> ActivationState {
+        self.activation_state
     }
 
-    pub const fn set_activation_state(&mut self, new_state: i32) {
-        if self.activation_state_1 != DISABLE_DEACTIVATION
-            && self.activation_state_1 != DISABLE_SIMULATION
-        {
-            self.activation_state_1 = new_state;
+    pub const fn set_activation_state(&mut self, new_state: ActivationState) {
+        if !matches!(
+            self.activation_state,
+            ActivationState::DisableDeactivation | ActivationState::DisableSimulation
+        ) {
+            self.activation_state = new_state;
         }
     }
 
     pub const fn activate(&mut self) {
         if self.is_static_or_kinematic_object() {
-            self.set_activation_state(ACTIVE_TAG);
+            self.set_activation_state(ActivationState::Active);
         }
     }
 

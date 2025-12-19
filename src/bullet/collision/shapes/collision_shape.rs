@@ -18,9 +18,6 @@ use crate::bullet::{
 #[derive(Clone, Debug)]
 pub struct CollisionShape {
     pub shape_type: BroadphaseNativeTypes,
-    // pub user_pointer: *mut c_void,
-    // pub user_index: i32,
-    // pub user_index_2: i32,
     pub aabb_ident_cache: Option<Aabb>,
     pub aabb_cache: Option<Aabb>,
     pub aabb_cache_trans: Affine3A,
@@ -30,8 +27,6 @@ impl Default for CollisionShape {
     fn default() -> Self {
         Self {
             shape_type: BroadphaseNativeTypes::InvalidShapeProxytype,
-            // user_index: -1,
-            // user_index_2: -1,
             aabb_ident_cache: None,
             aabb_cache: None,
             aabb_cache_trans: Affine3A::ZERO,

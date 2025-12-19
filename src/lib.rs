@@ -1,6 +1,10 @@
 #![allow(clippy::suboptimal_flops)]
 
 pub mod consts;
+#[cfg(feature = "flatbuffer")]
+pub mod flatbuffer;
+#[cfg(feature = "rlviser")]
+pub mod rlviser;
 pub mod sim;
 
 mod bullet;
