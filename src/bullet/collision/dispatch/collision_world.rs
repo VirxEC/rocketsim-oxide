@@ -167,9 +167,8 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
 }
 
 pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
+    to: Vec3A,
     from: Vec3A,
-    dir: Vec3A,
-    dist: f32,
     hit_fraction: f32,
     result_callback: &'a mut T,
     collision_object: &'a CollisionObject,
@@ -184,18 +183,15 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
         collision_object: &'a CollisionObject,
         collision_object_index: usize,
     ) -> Self {
-        let delta = from - to;
-        let dist = delta.length();
         let hit_fraction = result_callback.get_base().closest_hit_fraction;
 
         Self {
+            to,
             from,
-            dist,
             hit_fraction,
             result_callback,
             collision_object,
             collision_object_index,
-            dir: delta / dist,
         }
     }
 
@@ -224,37 +220,45 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
         _tri_aabb: &Aabb,
         _triangle_index: usize,
     ) -> bool {
-        let dir_align = self.dir.dot(triangle.normal);
-        if dir_align > -f32::EPSILON {
+        const EDGE_TOLERANCE: f32 = -0.0001;
+
+        let dist = triangle.points[0].dot(triangle.normal);
+        let dist_a = triangle.normal.dot(self.from) - dist;
+        let dist_b = triangle.normal.dot(self.to) - dist;
+        if dist_a * dist_b >= 0.0 {
+            return true; // same sign
+        }
+
+        let proj_length = dist_a - dist_b;
+        let distance = dist_a / proj_length;
+        if distance >= self.hit_fraction {
             return true;
         }
 
-        let d = -triangle.normal.dot(triangle.points[0]);
-        let normal_start = triangle.normal.dot(self.from);
-        let t = -(normal_start + d) / dir_align;
-        if t <= 0.0 {
+        let point = self.from.lerp(self.to, distance);
+        let v0p = triangle.points[0] - point;
+        let v1p = triangle.points[1] - point;
+        let cp0 = v0p.cross(v1p);
+        if cp0.dot(triangle.normal) < EDGE_TOLERANCE {
             return true;
         }
 
-        let p = self.from + self.dir * t;
-        let inside_edges = triangle
-            .normal
-            .dot(triangle.edges[0].cross(p - triangle.points[0]))
-            >= 0.0
-            && triangle
-                .normal
-                .dot(triangle.edges[1].cross(p - triangle.points[1]))
-                >= 0.0
-            && triangle
-                .normal
-                .dot(triangle.edges[2].cross(p - triangle.points[2]))
-                >= 0.0;
-        if !inside_edges {
+        let v2p = triangle.points[2] - point;
+        let cp1 = v1p.cross(v2p);
+        if cp1.dot(triangle.normal) < EDGE_TOLERANCE {
             return true;
         }
 
-        let hit_fraction = t / self.dist;
-        self.report_hit(triangle.normal, hit_fraction);
+        let cp2 = v2p.cross(v0p);
+        if cp2.dot(triangle.normal) < EDGE_TOLERANCE {
+            return true;
+        }
+
+        if dist_a <= 0.0 {
+            self.report_hit(-triangle.normal, distance);
+        } else {
+            self.report_hit(triangle.normal, distance);
+        }
 
         true
     }
@@ -305,6 +309,15 @@ impl CollisionWorld {
 
     pub fn remove_collision_object(&mut self, world_index: usize) {
         self.collision_objects.remove(world_index);
+
+        for (i, rb) in self
+            .collision_objects
+            .iter_mut()
+            .enumerate()
+            .skip(world_index)
+        {
+            rb.collision_object.world_array_index = i;
+        }
 
         todo!("remove_collision_object not implemented");
     }

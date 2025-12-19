@@ -245,28 +245,30 @@ impl Bvh {
         ray_target: Vec3A,
     ) {
         let aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
-        if test_aabb_against_aabb(&aabb, &self.aabb) {
-            let ray_direction = (ray_target - ray_source).normalize();
-            let lambda_max = ray_direction.dot(ray_target - ray_source);
-
-            let mut ray_dir_inv = 1.0 / ray_direction;
-            // replace -inf and inf with LARGE_FLOAT
-            ray_dir_inv = Vec3A::select(
-                ray_dir_inv.is_finite_mask(),
-                ray_dir_inv,
-                const { Vec3A::splat(LARGE_FLOAT) },
-            );
-
-            let ray_info = RayInfo {
-                aabb,
-                sign: <[bool; 3]>::from(ray_direction.cmplt(Vec3A::ZERO)).map(usize::from),
-                source: ray_source,
-                direction_inverse: ray_dir_inv,
-                lambda_max,
-            };
-
-            self.walk_stackless_tree_against_ray(node_callback, &ray_info, 0, self.cur_node_index);
+        if !test_aabb_against_aabb(&aabb, &self.aabb) {
+            return;
         }
+
+        let ray_direction = (ray_target - ray_source).normalize();
+        let lambda_max = ray_direction.dot(ray_target - ray_source);
+
+        let mut ray_dir_inv = 1.0 / ray_direction;
+        // replace -inf and inf with LARGE_FLOAT
+        ray_dir_inv = Vec3A::select(
+            ray_dir_inv.is_finite_mask(),
+            ray_dir_inv,
+            const { Vec3A::splat(LARGE_FLOAT) },
+        );
+
+        let ray_info = RayInfo {
+            aabb,
+            sign: <[bool; 3]>::from(ray_direction.cmplt(Vec3A::ZERO)).map(usize::from),
+            source: ray_source,
+            direction_inverse: ray_dir_inv,
+            lambda_max,
+        };
+
+        self.walk_stackless_tree_against_ray(node_callback, &ray_info, 0, self.cur_node_index);
     }
 
     pub fn report_aabb_overlapping_node<T: NodeOverlapCallback>(
