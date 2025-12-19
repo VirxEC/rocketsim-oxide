@@ -6,7 +6,7 @@ use super::{
     polyhedral_convex_shape::PolyhedralConvexShape,
 };
 use crate::bullet::{
-    collision::broadphase::broadphase_proxy::BroadphaseNativeTypes,
+    collision::broadphase::BroadphaseNativeTypes,
     linear_math::aabb_util_2::{Aabb, transform_aabb},
 };
 

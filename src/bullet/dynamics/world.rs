@@ -1,6 +1,6 @@
 use super::constraint_solver::contact_solver_info::ContactSolverInfo;
 use crate::bullet::collision::{
-    broadphase::rs_broadphase::RsBroadphase,
+    broadphase::GridBroadphase,
     dispatch::{collision_dispatcher::CollisionDispatcher, collision_world::CollisionWorld},
 };
 
@@ -10,7 +10,7 @@ pub struct DynamicsWorld {
 }
 
 impl DynamicsWorld {
-    pub fn new(dispatcher: CollisionDispatcher, broadphase: RsBroadphase) -> Self {
+    pub fn new(dispatcher: CollisionDispatcher, broadphase: GridBroadphase) -> Self {
         Self {
             collision_world: CollisionWorld::new(dispatcher, broadphase),
             solver_info: ContactSolverInfo::default(),

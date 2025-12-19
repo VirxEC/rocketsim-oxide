@@ -9,7 +9,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::{
-                overlapping_pair_cache::HashedOverlappingPairCache, rs_broadphase::RsBroadphase,
+                HashedOverlappingPairCache, GridBroadphase,
             },
             dispatch::{
                 collision_dispatcher::CollisionDispatcher,
@@ -79,7 +79,7 @@ impl ArenaConfig {
     };
 }
 
-struct Objects {
+struct ArenaData {
     ball: Ball,
     cars: AHashMap<u64, Car>,
     tick_count: u64,
@@ -88,7 +88,7 @@ struct Objects {
     boost_pads: Vec<BoostPad>,
 }
 
-impl Objects {
+impl ArenaData {
     fn on_car_ball_collision(
         &mut self,
         car_id: u64,
@@ -231,7 +231,7 @@ impl Objects {
     }
 }
 
-impl ContactAddedCallback for Objects {
+impl ContactAddedCallback for ArenaData {
     fn callback<'a>(
         &mut self,
         contact_point: &mut ManifoldPoint,
@@ -295,7 +295,7 @@ pub struct Arena {
     last_car_id: u64,
     _config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
-    objects: Objects,
+    data: ArenaData,
 }
 
 impl Arena {
@@ -318,7 +318,7 @@ impl Arena {
             ArenaMemWeightMode::Heavy => 1.0,
         };
 
-        let broadphase = RsBroadphase::new(
+        let broadphase = GridBroadphase::new(
             config.min_pos * UU_TO_BT,
             config.max_pos * UU_TO_BT,
             config.max_aabb_len * UU_TO_BT * cell_size_multiplier,
@@ -389,7 +389,7 @@ impl Arena {
             bullet_world,
             last_car_id: 0,
             tick_time: 1. / f32::from(tick_rate),
-            objects: Objects {
+            data: ArenaData {
                 ball,
                 game_mode,
                 boost_pads,
@@ -538,17 +538,17 @@ impl Arena {
 
     #[must_use]
     pub fn is_ball_scored(&self) -> bool {
-        let ball_pos = self.bullet_world.bodies()[self.objects.ball.rigid_body_idx]
+        let ball_pos = self.bullet_world.bodies()[self.data.ball.rigid_body_idx]
             .collision_object
             .get_world_transform()
             .translation
             * BT_TO_UU;
 
-        match self.objects.game_mode {
+        match self.data.game_mode {
             GameMode::Soccar | GameMode::Heatseeker | GameMode::Snowday => {
                 ball_pos.y.abs()
-                    > self.objects.mutator_config.goal_base_threshold_y
-                        + self.objects.mutator_config.ball_radius
+                    > self.data.mutator_config.goal_base_threshold_y
+                        + self.data.mutator_config.ball_radius
             }
             GameMode::Hoops => {
                 if ball_pos.z < HOOPS_GOAL_SCORE_THRESHOLD_Z {
@@ -557,7 +557,7 @@ impl Arena {
                     false
                 }
             }
-            GameMode::Dropshot => ball_pos.z < -self.objects.mutator_config.ball_radius * 1.75,
+            GameMode::Dropshot => ball_pos.z < -self.data.mutator_config.ball_radius * 1.75,
             GameMode::TheVoid => false,
         }
     }
@@ -572,7 +572,7 @@ impl Arena {
         self.rng.shuffle(&mut kickoff_order);
 
         let (location_amount, car_spawn_locations, car_respawn_locations) =
-            match self.objects.game_mode {
+            match self.data.game_mode {
                 GameMode::Hoops => (
                     CAR_SPAWN_LOCATION_AMOUNT,
                     CAR_SPAWN_LOCATIONS_HOOPS.as_slice(),
@@ -595,10 +595,10 @@ impl Arena {
                 ),
             };
 
-        let mut blue_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
-        let mut orange_cars = Vec::with_capacity(self.objects.cars.len().div_ceil(2));
+        let mut blue_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
+        let mut orange_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
 
-        for (_, car) in &mut self.objects.cars {
+        for (_, car) in &mut self.data.cars {
             if car.team == Team::Blue {
                 &mut blue_cars
             } else {
@@ -631,7 +631,7 @@ impl Arena {
                     vel: Vec3A::ZERO,
                     ang_vel: Vec3A::ZERO,
                 },
-                boost: self.objects.mutator_config.car_spawn_boost_amount,
+                boost: self.data.mutator_config.car_spawn_boost_amount,
                 is_on_ground: true,
                 ..Default::default()
             };
@@ -667,7 +667,7 @@ impl Arena {
         }
 
         let mut ball_state = BallState::DEFAULT;
-        match self.objects.game_mode {
+        match self.data.game_mode {
             GameMode::Heatseeker => {
                 let next_rand = self.rng.bool();
                 let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
@@ -680,8 +680,8 @@ impl Arena {
             _ => {}
         }
 
-        self.objects.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
+        self.data.ball.set_state(
+            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
             ball_state,
         );
 
@@ -696,31 +696,31 @@ impl Arena {
     pub fn add_car(&mut self, team: Team, config: CarConfig) -> u64 {
         let mut car = Car::new(
             &mut self.bullet_world,
-            &self.objects.mutator_config,
+            &self.data.mutator_config,
             team,
             config,
         );
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            self.objects.game_mode,
-            self.objects.mutator_config.car_spawn_boost_amount,
+            self.data.game_mode,
+            self.data.mutator_config.car_spawn_boost_amount,
         );
 
         self.last_car_id += 1;
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
             .collision_object
             .user_pointer = self.last_car_id;
-        self.objects.cars.insert(self.last_car_id, car);
+        self.data.cars.insert(self.last_car_id, car);
         self.last_car_id
     }
 
     pub fn remove_car(&mut self, id: u64) -> bool {
-        if let Some(car) = self.objects.cars.remove(&id) {
-            if car.rigid_body_idx < self.objects.ball.rigid_body_idx {
-                self.objects.ball.rigid_body_idx -= 1;
+        if let Some(car) = self.data.cars.remove(&id) {
+            if car.rigid_body_idx < self.data.ball.rigid_body_idx {
+                self.data.ball.rigid_body_idx -= 1;
             }
 
-            for other_car in self.objects.cars.values_mut() {
+            for other_car in self.data.cars.values_mut() {
                 if car.rigid_body_idx < other_car.rigid_body_idx {
                     other_car.rigid_body_idx -= 1;
                     other_car.bullet_vehicle.chassis_body_idx -= 1;
@@ -737,7 +737,7 @@ impl Arena {
 
     fn internal_step(&mut self) {
         {
-            let ball_rb = &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx];
+            let ball_rb = &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx];
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
 
@@ -750,30 +750,30 @@ impl Arena {
                 });
         }
 
-        for car in self.objects.cars.values_mut() {
+        for car in self.data.cars.values_mut() {
             car.pre_tick_update(
                 &mut self.bullet_world,
-                self.objects.game_mode,
+                self.data.game_mode,
                 self.tick_time,
-                &self.objects.mutator_config,
+                &self.data.mutator_config,
             );
         }
 
-        let ball_only = self.objects.cars.is_empty();
-        let has_arena_stuff = self.objects.game_mode != GameMode::TheVoid;
+        let ball_only = self.data.cars.is_empty();
+        let has_arena_stuff = self.data.game_mode != GameMode::TheVoid;
 
         if has_arena_stuff && !ball_only {
             // todo: boostpad pretickupdate
         }
 
-        self.objects
+        self.data
             .ball
-            .pre_tick_update(self.objects.game_mode, self.tick_time);
+            .pre_tick_update(self.data.game_mode, self.tick_time);
 
         self.bullet_world
-            .step_simulation(self.tick_time, &mut self.objects);
+            .step_simulation(self.tick_time, &mut self.data);
 
-        for car in self.objects.cars.values_mut() {
+        for car in self.data.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
             car.finish_physics_tick(rb);
@@ -787,18 +787,18 @@ impl Arena {
             // todo: boostpad posttickupdate
         }
 
-        self.objects.ball.finish_physics_tick(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
-            &self.objects.mutator_config,
+        self.data.ball.finish_physics_tick(
+            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
+            &self.data.mutator_config,
         );
 
-        if self.objects.game_mode == GameMode::Dropshot {
+        if self.data.game_mode == GameMode::Dropshot {
             todo!("dropshot tile state sync")
         }
 
         // todo: goalscorecallback
 
-        self.objects.tick_count += 1;
+        self.data.tick_count += 1;
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
@@ -810,37 +810,37 @@ impl Arena {
     #[inline]
     #[must_use]
     pub const fn tick_count(&self) -> u64 {
-        self.objects.tick_count
+        self.data.tick_count
     }
 
     #[inline]
     #[must_use]
     pub const fn game_mode(&self) -> GameMode {
-        self.objects.game_mode
+        self.data.game_mode
     }
 
     #[inline]
     #[must_use]
     pub const fn mutator_config(&self) -> MutatorConfig {
-        self.objects.mutator_config
+        self.data.mutator_config
     }
 
     #[inline]
     #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
-        &self.objects.boost_pads
+        &self.data.boost_pads
     }
 
     #[inline]
     #[must_use]
     pub const fn get_ball(&self) -> &BallState {
-        &self.objects.ball.internal_state
+        &self.data.ball.internal_state
     }
 
     #[inline]
     pub fn set_ball(&mut self, state: BallState) {
-        self.objects.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.objects.ball.rigid_body_idx],
+        self.data.ball.set_state(
+            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
             state,
         );
     }
@@ -848,22 +848,22 @@ impl Arena {
     #[inline]
     #[must_use]
     pub const fn cars(&self) -> &AHashMap<u64, Car> {
-        &self.objects.cars
+        &self.data.cars
     }
 
     #[must_use]
     pub fn get_car(&self, car_id: u64) -> Option<&Car> {
-        self.objects.cars.get(&car_id)
+        self.data.cars.get(&car_id)
     }
 
     #[must_use]
     pub fn get_car_mut(&mut self, car_id: u64) -> Option<&mut Car> {
-        self.objects.cars.get_mut(&car_id)
+        self.data.cars.get_mut(&car_id)
     }
 
     pub fn set_car_state(&mut self, car_id: u64, state: CarState) {
         let car = self
-            .objects
+            .data
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");
@@ -876,15 +876,15 @@ impl Arena {
 
     pub fn respawn_car(&mut self, car_id: u64) {
         let car = self
-            .objects
+            .data
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");
 
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            self.objects.game_mode,
-            self.objects.mutator_config.car_spawn_boost_amount,
+            self.data.game_mode,
+            self.data.mutator_config.car_spawn_boost_amount,
         );
     }
 

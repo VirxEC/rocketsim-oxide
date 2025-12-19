@@ -18,7 +18,7 @@ use crate::bullet::{
 };
 
 #[derive(Clone, Default)]
-pub struct RsBroadphaseProxy {
+pub struct GridBroadpraseProxy {
     pub(crate) broadphase_proxy: BroadphaseProxy,
     pub(crate) is_static: bool,
     pub(crate) cell_idx: usize,
@@ -26,12 +26,12 @@ pub struct RsBroadphaseProxy {
 }
 
 #[derive(Clone)]
-struct Cell {
+struct GridCell {
     dyn_handles: Vec<usize>,
     static_handles: Vec<usize>,
 }
 
-impl Default for Cell {
+impl Default for GridCell {
     fn default() -> Self {
         Self {
             dyn_handles: Vec::with_capacity(Self::RESERVED_SIZE),
@@ -40,7 +40,7 @@ impl Default for Cell {
     }
 }
 
-impl Cell {
+impl GridCell {
     const RESERVED_SIZE: usize = 4;
 
     fn remove_static(&mut self, proxy_idx: usize) {
@@ -91,7 +91,7 @@ struct CellGrid {
     cell_size_sq: f32,
     num_cells: USizeVec3,
     num_dyn_proxies: u32,
-    cells: Vec<Cell>,
+    cells: Vec<GridCell>,
 }
 
 impl CellGrid {
@@ -114,14 +114,14 @@ impl CellGrid {
         self.min_pos + indices.as_vec3a() * self.cell_size
     }
 
-    fn get_cell(&mut self, indices: USizeVec3) -> &mut Cell {
+    fn get_cell(&mut self, indices: USizeVec3) -> &mut GridCell {
         let idx = self.cell_indices_to_index(indices);
         &mut self.cells[idx]
     }
 
     fn update_cells_static<const ADD: bool>(
         &mut self,
-        proxy: &RsBroadphaseProxy,
+        proxy: &GridBroadpraseProxy,
         col_obj: &CollisionObject,
         proxy_idx: usize,
     ) {
@@ -220,14 +220,14 @@ impl CellGrid {
     }
 }
 
-pub struct RsBroadphase {
+pub struct GridBroadphase {
     cell_grid: CellGrid,
     min_dyn_handle_index: usize,
-    pub handles: Vec<RsBroadphaseProxy>,
+    pub handles: Vec<GridBroadpraseProxy>,
     pair_cache: HashedOverlappingPairCache,
 }
 
-impl RsBroadphase {
+impl GridBroadphase {
     #[must_use]
     pub fn new(
         min_pos: Vec3A,
@@ -243,7 +243,7 @@ impl RsBroadphase {
             .as_usizevec3()
             .max(USizeVec3::ONE);
         let total_cells = num_cells.element_product();
-        let cells = vec![Cell::default(); total_cells];
+        let cells = vec![GridCell::default(); total_cells];
 
         Self {
             min_dyn_handle_index: 0,
@@ -308,7 +308,7 @@ impl RsBroadphase {
         let indices = self.cell_grid.get_cell_indices(aabb.min);
         let cell_idx = self.cell_grid.cell_indices_to_index(indices);
 
-        let new_handle = RsBroadphaseProxy {
+        let new_handle = GridBroadpraseProxy {
             broadphase_proxy: BroadphaseProxy {
                 aabb,
                 client_object_idx: Some(world_index),

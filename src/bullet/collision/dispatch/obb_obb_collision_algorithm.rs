@@ -3,7 +3,7 @@ use glam::Vec3A;
 
 use crate::bullet::{
     collision::{
-        broadphase::collision_algorithm::CollisionAlgorithm,
+        broadphase::CollisionAlgorithm,
         dispatch::collision_object_wrapper::CollisionObjectWrapper,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::collision_shape::CollisionShapes,

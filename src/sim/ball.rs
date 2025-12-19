@@ -4,7 +4,7 @@ use super::{collision_masks::CollisionMasks, MutatorConfig, PhysState};
 use crate::{
     bullet::{
         collision::{
-            broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
+            broadphase::{BroadphaseNativeTypes, CollisionFilterGroups},
             dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{collision_shape::CollisionShapes, sphere_shape::SphereShape},
         },

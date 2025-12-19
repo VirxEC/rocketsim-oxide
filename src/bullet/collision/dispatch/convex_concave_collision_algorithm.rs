@@ -1,7 +1,7 @@
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
-        broadphase::collision_algorithm::CollisionAlgorithm,
+        broadphase::CollisionAlgorithm,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{
             collision_shape::CollisionShapes, triangle_callback::TriangleCallback,

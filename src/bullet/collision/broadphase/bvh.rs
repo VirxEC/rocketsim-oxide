@@ -17,13 +17,13 @@ pub trait NodeOverlapCallback {
     fn process_node(&mut self, triangle_index: usize);
 }
 
-pub struct MyNodeOverlapCallback<'a, T: TriangleCallback> {
+pub struct BvhNodeOverlapCallback<'a, T: TriangleCallback> {
     tris: &'a [TriangleShape],
     aabbs: &'a [Aabb],
     callback: &'a mut T,
 }
 
-impl<'a, T: TriangleCallback> MyNodeOverlapCallback<'a, T> {
+impl<'a, T: TriangleCallback> BvhNodeOverlapCallback<'a, T> {
     pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
         let (tris, aabbs) = mesh_interface.get_tris_aabbs();
 
@@ -35,7 +35,7 @@ impl<'a, T: TriangleCallback> MyNodeOverlapCallback<'a, T> {
     }
 }
 
-impl<T: TriangleCallback> NodeOverlapCallback for MyNodeOverlapCallback<'_, T> {
+impl<T: TriangleCallback> NodeOverlapCallback for BvhNodeOverlapCallback<'_, T> {
     fn process_node(&mut self, node_triangle_index: usize) {
         self.callback.process_triangle(
             &self.tris[node_triangle_index],

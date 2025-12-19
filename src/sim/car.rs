@@ -5,7 +5,7 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 use super::{collision_masks::CollisionMasks, BallHitInfo, CarConfig, CarControls, MutatorConfig, PhysState};
 use crate::{bullet::{
     collision::{
-        broadphase::broadphase_proxy::CollisionFilterGroups,
+        broadphase::CollisionFilterGroups,
         dispatch::collision_object::{ActivationState, CollisionFlags},
         shapes::{
             box_shape::BoxShape, collision_shape::CollisionShapes,

@@ -5,8 +5,8 @@ use glam::{Affine3A, Vec3A};
 use super::{box_shape::BoxShape, collision_shape::CollisionShape};
 use crate::bullet::{
     collision::{
-        broadphase::broadphase_proxy::BroadphaseNativeTypes,
-        dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+        broadphase::BroadphaseNativeTypes,
+        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
     },
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };

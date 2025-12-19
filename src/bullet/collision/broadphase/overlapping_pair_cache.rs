@@ -2,7 +2,7 @@ use std::mem;
 
 use ahash::AHashMap;
 
-use super::{broadphase_proxy::BroadphasePair, rs_broadphase::RsBroadphaseProxy};
+use super::{broadphase_proxy::BroadphasePair, grid_broadphase::GridBroadpraseProxy};
 use crate::bullet::{
     collision::{
         dispatch::collision_dispatcher::CollisionDispatcher,
@@ -52,9 +52,9 @@ impl HashedOverlappingPairCache {
 
     pub fn add_overlapping_pair(
         &mut self,
-        proxy0: &RsBroadphaseProxy,
+        proxy0: &GridBroadpraseProxy,
         proxy0_idx: usize,
-        proxy1: &RsBroadphaseProxy,
+        proxy1: &GridBroadpraseProxy,
         proxy1_idx: usize,
     ) {
         if !Self::needs_broadphase_collision(proxy0, proxy1) {
@@ -75,8 +75,8 @@ impl HashedOverlappingPairCache {
 
     pub fn contains_pair<'a>(
         &self,
-        mut proxy0: &'a RsBroadphaseProxy,
-        mut proxy1: &'a RsBroadphaseProxy,
+        mut proxy0: &'a GridBroadpraseProxy,
+        mut proxy1: &'a GridBroadpraseProxy,
     ) -> bool {
         if proxy0.broadphase_proxy.unique_id > proxy1.broadphase_proxy.unique_id {
             mem::swap(&mut proxy0, &mut proxy1);
@@ -89,8 +89,8 @@ impl HashedOverlappingPairCache {
     }
 
     pub const fn needs_broadphase_collision(
-        proxy0: &RsBroadphaseProxy,
-        proxy1: &RsBroadphaseProxy,
+        proxy0: &GridBroadpraseProxy,
+        proxy1: &GridBroadpraseProxy,
     ) -> bool {
         (proxy0.broadphase_proxy.collision_filter_group
             & proxy1.broadphase_proxy.collision_filter_mask)
@@ -104,7 +104,7 @@ impl HashedOverlappingPairCache {
         &mut self,
         collision_objects: &[RigidBody],
         dispatcher: &mut CollisionDispatcher,
-        handles: &[RsBroadphaseProxy],
+        handles: &[GridBroadpraseProxy],
         contact_added_callback: &mut T,
     ) {
         for pair in &self.overlapping_pair_array {

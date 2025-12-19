@@ -8,8 +8,8 @@ use super::{
 };
 use crate::bullet::{
     collision::{
-        broadphase::broadphase_proxy::BroadphaseNativeTypes,
-        dispatch::collision_world::{BridgeTriangleRaycastCallback, RayResultCallback},
+        broadphase::BroadphaseNativeTypes,
+        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
     },
     linear_math::aabb_util_2::Aabb,
 };

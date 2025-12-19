@@ -2,7 +2,7 @@ use glam::{Affine3A, Vec3A};
 
 use crate::bullet::{
     collision::{
-        broadphase::collision_algorithm::CollisionAlgorithm,
+        broadphase::CollisionAlgorithm,
         dispatch::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
             convex_plane_collision_algorithm::ConvexPlaneCollisionAlgorithm,
