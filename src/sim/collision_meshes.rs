@@ -5,7 +5,7 @@ use std::{
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use glam::Vec3A;
-
+use log::info;
 use crate::bullet::collision::shapes::triangle_mesh::TriangleMesh;
 
 pub const COLLISION_MESH_BASE_PATH: &str = "./collision_meshes/";
@@ -62,8 +62,7 @@ impl CollisionMeshFile {
     }
 
     pub fn read_from_bytes(bytes: &[u8], silent: bool) -> IoResult<Self> {
-        const ERROR_PREFIX_STR: &str = " > CollisionMeshFile::ReadFromFile(): ";
-        const MAX_VERT_OR_TRI_COUNT: usize = 1000 * 1000;
+        const MAX_VERT_OR_TRI_COUNT: usize = 1_000_000;
 
         let mut bytes = Cursor::new(bytes);
         let num_tris = bytes.read_u32::<LittleEndian>()? as usize;
@@ -72,7 +71,7 @@ impl CollisionMeshFile {
 
         assert!(
             num_tris.min(num_vertices) != 0 && num_tris.max(num_vertices) <= MAX_VERT_OR_TRI_COUNT,
-            "{ERROR_PREFIX_STR}Invalid collision mesh file (bad triangle/vertex count: [{num_tris}, {num_vertices}])"
+            "Invalid collision mesh file (bad triangle/vertex count: [{num_tris}, {num_vertices}])"
         );
 
         let indices = (0..num_indices)
@@ -88,7 +87,7 @@ impl CollisionMeshFile {
             for &vert_index in &indices {
                 assert!(
                     vert_index < num_vertices,
-                    "{ERROR_PREFIX_STR}Invalid collision mesh file (bad triangle vertex index)"
+                    "Invalid collision mesh file (bad triangle vertex index)"
                 );
             }
         }
@@ -96,7 +95,7 @@ impl CollisionMeshFile {
         let hash = Self::calculate_hash(&indices, &vertices);
 
         if !silent {
-            println!("   > Loaded {num_vertices} verts and {num_tris} tris, hash: {hash:#x}");
+            info!("\tLoaded {num_vertices} verts and {num_tris} tris, hash: {hash:#x}");
         }
 
         Ok(Self {

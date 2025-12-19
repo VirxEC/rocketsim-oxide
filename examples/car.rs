@@ -7,7 +7,7 @@ use rocketsim::{
 };
 
 fn main() {
-    init_from_default(true).unwrap();
+    init_from_default(false).unwrap();
 
     let mut arena = Arena::new(GameMode::Soccar);
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);

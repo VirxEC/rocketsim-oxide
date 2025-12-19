@@ -305,8 +305,7 @@ impl Arena {
     }
 
     pub fn new_with_config(game_mode: GameMode, config: ArenaConfig, tick_rate: u8) -> Self {
-        assert!(tick_rate >= 15, "tick_rate must be at least 15.0");
-        assert!(tick_rate <= 120, "tick_rate must not be greater than 120.0");
+        assert!(tick_rate >= 15 && tick_rate <= 120, "tick_rate must be between 15 and 120");
 
         let mutator_config = MutatorConfig::new(game_mode);
 

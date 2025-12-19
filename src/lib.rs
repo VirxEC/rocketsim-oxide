@@ -7,6 +7,7 @@ pub mod rlviser;
 mod sim;
 
 mod bullet;
+mod logging;
 
 // Public uses
 pub use sim::*;
@@ -20,6 +21,7 @@ use std::{
 };
 
 use ahash::AHashMap;
+use log::{error, info};
 use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
 use sim::collision_meshes::{
     CollisionMeshFile, COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION,
@@ -89,7 +91,8 @@ pub fn init_from_mem(
     silent: bool,
 ) -> IoResult<()> {
     if !silent {
-        println!("Initializing RocketSim, originally by Zealan and ported to Rust by Virx...");
+        let _ = logging::try_init();
+        info!("Initializing RocketSim, originally by ZealanL and ported to Rust by VirxEC...");
     }
 
     let start_time = Instant::now();
@@ -100,12 +103,12 @@ pub fn init_from_mem(
 
     for (game_mode, mesh_files) in mesh_file_map {
         if !silent {
-            println!("Loading arena meshes for {}...", game_mode.name());
+            info!("Loading arena meshes for {}...", game_mode.name());
         }
 
         if mesh_files.is_empty() {
             if !silent {
-                println!("No meshes, skipping");
+                info!("\tNo meshes, skipping");
             }
             continue;
         }
@@ -117,7 +120,7 @@ pub fn init_from_mem(
             let mesh_file = CollisionMeshFile::read_from_bytes(&entry, silent)?;
             let hash = mesh_file.get_hash();
             let Some(hash_count) = target_hashes.get_mut(&hash) else {
-                eprintln!(
+                error!(
                     "Collision mesh [{i}] does not match any known {} collision mesh ({hash:#x}), make sure they were dumped form a normal {} arena.",
                     game_mode.name(),
                     game_mode.name()
@@ -126,7 +129,7 @@ pub fn init_from_mem(
             };
 
             if *hash_count > 0 && !silent {
-                eprintln!(
+                error!(
                     "Collision mesh [{i}] is a duplicate ({hash:#x}), already loaded a mesh with the same hash."
                 );
             }
@@ -142,28 +145,28 @@ pub fn init_from_mem(
     }
 
     if !silent {
-        println!("Finished loading arena collision meshes:");
-        println!(
-            " > Soccar: {}",
+        info!("Finished loading arena collision meshes:");
+        info!(
+            "\tSoccar: {}",
             arena_collision_shapes
                 .get(&GameMode::Soccar)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
-        println!(
-            " > Hoops: {}",
+        info!(
+            "\tHoops: {}",
             arena_collision_shapes
                 .get(&GameMode::Hoops)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
-        println!(
-            " > Dropshot: {}",
+        info!(
+            "\tDropshot: {}",
             arena_collision_shapes
                 .get(&GameMode::Dropshot)
-                .map_or(0, std::vec::Vec::len)
+                .map_or(0, Vec::len)
         );
 
         let elapsed_time = Instant::now().duration_since(start_time);
-        println!(
+        info!(
             "Finished initializing RocketSim in {:.3}s!",
             elapsed_time.as_secs_f32()
         );
@@ -173,7 +176,7 @@ pub fn init_from_mem(
         let mut arena_collision_shapes_lock = ARENA_COLLISION_SHAPES.write().unwrap();
         assert!(
             arena_collision_shapes_lock.is_none(),
-            "Called init(..) twice"
+            "RocketSim initialization called twice"
         );
         *arena_collision_shapes_lock = Some(arena_collision_shapes);
     }

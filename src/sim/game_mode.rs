@@ -56,7 +56,7 @@ impl GameMode {
                 0x3D79_D25D,
                 0xD84C_7A68
             ]
-                .collect(),
+            .collect(),
             Self::Hoops => zero_iter![
                 0x72F2_359E,
                 0x5ED1_4A26,
@@ -71,8 +71,11 @@ impl GameMode {
                 0x9CA1_79DC,
                 0x16F3_CC19
             ]
-                .collect(),
-            Self::Dropshot => zero_iter![0x7EB0_B2D3, 0x9110_41D2].collect(),
+            .collect(),
+            Self::Dropshot => zero_iter![
+                0x7EB0_B2D3,
+                0x9110_41D2
+            ].collect(),
             _ => AHashMap::new(),
         }
     }

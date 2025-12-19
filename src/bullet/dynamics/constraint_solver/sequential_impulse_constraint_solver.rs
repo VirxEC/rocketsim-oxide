@@ -596,7 +596,6 @@ impl SequentialImpulseConstraintSolver {
                 };
 
                 let residual = contact.resolve_split_penetration_impulse(body_a, body_b);
-                // println!("residual: {residual:?}");
                 if residual * residual == 0.0 {
                     should_run ^= mask;
                 }
@@ -625,7 +624,6 @@ impl SequentialImpulseConstraintSolver {
             };
 
             let residual = contact.resolve_single_constraint_row_lower_limit(body_a, body_b);
-            // println!("residual: {residual:?}");
             least_squares_residual = (residual * residual).max(least_squares_residual);
         }
 
@@ -649,7 +647,6 @@ impl SequentialImpulseConstraintSolver {
             };
 
             let residual = contact.resolve_single_constraint_row_generic(body_a, body_b);
-            // println!("residual: {residual:?}");
             least_squares_residual = (residual * residual).max(least_squares_residual);
         }
 
@@ -661,7 +658,6 @@ impl SequentialImpulseConstraintSolver {
 
         for _ in 0..info.num_iterations {
             self.least_squares_residual = self.solve_single_iteration();
-            // println!("least_squares_residual: {:?}", self.least_squares_residual);
             if self.least_squares_residual == 0.0 {
                 break;
             }
