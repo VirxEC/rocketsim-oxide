@@ -3,16 +3,21 @@ use std::time::Instant;
 use glam::{Mat3A, Vec3A};
 use rocketsim::{
     GameMode, init_from_default,
-    sim::{Arena, CarConfig, Team},
+    sim::{Arena, ArenaConfig, CarConfig, Team},
 };
 
 const NUM_CARS: u8 = 8;
 
 fn main() {
     init_from_default(true).unwrap();
-    let mut arena = Arena::new(GameMode::Soccar);
-
-    fastrand::seed(0);
+    let mut arena = Arena::new_with_config(
+        GameMode::Soccar,
+        ArenaConfig {
+            rng_seed: Some(0),
+            ..Default::default()
+        },
+        120,
+    );
 
     let mut ids = Vec::new();
     for i in 0..NUM_CARS {
@@ -23,8 +28,9 @@ fn main() {
     arena.reset_to_random_kickoff();
 
     let mut ball_state = *arena.get_ball();
-    ball_state.physics.pos.z += 1000.;
-    ball_state.physics.vel.z = -10.;
+    ball_state.physics.vel.x = 600.0;
+    ball_state.physics.vel.y = 1550.0;
+    ball_state.physics.vel.z = 0.0;
     arena.set_ball(ball_state);
 
     let mut states = Vec::new();

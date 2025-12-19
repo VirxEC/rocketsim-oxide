@@ -27,10 +27,6 @@ pub struct RigidBodyConstructionInfo {
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
     pub additional_damping: bool,
-    // pub additional_damping_factor: f32,
-    // pub additional_linear_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_factor: f32,
 }
 
 impl RigidBodyConstructionInfo {
@@ -47,10 +43,6 @@ impl RigidBodyConstructionInfo {
             linear_sleeping_threshold: 0.0,
             angular_sleeping_threshold: 1.0,
             additional_damping: false,
-            // additional_damping_factor: 0.005,
-            // additional_linear_damping_threshold_sqr: 0.01,
-            // additional_angular_damping_threshold_sqr: 0.01,
-            // additional_angular_damping_factor: 0.01,
             start_world_transform: Affine3A::IDENTITY,
         }
     }
@@ -70,20 +62,10 @@ pub struct RigidBody {
     pub linear_damping: f32,
     pub angular_damping: f32,
     pub additional_damping: bool,
-    // pub additional_damping_factor: f32,
-    // pub additional_linear_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_threshold_sqr: f32,
-    // pub additional_angular_damping_factor: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    // pub motion_state: Option<Box<dyn MotionState>>,
-    // pub constraint_refs: Vec<TypedConstraint>,
-    pub rigidbody_flags: i32,
-    // pub delta_linear_velocity: Vec3A,
-    // pub delta_angular_velocity: Vec3A,
+    pub rigidbody_flags: u8,
     pub inv_mass: Vec3A,
-    // pub push_velocity: Vec3A,
-    // pub turn_velocity: Vec3A,
 }
 
 impl RigidBody {
@@ -99,10 +81,10 @@ impl RigidBody {
         collision_object.set_collision_shape(info.collision_shape);
 
         let inverse_mass = if info.mass == 0.0 {
-            collision_object.collision_flags |= CollisionFlags::StaticObject as i32;
+            collision_object.collision_flags |= CollisionFlags::StaticObject as u8;
             0.0
         } else {
-            collision_object.collision_flags &= !(CollisionFlags::StaticObject as i32);
+            collision_object.collision_flags &= !(CollisionFlags::StaticObject as u8);
             1.0 / info.mass
         };
 
@@ -131,25 +113,15 @@ impl RigidBody {
             linear_damping: info.linear_damping.clamp(0.0, 1.0),
             angular_damping: info.angular_damping.clamp(0.0, 1.0),
             additional_damping: info.additional_damping,
-            // additional_damping_factor: info.additional_damping_factor,
-            // additional_linear_damping_threshold_sqr: info.additional_linear_damping_threshold_sqr,
-            // additional_angular_damping_threshold_sqr: info.additional_angular_damping_threshold_sqr,
-            // additional_angular_damping_factor: info.additional_angular_damping_factor,
             linear_sleeping_threshold: info.linear_sleeping_threshold,
             angular_sleeping_threshold: info.angular_sleeping_threshold,
-            // motion_state: info.motion_state,
-            // constraint_refs: Vec::new(),
             rigidbody_flags: 0,
-            // delta_linear_velocity: Vec3A::ZERO,
-            // delta_angular_velocity: Vec3A::ZERO,
             inv_mass: Vec3A::splat(inverse_mass),
-            // push_velocity: Vec3A::ZERO,
-            // turn_velocity: Vec3A::ZERO,
         }
     }
 
     #[must_use]
-    pub const fn get_flags(&self) -> i32 {
+    pub const fn get_flags(&self) -> u8 {
         self.rigidbody_flags
     }
 

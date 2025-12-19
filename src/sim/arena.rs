@@ -403,8 +403,8 @@ impl Arena {
         bullet_world: &mut DiscreteDynamicsWorld,
         shape: CollisionShapes,
         pos_bt: Vec3A,
-        group: i32,
-        mask: i32,
+        group: u8,
+        mask: u8,
     ) {
         let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
         rb_constrution_info.restitution = ARENA_COLLISION_BASE_RESTITUTION;
@@ -440,7 +440,7 @@ impl Arena {
             };
 
             let mask = if is_hoops_net {
-                CollisionMasks::HoopsNet as i32
+                CollisionMasks::HoopsNet as u8
             } else {
                 0
             };
@@ -462,7 +462,7 @@ impl Arena {
             _ => (ARENA_EXTENT_X, 0.0, ARENA_HEIGHT),
         };
 
-        let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: i32| {
+        let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: u8| {
             debug_assert!(normal.is_normalized());
             let mut plane_shape = StaticPlaneShape::new(normal, 0.0);
 
@@ -487,7 +487,7 @@ impl Arena {
         };
 
         let floor_mask = if game_mode == GameMode::Dropshot {
-            CollisionMasks::DropshotFloor as i32
+            CollisionMasks::DropshotFloor as u8
         } else {
             0
         };
@@ -801,8 +801,7 @@ impl Arena {
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
-        for i in 0..ticks_to_simulate {
-            // println!("\nstep {i}");
+        for _ in 0..ticks_to_simulate {
             self.internal_step();
         }
     }

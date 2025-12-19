@@ -17,14 +17,8 @@ use crate::bullet::{
     linear_math::{AffineExt, aabb_util_2::Aabb, interpolate_3},
 };
 
-// struct LocalShapeInfo {
-//     shape_part: usize,
-//     triangle_index: usize,
-// }
-
 pub struct LocalRayResult {
     collision_object_index: usize,
-    // local_shape_info: LocalShapeInfo,
     hit_normal_world: Vec3A,
     hit_fraction: f32,
 }
@@ -33,9 +27,8 @@ pub struct RayResultCallbackBase {
     pub closest_hit_fraction: f32,
     pub collision_object_index: Option<usize>,
     pub ignore_object_world_index: Option<usize>,
-    pub collision_filter_group: i32,
-    pub collision_filter_mask: i32,
-    // pub flags: u32,
+    pub collision_filter_group: u8,
+    pub collision_filter_mask: u8,
 }
 
 impl Default for RayResultCallbackBase {
@@ -43,10 +36,9 @@ impl Default for RayResultCallbackBase {
         Self {
             closest_hit_fraction: 1.0,
             collision_object_index: None,
-            collision_filter_group: CollisionFilterGroups::Default as i32,
-            collision_filter_mask: CollisionFilterGroups::All as i32,
+            collision_filter_group: CollisionFilterGroups::Default as u8,
+            collision_filter_mask: CollisionFilterGroups::All as u8,
             ignore_object_world_index: None,
-            // flags: 0,
         }
     }
 }
@@ -284,8 +276,8 @@ impl CollisionWorld {
     pub fn add_collision_object(
         &mut self,
         mut object: RigidBody,
-        filter_group: i32,
-        filter_mask: i32,
+        filter_group: u8,
+        filter_mask: u8,
     ) -> usize {
         {
             let obj = &mut object.collision_object;

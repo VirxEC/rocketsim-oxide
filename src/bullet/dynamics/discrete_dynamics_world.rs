@@ -52,7 +52,7 @@ impl DiscreteDynamicsWorld {
         self.gravity = gravity;
     }
 
-    fn add_collision_object(&mut self, body: RigidBody, group: i32, mask: i32) -> usize {
+    fn add_collision_object(&mut self, body: RigidBody, group: u8, mask: u8) -> usize {
         self.dynamics_world
             .collision_world
             .add_collision_object(body, group, mask)
@@ -67,7 +67,7 @@ impl DiscreteDynamicsWorld {
 
     pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> Option<usize> {
         if !body.collision_object.is_static_or_kinematic_object()
-            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }
@@ -75,13 +75,13 @@ impl DiscreteDynamicsWorld {
         if body.collision_object.get_collision_shape().is_some() {
             let (group, mask) = if body.collision_object.is_static_or_kinematic_object() {
                 (
-                    CollisionFilterGroups::Static as i32,
-                    CollisionFilterGroups::All as i32 ^ CollisionFilterGroups::Static as i32,
+                    CollisionFilterGroups::Static as u8,
+                    CollisionFilterGroups::All as u8 ^ CollisionFilterGroups::Static as u8,
                 )
             } else {
                 (
-                    CollisionFilterGroups::Default as i32,
-                    CollisionFilterGroups::All as i32,
+                    CollisionFilterGroups::Default as u8,
+                    CollisionFilterGroups::All as u8,
                 )
             };
 
@@ -100,9 +100,9 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: i32, mask: i32) -> Option<usize> {
+    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: u8, mask: u8) -> Option<usize> {
         if !body.collision_object.is_static_or_kinematic_object()
-            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as i32 == 0
+            && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }

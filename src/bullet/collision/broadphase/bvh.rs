@@ -222,7 +222,6 @@ impl Bvh {
                             ray_info.direction_inverse,
                             &ray_info.sign,
                             &[root_node.aabb.min, root_node.aabb.max],
-                            0.0,
                             ray_info.lambda_max,
                         )
                     {

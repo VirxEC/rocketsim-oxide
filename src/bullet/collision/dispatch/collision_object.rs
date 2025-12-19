@@ -12,26 +12,14 @@ pub const FIXED_BASE_MULTI_BODY: i32 = 6;
 pub enum CollisionFlags {
     // DynamicObject = 0,
     StaticObject = 1,
-    KinematicObject = 2,
-    NoContactResponse = 4,
-    CustomMaterialCallback = 8,
-    // CharacterObject = 16,
-    // DisableVisualizeObject = 32,
-    // DisableSpuCollisionProcessing = 64,
-    // HasContactStiffnessDamping = 128,
-    // HasCustomDebugRenderingColor = 256,
-    // HasFrictionAnchor = 512,
-    // HasCollisionSoundTrigger = 1024,
+    KinematicObject = (1 << 1),
+    NoContactResponse = (1 << 2),
+    CustomMaterialCallback = (1 << 3),
 }
 
 pub enum CollisionObjectTypes {
     CollisionObject = 1,
     RigidBody = 2,
-    // GhostObject = 4,
-    // SoftBody = 8,
-    // HfFluid = 16,
-    // UserType = 32,
-    // FeatherstoneLink = 64,
 }
 
 pub struct SpecialResolveInfo {
@@ -70,7 +58,7 @@ pub struct CollisionObject {
     collision_shape: Option<CollisionShapes>,
     // void* m_extensionPointer;
     // pub root_collision_shape: Option<Rc<RefCell<CollisionShapes>>>,
-    pub collision_flags: i32,
+    pub collision_flags: u8,
     // pub island_tag_1: i32,
     pub companion_id: Option<usize>,
     /// The index of this object in `CollisionWorld`
@@ -160,18 +148,18 @@ impl CollisionObject {
 
     #[must_use]
     pub const fn is_static_object(&self) -> bool {
-        self.collision_flags & CollisionFlags::StaticObject as i32 != 0
+        self.collision_flags & CollisionFlags::StaticObject as u8 != 0
     }
 
     #[must_use]
     pub const fn is_kinematic_object(&self) -> bool {
-        self.collision_flags & CollisionFlags::KinematicObject as i32 != 0
+        self.collision_flags & CollisionFlags::KinematicObject as u8 != 0
     }
 
     #[must_use]
     pub const fn is_static_or_kinematic_object(&self) -> bool {
         self.collision_flags
-            & (CollisionFlags::KinematicObject as i32 | CollisionFlags::StaticObject as i32)
+            & (CollisionFlags::KinematicObject as u8 | CollisionFlags::StaticObject as u8)
             != 0
     }
 
@@ -184,7 +172,7 @@ impl CollisionObject {
 
     #[must_use]
     pub const fn has_contact_response(&self) -> bool {
-        self.collision_flags & CollisionFlags::NoContactResponse as i32 == 0
+        self.collision_flags & CollisionFlags::NoContactResponse as u8 == 0
     }
 
     #[must_use]

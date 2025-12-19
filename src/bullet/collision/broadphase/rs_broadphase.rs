@@ -296,8 +296,8 @@ impl RsBroadphase {
         &mut self,
         aabb: Aabb,
         co: &CollisionObject,
-        collision_filter_group: i32,
-        collision_filter_mask: i32,
+        collision_filter_group: u8,
+        collision_filter_mask: u8,
     ) -> usize {
         debug_assert!(aabb.min.cmple(aabb.max).all());
 

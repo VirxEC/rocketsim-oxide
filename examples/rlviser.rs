@@ -3,18 +3,26 @@ use std::{
     time::{Duration, Instant},
 };
 
-use rocketsim::{GameMode, init_from_default, rlviser::RLViser, sim::Arena};
+use rocketsim::{
+    GameMode, init_from_default,
+    rlviser::RLViser,
+    sim::{Arena, CarConfig, Team},
+};
 
 fn main() {
     init_from_default(true).unwrap();
     let mut rlviser = RLViser::new().unwrap();
     let mut arena = Arena::new(GameMode::Soccar);
 
+    arena.add_car(Team::Blue, CarConfig::OCTANE);
+    arena.add_car(Team::Orange, CarConfig::OCTANE);
+    arena.reset_to_random_kickoff();
+
     let mut render_interval = Duration::from_secs_f32(1.0 / 120.);
     let mut next_time = Instant::now() + render_interval;
 
-    // run for 30 seconds
-    for _ in 0..(120 * 30) {
+    // run for 300 seconds
+    for _ in 0..(120 * 3000) {
         // step the arena
         arena.step(1);
 

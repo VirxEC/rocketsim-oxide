@@ -22,9 +22,9 @@ pub use game_state::*;
 pub use mutator_config::*;
 
 pub(crate) enum CollisionMasks {
-    HoopsNet = (1 << 8),
-    DropshotTile = (1 << 9),
-    DropshotFloor = (1 << 10),
+    HoopsNet = (1 << 2),
+    DropshotTile = (1 << 3),
+    DropshotFloor = (1 << 4),
 }
 
 /// Default is not implemented for this struct,

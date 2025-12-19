@@ -59,7 +59,6 @@ pub fn ray_aabb_2(
     ray_inv_dir: Vec3A,
     ray_sign: &[usize; 3],
     bounds: &[Vec3A; 2],
-    lambda_min: f32,
     lambda_max: f32,
 ) -> bool {
     let mut tmin = (bounds[ray_sign[0]].x - ray_from.x) * ray_inv_dir.x;
@@ -71,13 +70,8 @@ pub fn ray_aabb_2(
         return false;
     }
 
-    if tymin > tmin {
-        tmin = tymin;
-    }
-
-    if tymax < tmax {
-        tmax = tymax;
-    }
+    tmin = tmin.max(tymin);
+    tmax = tmax.min(tymax);
 
     let tzmin = (bounds[ray_sign[2]].z - ray_from.z) * ray_inv_dir.z;
     let tzmax = (bounds[1 - ray_sign[2]].z - ray_from.z) * ray_inv_dir.z;
@@ -86,13 +80,8 @@ pub fn ray_aabb_2(
         return false;
     }
 
-    if tzmin > tmin {
-        tmin = tzmin;
-    }
+    tmin = tmin.max(tzmin);
+    tmax = tmax.min(tzmax);
 
-    if tzmax < tmax {
-        tmax = tzmax;
-    }
-
-    tmin < lambda_max && tmax > lambda_min
+    tmin < lambda_max && tmax > 0.0
 }

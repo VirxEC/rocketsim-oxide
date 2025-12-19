@@ -143,17 +143,17 @@ impl Ball {
 
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Ball;
-        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::Default as i32
-                    | CollisionMasks::HoopsNet as i32
-                    | CollisionMasks::DropshotTile as i32,
-                CollisionFilterGroups::All as i32,
+                CollisionFilterGroups::Default as u8
+                    | CollisionMasks::HoopsNet as u8
+                    | CollisionMasks::DropshotTile as u8,
+                CollisionFilterGroups::All as u8,
             )
             .unwrap();
 

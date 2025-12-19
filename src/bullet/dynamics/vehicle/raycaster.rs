@@ -11,16 +11,15 @@ use crate::bullet::{
 pub struct VehicleRaycasterResult<'a> {
     pub hit_point_in_world: Vec3A,
     pub hit_normal_in_world: Vec3A,
-    // pub dist_fraction: f32,
     pub rigid_body: &'a RigidBody,
 }
 
 pub struct VehicleRaycaster {
-    added_filter_mask: i32,
+    added_filter_mask: u8,
 }
 
 impl VehicleRaycaster {
-    pub const fn new(added_filter_mask: i32) -> Self {
+    pub const fn new(added_filter_mask: u8) -> Self {
         Self { added_filter_mask }
     }
 
@@ -50,7 +49,6 @@ impl VehicleRaycaster {
                     rigid_body: rb,
                     hit_point_in_world: ray_callback.hit_point_world,
                     hit_normal_in_world: ray_callback.hit_normal_world.normalize(),
-                    // dist_fraction: ray_callback.base.closest_hit_fraction,
                 })
             } else {
                 None

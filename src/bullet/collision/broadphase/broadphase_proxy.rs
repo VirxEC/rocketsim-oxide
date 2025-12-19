@@ -58,7 +58,7 @@ pub enum BroadphaseNativeTypes {
 
 pub enum CollisionFilterGroups {
     Default = 1,
-    Static = 2,
+    Static = (1 << 1),
     All = -1,
 }
 
@@ -66,8 +66,8 @@ pub enum CollisionFilterGroups {
 pub struct BroadphaseProxy {
     /// The index of the client `CollisionObject` in `CollisionWorld`
     pub client_object_idx: Option<usize>,
-    pub collision_filter_group: i32,
-    pub collision_filter_mask: i32,
+    pub collision_filter_group: u8,
+    pub collision_filter_mask: u8,
     pub unique_id: usize,
     pub aabb: Aabb,
 }

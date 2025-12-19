@@ -237,13 +237,13 @@ impl Car {
 
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Car;
-        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as i32;
+        body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
 
         let rigid_body_idx = bullet_world
             .add_rigid_body(
                 body,
-                CollisionFilterGroups::Default as i32 | CollisionMasks::DropshotFloor as i32,
-                CollisionFilterGroups::All as i32,
+                CollisionFilterGroups::Default as u8 | CollisionMasks::DropshotFloor as u8,
+                CollisionFilterGroups::All as u8,
             )
             .unwrap();
 
@@ -255,7 +255,7 @@ impl Car {
             max_suspension_travel_cm: MAX_SUSPENSION_TRAVEL * UU_TO_BT * 100.0,
             // max_suspension_force: f32::MAX,
         };
-        let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as i32) };
+        let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as u8) };
         let mut bullet_vehicle = VehicleRL::new(rigid_body_idx, raycaster);
 
         let wheel_direction_cs = Vec3A::new(0.0, 0.0, -1.0);
@@ -924,10 +924,10 @@ impl Car {
                 }
 
                 rb.collision_object.activation_state_1 = DISABLE_SIMULATION;
-                rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as i32;
+                rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as u8;
             } else {
                 rb.collision_object.activation_state_1 = ACTIVE_TAG;
-                rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as i32);
+                rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as u8);
             }
 
             if self.internal_state.is_demoed {
