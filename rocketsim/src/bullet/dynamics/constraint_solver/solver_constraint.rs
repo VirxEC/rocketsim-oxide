@@ -44,13 +44,13 @@ impl SolverConstraint {
 
     pub fn setup_contact_constraint(
         &mut self,
-        info: &ContactSolverInfo,
         (solver_body_a, solver_body_b): (&mut SolverBody, &mut SolverBody),
         (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),
         (rel_pos1, rel_pos2): (Vec3A, Vec3A),
         cp: &ManifoldPoint,
+        time_step: f32,
     ) {
-        let inv_time_step = 1.0 / info.time_step;
+        let inv_time_step = 1.0 / time_step;
         let erp = ContactSolverInfo::ERP_2;
         self.applied_impulse = cp.applied_impulse * ContactSolverInfo::WARMSTARTING_FACTOR;
 

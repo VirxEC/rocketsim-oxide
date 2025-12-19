@@ -181,7 +181,7 @@ impl DiscreteDynamicsWorld {
             &mut self.dynamics_world.collision_world.collision_objects,
             &self.non_static_rigid_bodies,
             &mut self.dynamics_world.collision_world.dispatcher1.manifolds,
-            &self.dynamics_world.solver_info,
+            self.dynamics_world.solver_info.time_step,
         );
     }
 

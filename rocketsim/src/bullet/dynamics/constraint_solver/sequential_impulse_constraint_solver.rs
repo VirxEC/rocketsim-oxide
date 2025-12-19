@@ -89,11 +89,11 @@ impl SequentialImpulseConstraintSolver {
         collision_objects: &mut [RigidBody],
         non_static_bodies: &[usize],
         manifolds: &mut Vec<PersistentManifold>,
-        info: &ContactSolverInfo,
+        time_step: f32,
     ) {
-        self.solve_group_setup(collision_objects, non_static_bodies, manifolds, info);
+        self.solve_group_setup(collision_objects, non_static_bodies, manifolds, time_step);
         self.solve_group_iterations();
-        self.solve_group_finish(collision_objects, info);
+        self.solve_group_finish(collision_objects, time_step);
     }
 
     fn solve_group_setup(
@@ -101,7 +101,7 @@ impl SequentialImpulseConstraintSolver {
         collision_objects: &mut [RigidBody],
         non_static_bodies: &[usize],
         manifolds: &mut Vec<PersistentManifold>,
-        info: &ContactSolverInfo,
+        time_step: f32,
     ) {
         self.fixed_body_id = None;
 
@@ -130,7 +130,7 @@ impl SequentialImpulseConstraintSolver {
                 rb.collision_object.companion_id = Some(solver_body_id);
 
                 self.tmp_solver_body_pool
-                    .push(SolverBody::new(rb, info.time_step));
+                    .push(SolverBody::new(rb, time_step));
             } else if self.fixed_body_id.is_none() {
                 let solver_body_id = self.tmp_solver_body_pool.len();
                 rb.collision_object.companion_id = Some(solver_body_id);
@@ -149,8 +149,8 @@ impl SequentialImpulseConstraintSolver {
                     .get_disjoint_unchecked_mut([manifold.body0_idx, manifold.body1_idx])
             };
 
-            let solver_body_id_a = self.get_or_init_solver_body(body0, info.time_step);
-            let solver_body_id_b = self.get_or_init_solver_body(body1, info.time_step);
+            let solver_body_id_a = self.get_or_init_solver_body(body0, time_step);
+            let solver_body_id_b = self.get_or_init_solver_body(body1, time_step);
 
             debug_assert!(solver_body_id_a < self.tmp_solver_body_pool.len());
             debug_assert!(solver_body_id_b < self.tmp_solver_body_pool.len());
@@ -205,11 +205,11 @@ impl SequentialImpulseConstraintSolver {
                 };
 
                 constraint.setup_contact_constraint(
-                    info,
                     (solver_body_a, solver_body_b),
                     (rb0, rb1),
                     (rel_pos1, rel_pos2),
                     cp,
+                    time_step,
                 );
 
                 let friction_index = self.tmp_solver_contact_constraint_pool.len();
@@ -258,12 +258,12 @@ impl SequentialImpulseConstraintSolver {
 
         if self.special_resolve_info.num_special_collisions > 0 {
             let body = &mut collision_objects[self.special_resolve_info.object_index];
-            self.convert_contact_special(body, info);
+            self.convert_contact_special(body, time_step);
             self.special_resolve_info = SpecialResolveInfo::DEFAULT;
         }
     }
 
-    fn convert_contact_special(&mut self, body: &RigidBody, info: &ContactSolverInfo) {
+    fn convert_contact_special(&mut self, body: &RigidBody, time_step: f32) {
         let sri = &self.special_resolve_info;
         let num_collisions = f32::from(sri.num_special_collisions);
         let distance = sri.total_dist / num_collisions;
@@ -287,7 +287,7 @@ impl SequentialImpulseConstraintSolver {
         let rel_pos1 = normal_world_on_b * -distance;
         let relaxation = ContactSolverInfo::SOR;
 
-        let inv_time_step = 1.0 / info.time_step;
+        let inv_time_step = 1.0 / time_step;
         let erp = ContactSolverInfo::ERP_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
@@ -495,11 +495,7 @@ impl SequentialImpulseConstraintSolver {
         }
     }
 
-    fn solve_group_finish(
-        &mut self,
-        collision_objects: &mut [RigidBody],
-        info: &ContactSolverInfo,
-    ) {
+    fn solve_group_finish(&mut self, collision_objects: &mut [RigidBody], time_step: f32) {
         // writeBackBodies
         for solver in &mut self.tmp_solver_body_pool {
             let Some(body) = solver.original_body.map(|idx| &mut collision_objects[idx]) else {
@@ -516,14 +512,14 @@ impl SequentialImpulseConstraintSolver {
                     integrate_transform_no_rot(
                         &mut solver.world_transform,
                         solver.push_velocity,
-                        info.time_step,
+                        time_step,
                     );
                 } else {
                     integrate_transform(
                         &mut solver.world_transform,
                         solver.push_velocity,
                         solver.turn_velocity * ContactSolverInfo::SPLIT_IMPULSE_TURN_ERP,
-                        info.time_step,
+                        time_step,
                     );
                 }
             }
