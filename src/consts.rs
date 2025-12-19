@@ -2,6 +2,12 @@ use std::f32::consts::{FRAC_1_SQRT_2, FRAC_PI_2, FRAC_PI_4, PI};
 
 use glam::Vec3A;
 
+/// `BulletPhysics` Units (1m) to Unreal Units (2cm) conversion scale
+pub(crate) const BT_TO_UU: f32 = 50.0;
+
+/// Unreal Units (2cm) to `BulletPhysics` Units (1m) conversion scale
+pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
+
 pub const GRAVITY_Z: f32 = -650.;
 pub const ARENA_EXTENT_X: f32 = 4096.;
 /// Does not include inner-goal
@@ -349,7 +355,7 @@ pub mod snowday {
 pub mod dropshot {
     use glam::Vec3A;
 
-    use crate::BT_TO_UU;
+    use super::BT_TO_UU;
 
     pub const BALL_LAUNCH_Z_VEL: f32 = 985.;
     pub const BALL_LAUNCH_DELAY: f32 = 0.26;

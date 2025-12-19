@@ -4,7 +4,7 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{BallHitInfo, CarConfig, CarControls, CollisionMasks, MutatorConfig, PhysState};
 use crate::{
-    BT_TO_UU, GameMode, UU_TO_BT, UserInfoTypes,
+    GameMode, UserInfoTypes,
     bullet::{
         collision::{
             broadphase::broadphase_proxy::CollisionFilterGroups,

@@ -2,7 +2,7 @@ use glam::{Affine3A, Mat3A, Vec3A};
 
 use super::{CollisionMasks, MutatorConfig, PhysState};
 use crate::{
-    BT_TO_UU, GameMode, UU_TO_BT, UserInfoTypes,
+    GameMode, UserInfoTypes,
     bullet::{
         collision::{
             broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
@@ -116,7 +116,7 @@ impl Ball {
         if game_mode == GameMode::Snowday {
             todo!()
         } else {
-            let shape = SphereShape::new(mutator_config.ball_radius * UU_TO_BT);
+            let shape = SphereShape::new(mutator_config.ball_radius * consts::UU_TO_BT);
             let local_inertia = shape.calculate_local_inertia(mutator_config.ball_mass);
 
             (CollisionShapes::Sphere(shape), local_inertia)
@@ -134,7 +134,7 @@ impl Ball {
         let shape_type = collision_shape.get_shape_type();
 
         let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
-        info.start_world_transform.translation.z = consts::BALL_REST_Z * UU_TO_BT;
+        info.start_world_transform.translation.z = consts::BALL_REST_Z * consts::UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;
         info.friction = mutator_config.ball_world_friction;
@@ -170,10 +170,10 @@ impl Ball {
 
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
-            translation: state.physics.pos * UU_TO_BT,
+            translation: state.physics.pos * consts::UU_TO_BT,
         });
 
-        rb.set_linear_velocity(state.physics.vel * UU_TO_BT);
+        rb.set_linear_velocity(state.physics.vel * consts::UU_TO_BT);
         rb.set_angular_velocity(state.physics.ang_vel);
         rb.update_inertia_tensor();
 
@@ -208,7 +208,7 @@ impl Ball {
             self.velocity_impulse_cache = Vec3A::ZERO;
         }
 
-        let ball_max_speed_bt = mutator_config.ball_max_speed * UU_TO_BT;
+        let ball_max_speed_bt = mutator_config.ball_max_speed * consts::UU_TO_BT;
         if rb.linear_velocity.length_squared() > ball_max_speed_bt * ball_max_speed_bt {
             rb.linear_velocity = rb.linear_velocity.normalize() * ball_max_speed_bt;
         }
@@ -219,11 +219,11 @@ impl Ball {
             rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
         }
 
-        self.internal_state.physics.vel = rb.linear_velocity * BT_TO_UU;
+        self.internal_state.physics.vel = rb.linear_velocity * consts::BT_TO_UU;
         self.internal_state.physics.ang_vel = rb.angular_velocity;
 
         let trans = *rb.collision_object.get_world_transform();
-        self.internal_state.physics.pos = trans.translation * BT_TO_UU;
+        self.internal_state.physics.pos = trans.translation * consts::BT_TO_UU;
         self.internal_state.physics.rot_mat = trans.matrix3;
 
         self.internal_state.tick_count_since_update += 1;
@@ -290,7 +290,7 @@ impl Ball {
                 * mutator_config.ball_hit_extra_force_scale;
             ball_hit_info.extra_hit_vel = added_vel;
 
-            self.velocity_impulse_cache += added_vel * UU_TO_BT;
+            self.velocity_impulse_cache += added_vel * consts::UU_TO_BT;
         }
 
         car.internal_state.ball_hit_info = Some(ball_hit_info);

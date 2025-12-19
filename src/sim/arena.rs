@@ -6,7 +6,7 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
-    ARENA_COLLISION_SHAPES, BT_TO_UU, GameMode, UU_TO_BT, UserInfoTypes,
+    ARENA_COLLISION_SHAPES, GameMode, UserInfoTypes,
     bullet::{
         collision::{
             broadphase::{

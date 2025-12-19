@@ -28,11 +28,6 @@ pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<Arc<BvhTriangleMeshShape>>>>,
 > = RwLock::new(None);
 
-/// `BulletPhysics` Units (1m) to Unreal Units (2cm) conversion scale
-pub(crate) const BT_TO_UU: f32 = 50.0;
-
-/// Unreal Units (2cm) to `BulletPhysics` Units (1m) conversion scale
-pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum UserInfoTypes {
