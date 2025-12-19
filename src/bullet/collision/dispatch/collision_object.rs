@@ -25,30 +25,6 @@ pub enum CollisionObjectTypes {
     RigidBody = 2,
 }
 
-pub struct SpecialResolveInfo {
-    pub num_special_collisions: u16,
-    pub total_normal: Vec3A,
-    pub total_dist: f32,
-    pub restitution: f32,
-    pub friction: f32,
-}
-
-impl Default for SpecialResolveInfo {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
-impl SpecialResolveInfo {
-    pub const DEFAULT: Self = Self {
-        num_special_collisions: 0,
-        total_normal: Vec3A::ZERO,
-        total_dist: 0.0,
-        restitution: 0.0,
-        friction: 0.0,
-    };
-}
-
 pub struct CollisionObject {
     world_transform: Affine3A,
     pub interpolation_world_transform: Affine3A,
@@ -70,7 +46,6 @@ pub struct CollisionObject {
     pub user_pointer: u64,
     pub user_index: UserInfoTypes,
     pub hit_fraction: f32,
-    pub special_resolve_info: SpecialResolveInfo,
 }
 
 impl Default for CollisionObject {
@@ -95,7 +70,6 @@ impl Default for CollisionObject {
             user_pointer: 0,
             user_index: UserInfoTypes::default(),
             hit_fraction: 1.0,
-            special_resolve_info: SpecialResolveInfo::default(),
         }
     }
 }

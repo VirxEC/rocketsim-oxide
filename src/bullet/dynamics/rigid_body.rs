@@ -47,6 +47,7 @@ impl RigidBodyConstructionInfo {
 
 pub struct RigidBody {
     pub collision_object: CollisionObject,
+    pub inertia_tensor_world: Mat3A,
     pub inv_inertia_tensor_world: Mat3A,
     pub linear_velocity: Vec3A,
     pub angular_velocity: Vec3A,
@@ -98,6 +99,7 @@ impl RigidBody {
         Self {
             collision_object,
             inv_inertia_tensor_world,
+            inertia_tensor_world: inv_inertia_tensor_world.transpose(),
             linear_velocity: Vec3A::ZERO,
             angular_velocity: Vec3A::ZERO,
             inverse_mass,
@@ -152,6 +154,7 @@ impl RigidBody {
             self.collision_object.get_world_transform().matrix3,
             self.inv_inertia_local,
         );
+        self.inertia_tensor_world = self.inv_inertia_tensor_world.transpose();
     }
 
     pub fn apply_torque_impulse(&mut self, torque: Vec3A) {
@@ -181,10 +184,7 @@ impl RigidBody {
     }
 
     pub fn apply_gravity(&mut self) {
-        if self.collision_object.is_static_or_kinematic_object() {
-            return;
-        }
-
+        debug_assert!(!self.collision_object.is_static_or_kinematic_object());
         self.apply_central_force(self.gravity);
     }
 

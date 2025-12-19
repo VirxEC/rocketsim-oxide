@@ -5,10 +5,7 @@ use super::{
     solver_constraint::SolverConstraint,
 };
 use crate::bullet::{
-    collision::{
-        dispatch::collision_object::SpecialResolveInfo,
-        narrowphase::persistent_manifold::PersistentManifold,
-    },
+    collision::narrowphase::persistent_manifold::PersistentManifold,
     dynamics::rigid_body::RigidBody,
     linear_math::{
         plane_space_1, plane_space_2,
@@ -16,12 +13,33 @@ use crate::bullet::{
     },
 };
 
+struct SpecialResolveInfo {
+    pub object_index: usize,
+    pub num_special_collisions: u16,
+    pub total_normal: Vec3A,
+    pub total_dist: f32,
+    pub restitution: f32,
+    pub friction: f32,
+}
+
+impl SpecialResolveInfo {
+    pub const DEFAULT: Self = Self {
+        object_index: 0,
+        num_special_collisions: 0,
+        total_normal: Vec3A::ZERO,
+        total_dist: 0.0,
+        restitution: 0.0,
+        friction: 0.0,
+    };
+}
+
 pub struct SequentialImpulseConstraintSolver {
-    pub tmp_solver_body_pool: Vec<SolverBody>,
-    pub tmp_solver_contact_constraint_pool: Vec<SolverConstraint>,
-    pub tmp_solver_contact_friction_constraint_pool: Vec<SolverConstraint>,
-    pub fixed_body_id: Option<usize>,
-    pub least_squares_residual: f32,
+    tmp_solver_body_pool: Vec<SolverBody>,
+    tmp_solver_contact_constraint_pool: Vec<SolverConstraint>,
+    tmp_solver_contact_friction_constraint_pool: Vec<SolverConstraint>,
+    fixed_body_id: Option<usize>,
+    least_squares_residual: f32,
+    special_resolve_info: SpecialResolveInfo,
 }
 
 impl Default for SequentialImpulseConstraintSolver {
@@ -32,19 +50,12 @@ impl Default for SequentialImpulseConstraintSolver {
             tmp_solver_contact_friction_constraint_pool: Vec::new(),
             fixed_body_id: None,
             least_squares_residual: 0.0,
+            special_resolve_info: SpecialResolveInfo::DEFAULT,
         }
     }
 }
 
 impl SequentialImpulseConstraintSolver {
-    fn restitution_curve(rel_vel: f32, restitution: f32, velocity_threshold: f32) -> f32 {
-        if rel_vel.abs() < velocity_threshold {
-            0.0
-        } else {
-            restitution * -rel_vel
-        }
-    }
-
     fn get_or_init_solver_body(&mut self, rb: &mut RigidBody, time_step: f32) -> usize {
         if let Some(companion_id) = rb.collision_object.companion_id {
             return companion_id;
@@ -162,164 +173,47 @@ impl SequentialImpulseConstraintSolver {
 
                 if cp.is_special {
                     for (obj, rel_pos) in [
-                        (&mut body0.collision_object, rel_pos1),
-                        (&mut body1.collision_object, rel_pos2),
+                        (&body0.collision_object, rel_pos1),
+                        (&body1.collision_object, rel_pos2),
                     ] {
                         if !obj.is_static_object() {
-                            obj.special_resolve_info.num_special_collisions += 1;
-                            obj.special_resolve_info.friction = cp.combined_friction;
-                            obj.special_resolve_info.restitution = cp.combined_restitution;
-                            obj.special_resolve_info.total_normal += cp.normal_world_on_b;
-                            obj.special_resolve_info.total_dist += rel_pos.length();
+                            self.special_resolve_info.object_index = obj.world_array_index;
+                            self.special_resolve_info.num_special_collisions += 1;
+                            self.special_resolve_info.friction = cp.combined_friction;
+                            self.special_resolve_info.restitution = cp.combined_restitution;
+                            self.special_resolve_info.total_normal += cp.normal_world_on_b;
+                            self.special_resolve_info.total_dist += rel_pos.length();
                         }
                     }
+
+                    // Skip normal contact processing for special contacts
+                    continue;
                 }
 
-                let rb0 = solver_body_a.original_body.map(|_| &body0);
-                let rb1 = solver_body_b.original_body.map(|_| &body1);
+                let rb0 = solver_body_a.original_body.map(|_| &*body0);
+                let rb1 = solver_body_b.original_body.map(|_| &*body1);
 
-                // setupContactConstraint
-                let relaxation = info.sor;
-                let inv_time_step = 1.0 / info.time_step;
-                let erp = info.erp_2;
-
-                let torque_axis_0 = rel_pos1.cross(cp.normal_world_on_b);
-                let angular_component_a = rb0.map_or(Vec3A::ZERO, |rb| {
-                    rb.inv_inertia_tensor_world.transpose() * torque_axis_0
-                });
-
-                let torque_axis_1 = rel_pos2.cross(cp.normal_world_on_b);
-                let angular_component_b = rb1.map_or(Vec3A::ZERO, |rb| {
-                    rb.inv_inertia_tensor_world.transpose() * -torque_axis_1
-                });
-
-                let denom0 = rb0.map_or(0.0, |rb| {
-                    let vec = angular_component_a.cross(rel_pos1);
-                    rb.inverse_mass + cp.normal_world_on_b.dot(vec)
-                });
-                let denom1 = rb1.map_or(0.0, |rb| {
-                    let vec = angular_component_b.cross(rel_pos2);
-                    rb.inverse_mass + cp.normal_world_on_b.dot(vec)
-                });
-
-                let jac_diag_ab_inv = relaxation / (denom0 + denom1);
-
-                let (contact_normal_1, rel_pos1_cross_normal) = if rb0.is_some() {
-                    (cp.normal_world_on_b, torque_axis_0)
-                } else {
-                    (Vec3A::ZERO, Vec3A::ZERO)
+                let mut constraint = SolverConstraint {
+                    solver_body_id_a,
+                    solver_body_id_b,
+                    friction_index: self.tmp_solver_contact_friction_constraint_pool.len(),
+                    friction: cp.combined_friction,
+                    is_special: cp.is_special,
+                    lower_limit: 0.0,
+                    upper_limit: 1e10,
+                    ..Default::default()
                 };
 
-                let (contact_normal_2, rel_pos2_cross_normal) = if rb1.is_some() {
-                    (-cp.normal_world_on_b, -torque_axis_1)
-                } else {
-                    (Vec3A::ZERO, Vec3A::ZERO)
-                };
-
-                let penetration = cp.distance_1 + info.linear_slop;
-
-                let vel1 = rb0.map_or(Vec3A::ZERO, |rb| rb.get_velocity_in_local_point(rel_pos1));
-                let vel2 = rb1.map_or(Vec3A::ZERO, |rb| rb.get_velocity_in_local_point(rel_pos2));
-
-                let vel = vel1 - vel2;
-                let rel_vel = cp.normal_world_on_b.dot(vel);
-
-                let restitution = Self::restitution_curve(
-                    rel_vel,
-                    cp.combined_restitution,
-                    info.restitution_velocity_threshold,
-                )
-                .max(0.0);
-
-                let (external_force_impulse_a, external_torque_impulse_a) = if rb0.is_some() {
-                    (
-                        solver_body_a.external_force_impulse,
-                        solver_body_a.external_torque_impulse,
-                    )
-                } else {
-                    (Vec3A::ZERO, Vec3A::ZERO)
-                };
-
-                let (external_force_impulse_b, external_torque_impulse_b) = if rb1.is_some() {
-                    (
-                        solver_body_b.external_force_impulse,
-                        solver_body_b.external_torque_impulse,
-                    )
-                } else {
-                    (Vec3A::ZERO, Vec3A::ZERO)
-                };
-
-                let vel_1_dot_n = contact_normal_1
-                    .dot(solver_body_a.linear_velocity + external_force_impulse_a)
-                    + rel_pos1_cross_normal
-                        .dot(solver_body_a.angular_velocity + external_torque_impulse_a);
-
-                let vel_2_dot_n = contact_normal_2
-                    .dot(solver_body_b.linear_velocity + external_force_impulse_b)
-                    + rel_pos2_cross_normal
-                        .dot(solver_body_b.angular_velocity + external_torque_impulse_b);
-
-                let rel_vel = vel_1_dot_n + vel_2_dot_n;
-
-                let positional_error = if penetration > 0.0 {
-                    0.0
-                } else {
-                    -penetration * erp * inv_time_step
-                };
-
-                let velocity_error = restitution - rel_vel;
-
-                let penetration_impulse = positional_error * jac_diag_ab_inv;
-                let velocity_impulse = velocity_error * jac_diag_ab_inv;
-
-                debug_assert!(info.split_impulse);
-                let (rhs, rhs_penetration) =
-                    if penetration > info.split_impulse_penetration_threshold {
-                        (penetration_impulse + velocity_impulse, 0.0)
-                    } else {
-                        (velocity_impulse, penetration_impulse)
-                    };
-
-                let applied_impulse = cp.applied_impulse * info.warmstarting_factor;
-                if rb0.is_some() {
-                    solver_body_a.internal_apply_impulse(
-                        contact_normal_1 * solver_body_a.inv_mass,
-                        angular_component_a,
-                        applied_impulse,
-                    );
-                }
-
-                if rb1.is_some() {
-                    solver_body_b.internal_apply_impulse(
-                        -contact_normal_2 * solver_body_b.inv_mass,
-                        -angular_component_b,
-                        -applied_impulse,
-                    );
-                }
+                constraint.setup_contact_constraint(
+                    info,
+                    (solver_body_a, solver_body_b),
+                    (rb0, rb1),
+                    (rel_pos1, rel_pos2),
+                    cp,
+                );
 
                 let friction_index = self.tmp_solver_contact_constraint_pool.len();
-                self.tmp_solver_contact_constraint_pool
-                    .push(SolverConstraint {
-                        solver_body_id_a,
-                        solver_body_id_b,
-                        angular_component_a,
-                        angular_component_b,
-                        jac_diag_ab_inv,
-                        contact_normal_1,
-                        contact_normal_2,
-                        rel_pos1_cross_normal,
-                        rel_pos2_cross_normal,
-                        rhs,
-                        rhs_penetration,
-                        applied_impulse,
-                        friction_index: self.tmp_solver_contact_friction_constraint_pool.len(),
-                        friction: cp.combined_friction,
-                        is_special: cp.is_special,
-                        // original_contact_point: Some(cp),
-                        lower_limit: 0.0,
-                        upper_limit: 1e10,
-                        ..Default::default()
-                    });
+                self.tmp_solver_contact_constraint_pool.push(constraint);
 
                 // convertContactInner
                 let vel1 = solver_body_a.get_velocity_in_local_point_no_delta(rel_pos1);
@@ -338,95 +232,40 @@ impl SequentialImpulseConstraintSolver {
                         plane_space_2(cp.normal_world_on_b);
                 }
 
-                // addFrictionConstraint
-                let normal_axis = cp.lateral_friction_dir_1;
+                let mut constraint = SolverConstraint {
+                    friction_index,
+                    solver_body_id_a,
+                    solver_body_id_b,
+                    lower_limit: -cp.combined_friction,
+                    upper_limit: cp.combined_friction,
+                    friction: cp.combined_friction,
+                    ..Default::default()
+                };
 
-                let (contact_normal_1, rel_pos1_cross_normal, angular_component_a) =
-                    rb0.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
-                        let torque_axis = rel_pos1.cross(normal_axis);
-
-                        (
-                            normal_axis,
-                            torque_axis,
-                            rb.inv_inertia_tensor_world.transpose() * torque_axis,
-                        )
-                    });
-
-                let (contact_normal_2, rel_pos2_cross_normal, angular_component_b) =
-                    rb1.map_or((Vec3A::ZERO, Vec3A::ZERO, Vec3A::ZERO), |rb| {
-                        let normal_axis = -normal_axis;
-                        let torque_axis = rel_pos2.cross(normal_axis);
-
-                        (
-                            normal_axis,
-                            torque_axis,
-                            rb.inv_inertia_tensor_world.transpose() * torque_axis,
-                        )
-                    });
-
-                let denom0 = rb0.map_or(0.0, |rb| {
-                    let vec = angular_component_a.cross(rel_pos1);
-                    rb.inverse_mass + normal_axis.dot(vec)
-                });
-                let denom1 = rb1.map_or(0.0, |rb| {
-                    let vec = angular_component_b.cross(rel_pos2);
-                    rb.inverse_mass + normal_axis.dot(vec)
-                });
-
-                let jac_diag_ab_inv = relaxation / (denom0 + denom1);
-
-                let vel_1_dot_n = contact_normal_1
-                    .dot(solver_body_a.linear_velocity + external_force_impulse_a)
-                    + rel_pos1_cross_normal.dot(solver_body_a.angular_velocity);
-
-                let vel_2_dot_n = contact_normal_2
-                    .dot(solver_body_b.linear_velocity + external_force_impulse_b)
-                    + rel_pos2_cross_normal.dot(solver_body_b.angular_velocity);
-
-                let rel_vel = vel_1_dot_n + vel_2_dot_n;
-
-                let velocity_error = -rel_vel;
-                let velocity_impulse = velocity_error * jac_diag_ab_inv;
+                constraint.setup_friction_constraint(
+                    (solver_body_a, solver_body_b),
+                    (rb0, rb1),
+                    (rel_pos1, rel_pos2),
+                    cp.lateral_friction_dir_1,
+                    info.sor,
+                );
 
                 self.tmp_solver_contact_friction_constraint_pool
-                    .push(SolverConstraint {
-                        friction_index,
-                        solver_body_id_a,
-                        solver_body_id_b,
-                        contact_normal_1,
-                        contact_normal_2,
-                        rel_pos1_cross_normal,
-                        rel_pos2_cross_normal,
-                        angular_component_a,
-                        angular_component_b,
-                        jac_diag_ab_inv,
-                        rhs: velocity_impulse,
-                        lower_limit: -cp.combined_friction,
-                        upper_limit: cp.combined_friction,
-                        friction: cp.combined_friction,
-                        ..Default::default()
-                    });
+                    .push(constraint);
             }
         }
 
         manifolds.clear();
 
-        for &body in non_static_bodies {
-            let body = &mut collision_objects[body];
-            if body
-                .collision_object
-                .special_resolve_info
-                .num_special_collisions
-                > 0
-            {
-                self.convert_contact_special(body, info);
-                body.collision_object.special_resolve_info = SpecialResolveInfo::DEFAULT;
-            }
+        if self.special_resolve_info.num_special_collisions > 0 {
+            let body = &mut collision_objects[self.special_resolve_info.object_index];
+            self.convert_contact_special(body, info);
+            self.special_resolve_info = SpecialResolveInfo::DEFAULT;
         }
     }
 
     fn convert_contact_special(&mut self, body: &RigidBody, info: &ContactSolverInfo) {
-        let sri = &body.collision_object.special_resolve_info;
+        let sri = &self.special_resolve_info;
         let num_collisions = f32::from(sri.num_special_collisions);
         let distance = sri.total_dist / num_collisions;
         let normal_world_on_b = sri.total_normal / num_collisions;
@@ -453,7 +292,7 @@ impl SequentialImpulseConstraintSolver {
         let erp = info.erp_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
-        let angular_component_a = body.inv_inertia_tensor_world.transpose() * torque_axis_0;
+        let angular_component_a = body.inertia_tensor_world * torque_axis_0;
 
         let denom = {
             let vec = angular_component_a.cross(rel_pos1);
@@ -468,7 +307,7 @@ impl SequentialImpulseConstraintSolver {
         let vel = body.get_velocity_in_local_point(rel_pos1);
         let rel_vel = normal_world_on_b.dot(vel);
 
-        let restitution = Self::restitution_curve(
+        let restitution = SolverConstraint::restitution_curve(
             rel_vel,
             sri.restitution,
             info.restitution_velocity_threshold,
@@ -495,7 +334,6 @@ impl SequentialImpulseConstraintSolver {
         let penetration_impulse = positional_error * jac_diag_ab_inv;
         let velocity_impulse = velocity_error * jac_diag_ab_inv;
 
-        debug_assert!(info.split_impulse);
         let (rhs, rhs_penetration) = if penetration > info.split_impulse_penetration_threshold {
             (penetration_impulse + velocity_impulse, 0.0)
         } else {
@@ -572,8 +410,6 @@ impl SequentialImpulseConstraintSolver {
     }
 
     fn solve_group_split_impulse_iterations(&mut self, info: &ContactSolverInfo) {
-        debug_assert!(info.split_impulse);
-
         let mut should_run = (1u64 << self.tmp_solver_contact_constraint_pool.len()) - 1;
 
         for _ in 0..info.num_iterations {
@@ -682,7 +518,6 @@ impl SequentialImpulseConstraintSolver {
             solver.linear_velocity += solver.delta_linear_velocity;
             solver.angular_velocity += solver.delta_angular_velocity;
 
-            debug_assert!(info.split_impulse);
             if solver.push_velocity.length_squared() != 0.0
                 || solver.turn_velocity.length_squared() != 0.0
             {
