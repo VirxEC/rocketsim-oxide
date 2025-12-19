@@ -28,9 +28,9 @@ fn main() {
     arena.reset_to_random_kickoff();
 
     let mut ball_state = *arena.get_ball();
-    ball_state.physics.vel.x = 600.0;
-    ball_state.physics.vel.y = 1550.0;
-    ball_state.physics.vel.z = 0.0;
+    ball_state.phys.vel.x = 600.0;
+    ball_state.phys.vel.y = 1550.0;
+    ball_state.phys.vel.z = 0.0;
     arena.set_ball(ball_state);
 
     let mut states = Vec::new();
@@ -39,7 +39,7 @@ fn main() {
         car.controls.throttle = 1.0;
 
         let mut state = *car.get_state();
-        state.physics.pos.z = 43.0;
+        state.phys.pos.z = 43.0;
         state.is_on_ground = false;
 
         let f = Vec3A::new(1., 1., 1.).normalize();
@@ -47,7 +47,7 @@ fn main() {
         let tr = up.cross(f);
         let u = f.cross(tr).normalize();
         let r = u.cross(f).normalize();
-        state.physics.rot_mat = Mat3A::from_cols(f, r, u);
+        state.phys.rot_mat = Mat3A::from_cols(f, r, u);
         states.push(state);
     }
 

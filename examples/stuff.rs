@@ -31,7 +31,7 @@ fn main() {
     arena.reset_to_random_kickoff();
 
     let car = arena.get_car_mut(id).unwrap();
-    println!("pos: {}", car.get_state().physics.pos);
+    println!("pos: {}", car.get_state().phys.pos);
     car.controls.throttle = 1.0;
     car.controls.boost = false;
 
@@ -43,19 +43,19 @@ fn main() {
         // println!("\npos: {}", state.physics.pos);
         // println!("vel: {}", state.physics.vel);
         // println!("ang_vel: {}", state.physics.ang_vel);
-        println!("\npos: {}", hex_vec3a(state.physics.pos));
-        println!("vel: {}", hex_vec3a(state.physics.vel));
-        println!("ang_vel: {}", hex_vec3a(state.physics.ang_vel));
-        println!("forward: {}", hex_vec3a(state.physics.rot_mat.x_axis));
-        println!("right: {}", hex_vec3a(state.physics.rot_mat.y_axis));
-        println!("up: {}", hex_vec3a(state.physics.rot_mat.z_axis));
+        println!("\npos: {}", hex_vec3a(state.phys.pos));
+        println!("vel: {}", hex_vec3a(state.phys.vel));
+        println!("ang_vel: {}", hex_vec3a(state.phys.ang_vel));
+        println!("forward: {}", hex_vec3a(state.phys.rot_mat.x_axis));
+        println!("right: {}", hex_vec3a(state.phys.rot_mat.y_axis));
+        println!("up: {}", hex_vec3a(state.phys.rot_mat.z_axis));
 
         let ball = arena.get_ball();
         // println!("\npos: {}", ball.physics.pos);
         // println!("vel: {}", ball.physics.vel);
         // println!("ang_vel: {}", ball.physics.ang_vel);
-        println!("\npos: {}", hex_vec3a(ball.physics.pos));
-        println!("vel: {}", hex_vec3a(ball.physics.vel));
-        println!("ang_vel: {}", hex_vec3a(ball.physics.ang_vel));
+        println!("\npos: {}", hex_vec3a(ball.phys.pos));
+        println!("vel: {}", hex_vec3a(ball.phys.vel));
+        println!("ang_vel: {}", hex_vec3a(ball.phys.ang_vel));
     }
 }

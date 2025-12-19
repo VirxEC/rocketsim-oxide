@@ -159,17 +159,17 @@ impl Objects {
                 continue;
             }
 
-            let delta_pos = state_2.physics.pos - state_1.physics.pos;
-            if state_1.physics.vel.dot(delta_pos) < 0.0 {
+            let delta_pos = state_2.phys.pos - state_1.phys.pos;
+            if state_1.phys.vel.dot(delta_pos) < 0.0 {
                 // Moving away from the other car
                 continue;
             }
 
-            let vel_dir = state_1.physics.vel.normalize();
+            let vel_dir = state_1.phys.vel.normalize();
             let dir_to_other_car = delta_pos.normalize();
 
-            let speed_towards_other_car = state_1.physics.vel.dot(dir_to_other_car);
-            let other_car_away_speed = state_2.physics.vel.dot(vel_dir);
+            let speed_towards_other_car = state_1.phys.vel.dot(dir_to_other_car);
+            let other_car_away_speed = state_2.phys.vel.dot(vel_dir);
             if speed_towards_other_car <= other_car_away_speed {
                 // Going towards other car slower than they're going away
                 continue;
@@ -208,7 +208,7 @@ impl Objects {
                 .get_output(speed_towards_other_car);
 
                 let hit_up_dir = if state_2.is_on_ground {
-                    state_2.physics.rot_mat.z_axis
+                    state_2.phys.rot_mat.z_axis
                 } else {
                     Vec3A::Z
                 };
@@ -626,7 +626,7 @@ impl Arena {
             };
 
             let mut spawn_state = CarState {
-                physics: PhysState {
+                phys: PhysState {
                     pos: Vec3A::new(spawn_pos.x, spawn_pos.y, CAR_SPAWN_REST_Z),
                     rot_mat: Mat3A::IDENTITY,
                     vel: Vec3A::ZERO,
@@ -648,13 +648,13 @@ impl Arena {
                     continue;
                 };
 
-                spawn_state.physics.rot_mat = Mat3A::from_euler(
+                spawn_state.phys.rot_mat = Mat3A::from_euler(
                     EulerRot::YZX,
                     0.0,
                     if is_blue {
                         spawn_pos.yaw_ang
                     } else {
-                        spawn_state.physics.pos *= Vec3A::new(-1.0, -1.0, 1.0);
+                        spawn_state.phys.pos *= Vec3A::new(-1.0, -1.0, 1.0);
                         spawn_pos.yaw_ang + if is_blue { 0.0 } else { PI }
                     },
                     0.0,
@@ -672,11 +672,11 @@ impl Arena {
             GameMode::Heatseeker => {
                 let next_rand = self.rng.bool();
                 let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
-                ball_state.physics.pos = heatseeker::BALL_START_POS * scale;
-                ball_state.physics.vel = heatseeker::BALL_START_VEL * scale;
+                ball_state.phys.pos = heatseeker::BALL_START_POS * scale;
+                ball_state.phys.vel = heatseeker::BALL_START_VEL * scale;
             }
             GameMode::Snowday => {
-                ball_state.physics.vel.z = f32::EPSILON;
+                ball_state.phys.vel.z = f32::EPSILON;
             }
             _ => {}
         }

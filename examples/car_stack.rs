@@ -21,7 +21,7 @@ fn main() {
     arena.reset_to_random_kickoff();
 
     let mut ball_state = *arena.get_ball();
-    ball_state.physics.pos.z += 200.;
+    ball_state.phys.pos.z += 200.;
     arena.set_ball(ball_state);
 
     {
@@ -29,8 +29,8 @@ fn main() {
 
         let car = arena.get_car(id2).unwrap();
         let mut state2 = *car.get_state();
-        state2.physics.pos = state.physics.pos;
-        state2.physics.pos.z = 100.0;
+        state2.phys.pos = state.phys.pos;
+        state2.phys.pos.z = 100.0;
         state2.is_on_ground = false;
 
         arena.set_car_state(id2, state2);
@@ -44,16 +44,16 @@ fn main() {
     );
 
     let state = arena.get_car(id).unwrap().get_state();
-    println!("\npos: {}", state.physics.pos);
-    println!("vel: {}", state.physics.vel);
-    println!("ang_vel: {}", state.physics.ang_vel);
-    println!("rot_mat: {}", state.physics.rot_mat);
+    println!("\npos: {}", state.phys.pos);
+    println!("vel: {}", state.phys.vel);
+    println!("ang_vel: {}", state.phys.ang_vel);
+    println!("rot_mat: {}", state.phys.rot_mat);
     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
 
     let state = arena.get_car(id2).unwrap().get_state();
-    println!("\npos: {}", state.physics.pos);
-    println!("vel: {}", state.physics.vel);
-    println!("ang_vel: {}", state.physics.ang_vel);
-    println!("rot_mat: {}", state.physics.rot_mat);
+    println!("\npos: {}", state.phys.pos);
+    println!("vel: {}", state.phys.vel);
+    println!("ang_vel: {}", state.phys.ang_vel);
+    println!("rot_mat: {}", state.phys.rot_mat);
     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
 }

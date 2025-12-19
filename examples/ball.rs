@@ -12,9 +12,9 @@ fn main() {
     let start = Instant::now();
     for _ in 0..20_000 {
         let mut ball = BallState::DEFAULT;
-        ball.physics.vel.x = 600.0;
-        ball.physics.vel.y = 1550.0;
-        ball.physics.vel.z = 0.0;
+        ball.phys.vel.x = 600.0;
+        ball.phys.vel.y = 1550.0;
+        ball.phys.vel.z = 0.0;
 
         arena.set_ball(ball);
         arena.step(720);

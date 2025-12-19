@@ -39,7 +39,7 @@ pub struct CarContact {
 
 #[derive(Clone, Copy, Debug)]
 pub struct CarState {
-    pub physics: PhysState,
+    pub phys: PhysState,
     pub tick_count_since_update: u64,
     /// True if 3 or more wheels have contact
     pub is_on_ground: bool,
@@ -108,7 +108,7 @@ impl Default for CarState {
 
 impl CarState {
     pub const DEFAULT: Self = Self {
-        physics: PhysState {
+        phys: PhysState {
             pos: Vec3A::new(0.0, 0.0, CAR_SPAWN_REST_Z),
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
@@ -278,19 +278,19 @@ impl Car {
     /// Get the forward direction as a unit vector
     #[must_use]
     pub const fn get_forward_dir(&self) -> Vec3A {
-        self.internal_state.physics.rot_mat.x_axis
+        self.internal_state.phys.rot_mat.x_axis
     }
 
     /// Get the rightward direction as a unit vector
     #[must_use]
     pub const fn get_right_dir(&self) -> Vec3A {
-        self.internal_state.physics.rot_mat.y_axis
+        self.internal_state.phys.rot_mat.y_axis
     }
 
     /// Get the upward direction as a unit vector
     #[must_use]
     pub const fn get_up_dir(&self) -> Vec3A {
-        self.internal_state.physics.rot_mat.z_axis
+        self.internal_state.phys.rot_mat.z_axis
     }
 
     /// Configuration for this car
@@ -317,7 +317,7 @@ impl Car {
         }[spawn_pos_index];
 
         let new_state = CarState {
-            physics: PhysState {
+            phys: PhysState {
                 pos: Vec3A::new(
                     spawn_pos.x,
                     spawn_pos.y * -self.team.into_team_y(),
@@ -354,12 +354,12 @@ impl Car {
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
 
         rb.collision_object.set_world_transform(Affine3A {
-            matrix3: state.physics.rot_mat,
-            translation: state.physics.pos * UU_TO_BT,
+            matrix3: state.phys.rot_mat,
+            translation: state.phys.pos * UU_TO_BT,
         });
 
-        rb.linear_velocity = state.physics.vel * UU_TO_BT;
-        rb.angular_velocity = state.physics.ang_vel;
+        rb.linear_velocity = state.phys.vel * UU_TO_BT;
+        rb.angular_velocity = state.phys.ang_vel;
         rb.update_inertia_tensor();
 
         self.velocity_impulse_cache = Vec3A::ZERO;
@@ -656,7 +656,7 @@ impl Car {
                     world_contact_normal.z > CAR_AUTOFLIP_NORMZ_THRESH
                 })
         {
-            let (_, _, roll) = self.internal_state.physics.rot_mat.to_euler(EulerRot::YZX);
+            let (_, _, roll) = self.internal_state.phys.rot_mat.to_euler(EulerRot::YZX);
             let abs_roll = roll.abs();
             if abs_roll > CAR_AUTOFLIP_ROLL_THRESH {
                 self.internal_state.auto_flip_timer = CAR_AUTOFLIP_TIME * (abs_roll / PI);
@@ -970,7 +970,7 @@ impl Car {
             return;
         }
 
-        self.internal_state.physics.rot_mat = rb.collision_object.get_world_transform().matrix3;
+        self.internal_state.phys.rot_mat = rb.collision_object.get_world_transform().matrix3;
 
         let speed_squared = (rb.linear_velocity * BT_TO_UU).length_squared();
         self.internal_state.is_supersonic = speed_squared
@@ -1025,10 +1025,10 @@ impl Car {
             *ang_vel = ang_vel.normalize() * CAR_MAX_ANG_SPEED;
         }
 
-        self.internal_state.physics.pos =
+        self.internal_state.phys.pos =
             rb.collision_object.get_world_transform().translation * BT_TO_UU;
-        self.internal_state.physics.vel = rb.linear_velocity * BT_TO_UU;
-        self.internal_state.physics.ang_vel = rb.angular_velocity;
+        self.internal_state.phys.vel = rb.linear_velocity * BT_TO_UU;
+        self.internal_state.phys.ang_vel = rb.angular_velocity;
 
         self.internal_state.tick_count_since_update += 1;
     }

@@ -76,8 +76,8 @@ impl DropshotInfo {
 
 #[derive(Clone, Copy, Debug)]
 pub struct BallState {
-    pub physics: PhysState,
-    pub tick_count_since_update: u64,
+    pub phys: PhysState,
+    pub ticks_since_update: u64,
     pub hs_info: HeatseekerInfo,
     pub ds_info: DropshotInfo,
 }
@@ -90,13 +90,13 @@ impl Default for BallState {
 
 impl BallState {
     pub const DEFAULT: Self = Self {
-        physics: PhysState {
+        phys: PhysState {
             pos: Vec3A::new(0.0, 0.0, consts::BALL_REST_Z),
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
         },
-        tick_count_since_update: 0,
+        ticks_since_update: 0,
         hs_info: HeatseekerInfo::DEFAULT,
         ds_info: DropshotInfo::DEFAULT,
     };
@@ -170,21 +170,21 @@ impl Ball {
         debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Ball);
 
         rb.collision_object.set_world_transform(Affine3A {
-            matrix3: state.physics.rot_mat,
-            translation: state.physics.pos * consts::UU_TO_BT,
+            matrix3: state.phys.rot_mat,
+            translation: state.phys.pos * consts::UU_TO_BT,
         });
 
-        rb.set_linear_velocity(state.physics.vel * consts::UU_TO_BT);
-        rb.set_angular_velocity(state.physics.ang_vel);
+        rb.set_linear_velocity(state.phys.vel * consts::UU_TO_BT);
+        rb.set_angular_velocity(state.phys.ang_vel);
         rb.update_inertia_tensor();
 
-        if state.physics.vel != Vec3A::ZERO || state.physics.ang_vel != Vec3A::ZERO {
+        if state.phys.vel != Vec3A::ZERO || state.phys.ang_vel != Vec3A::ZERO {
             rb.collision_object
                 .set_activation_state(ActivationState::Active);
         }
 
         self.internal_state = state;
-        self.internal_state.tick_count_since_update = 0;
+        self.internal_state.ticks_since_update = 0;
     }
 
     pub(crate) fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
@@ -220,14 +220,14 @@ impl Ball {
             rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
         }
 
-        self.internal_state.physics.vel = rb.linear_velocity * consts::BT_TO_UU;
-        self.internal_state.physics.ang_vel = rb.angular_velocity;
+        self.internal_state.phys.vel = rb.linear_velocity * consts::BT_TO_UU;
+        self.internal_state.phys.ang_vel = rb.angular_velocity;
 
         let trans = *rb.collision_object.get_world_transform();
-        self.internal_state.physics.pos = trans.translation * consts::BT_TO_UU;
-        self.internal_state.physics.rot_mat = trans.matrix3;
+        self.internal_state.phys.pos = trans.translation * consts::BT_TO_UU;
+        self.internal_state.phys.rot_mat = trans.matrix3;
 
-        self.internal_state.tick_count_since_update += 1;
+        self.internal_state.ticks_since_update += 1;
     }
 
     pub(crate) fn on_hit(
@@ -241,7 +241,7 @@ impl Ball {
         let mut ball_hit_info = BallHitInfo {
             relative_pos_on_ball: rel_pos,
             tick_count_when_hit: tick_count,
-            ball_pos: self.internal_state.physics.pos,
+            ball_pos: self.internal_state.phys.pos,
             extra_hit_vel: Vec3A::ZERO,
             tick_count_when_extra_impulse_applied: 0,
         };
@@ -261,9 +261,9 @@ impl Ball {
 
         ball_hit_info.tick_count_when_extra_impulse_applied = tick_count;
 
-        let car_forward = car.internal_state.physics.rot_mat.x_axis;
-        let rel_pos = self.internal_state.physics.pos - car.internal_state.physics.pos;
-        let rel_vel = self.internal_state.physics.vel - car.internal_state.physics.vel;
+        let car_forward = car.internal_state.phys.rot_mat.x_axis;
+        let rel_pos = self.internal_state.phys.pos - car.internal_state.phys.pos;
+        let rel_vel = self.internal_state.phys.vel - car.internal_state.phys.vel;
 
         let rel_speed = rel_vel
             .length()
@@ -271,7 +271,7 @@ impl Ball {
         if rel_speed > 0.0 {
             let extra_z_scale = game_mode == GameMode::Hoops
                 && car.internal_state.is_on_ground
-                && car.internal_state.physics.rot_mat.z_axis.z
+                && car.internal_state.phys.rot_mat.z_axis.z
                     > consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
                 consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_GROUND
@@ -321,9 +321,9 @@ impl Ball {
                 let charge_level = &mut self.internal_state.ds_info.charge_level;
 
                 let dir_from_car =
-                    (self.internal_state.physics.pos - car.internal_state.physics.pos).normalize();
+                    (self.internal_state.phys.pos - car.internal_state.phys.pos).normalize();
                 let rel_vel_from_car =
-                    car.internal_state.physics.vel - self.internal_state.physics.vel;
+                    car.internal_state.phys.vel - self.internal_state.phys.vel;
                 let vel_info_ball = dir_from_car.dot(rel_vel_from_car);
 
                 if vel_info_ball >= dropshot::MIN_CHARGE_HIT_SPEED {
