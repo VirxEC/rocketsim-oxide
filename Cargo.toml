@@ -19,7 +19,7 @@ planus-codegen = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", o
 planus-types = { git = "https://github.com/swz-git/planus", rev = "a0b1fbf", optional = true }
 
 [features]
-default = ["rlviser"]
+default = []
 rlviser = ["flatbuffer"]
 flatbuffer = ["dep:planus", "dep:planus-translation", "dep:planus-codegen", "dep:planus-types"]
 
