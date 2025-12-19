@@ -8,7 +8,7 @@ pub enum Team {
 impl Team {
     #[must_use]
     pub const fn from_team_y(y: f32) -> Self {
-        if y.is_sign_negative() {
+        if y <= 0.0 {
             Self::Blue
         } else {
             Self::Orange
@@ -16,7 +16,7 @@ impl Team {
     }
 
     #[must_use]
-    pub fn into_team_y(self) -> f32 {
+    pub fn get_y_dir(self) -> f32 {
         f32::from(self as i8 * 2 - 1)
     }
 }

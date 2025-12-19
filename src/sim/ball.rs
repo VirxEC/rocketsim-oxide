@@ -91,7 +91,7 @@ impl Default for BallState {
 impl BallState {
     pub const DEFAULT: Self = Self {
         phys: PhysState {
-            pos: Vec3A::new(0.0, 0.0, consts::BALL_REST_Z),
+            pos: Vec3A::new(0.0, 0.0, consts::ball::REST_Z),
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
@@ -135,7 +135,7 @@ impl Ball {
         let shape_type = collision_shape.get_shape_type();
 
         let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
-        info.start_world_transform.translation.z = consts::BALL_REST_Z * consts::UU_TO_BT;
+        info.start_world_transform.translation.z = consts::ball::REST_Z * consts::UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;
         info.friction = mutator_config.ball_world_friction;
@@ -215,9 +215,9 @@ impl Ball {
         }
 
         if rb.angular_velocity.length_squared()
-            > consts::BALL_MAX_ANG_SPEED * consts::BALL_MAX_ANG_SPEED
+            > consts::ball::MAX_ANG_SPEED * consts::ball::MAX_ANG_SPEED
         {
-            rb.angular_velocity = rb.angular_velocity.normalize() * consts::BALL_MAX_ANG_SPEED;
+            rb.angular_velocity = rb.angular_velocity.normalize() * consts::ball::MAX_ANG_SPEED;
         }
 
         self.internal_state.phys.vel = rb.linear_velocity * consts::BT_TO_UU;
@@ -267,27 +267,27 @@ impl Ball {
 
         let rel_speed = rel_vel
             .length()
-            .min(consts::BALL_CAR_EXTRA_IMPULSE_MAXDELTAVEL_UU);
+            .min(consts::ball::car_hit_impulse::MAX_DELTA_VEL_UU);
         if rel_speed > 0.0 {
             let extra_z_scale = game_mode == GameMode::Hoops
                 && car.internal_state.is_on_ground
                 && car.internal_state.phys.rot_mat.z_axis.z
-                    > consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_NORMAL_Z_THRESH;
+                    > consts::ball::car_hit_impulse::Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
-                consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE_HOOPS_GROUND
+                consts::ball::car_hit_impulse::Z_SCALE_HOOPS_GROUND
             } else {
-                consts::BALL_CAR_EXTRA_IMPULSE_Z_SCALE
+                consts::ball::car_hit_impulse::Z_SCALE_NORMAL
             };
 
             let mut hit_dir = rel_pos * Vec3A::new(1.0, 1.0, z_scale).normalize();
             let forward_dir_adjustment = car_forward
                 * hit_dir.dot(car_forward)
-                * const { 1.0 - consts::BALL_CAR_EXTRA_IMPULSE_FORWARD_SCALE };
+                * const { 1.0 - consts::ball::car_hit_impulse::FORWARD_SCALE };
             hit_dir = (hit_dir - forward_dir_adjustment).normalize();
 
             let added_vel = hit_dir
                 * rel_speed
-                * consts::BALL_CAR_EXTRA_IMPULSE_FACTOR_CURVE.get_output(rel_speed)
+                * consts::curves::BALL_CAR_EXTRA_IMPULSE_FACTOR.get_output(rel_speed)
                 * mutator_config.ball_hit_extra_force_scale;
             ball_hit_info.extra_hit_vel = added_vel;
 

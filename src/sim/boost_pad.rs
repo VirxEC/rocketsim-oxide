@@ -46,9 +46,9 @@ impl BoostPad {
         let pos_bt = config.pos * consts::UU_TO_BT;
 
         let box_rad = if config.is_big {
-            consts::boostpads::BOX_RAD_BIG
+            consts::boost_pads::BOX_RAD_BIG
         } else {
-            consts::boostpads::BOX_RAD_SMALL
+            consts::boost_pads::BOX_RAD_SMALL
         } * consts::UU_TO_BT;
 
         Self {
@@ -56,7 +56,7 @@ impl BoostPad {
             pos_bt,
             box_min_bt: pos_bt - Vec3A::new(box_rad, box_rad, 0.0),
             box_max_bt: pos_bt
-                + Vec3A::new(box_rad, box_rad, consts::boostpads::BOX_HEIGHT * consts::UU_TO_BT),
+                + Vec3A::new(box_rad, box_rad, consts::boost_pads::BOX_HEIGHT * consts::UU_TO_BT),
             internal_state: BoostPadState::DEFAULT,
         }
     }

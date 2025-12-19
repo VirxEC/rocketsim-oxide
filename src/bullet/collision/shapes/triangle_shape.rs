@@ -123,8 +123,8 @@ impl TriangleShape {
         let mut distance_from_plane = obj_to_center.dot(triangle_normal);
 
         if distance_from_plane < 0. {
-            distance_from_plane *= -1.;
-            triangle_normal *= -1.;
+            distance_from_plane *= -1.0;
+            triangle_normal *= -1.0;
         }
 
         let radius_with_threshold = radius + threshold;

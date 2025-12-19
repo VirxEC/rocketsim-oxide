@@ -16,7 +16,7 @@ use crate::bullet::{
     },
     linear_math::{Mat3AExt, QuatExt},
 };
-use crate::sim::consts::btvehicle::SUSPENSION_SUBTRACTION;
+use crate::sim::consts::bullet_vehicle::SUSPENSION_SUBTRACTION;
 
 const NUM_WHEELS: usize = 4;
 

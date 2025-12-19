@@ -6,7 +6,7 @@ pub(crate) mod boost_pad_grid;
 mod car;
 mod car_config;
 mod car_controls;
-pub mod game_state;
+mod game_state;
 mod mutator_config;
 mod phys_state;
 mod collision_masks;
@@ -15,6 +15,7 @@ mod game_mode;
 mod user_info_types;
 pub mod consts;
 pub(crate) mod collision_meshes;
+mod linear_piece_curve;
 
 pub use arena::*;
 pub use ball::*;

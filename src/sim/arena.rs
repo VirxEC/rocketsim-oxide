@@ -5,35 +5,30 @@ use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
-use crate::{
-    bullet::{
-        collision::{
-            broadphase::{
-                HashedOverlappingPairCache, GridBroadphase,
-            },
-            dispatch::{
-                collision_dispatcher::CollisionDispatcher,
-                collision_object::{ActivationState, CollisionObject},
-                internal_edge_utility::adjust_internal_edge_contacts,
-            },
-            narrowphase::{
-                manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
-            },
-            shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
+use crate::{bullet::{
+    collision::{
+        broadphase::{
+            HashedOverlappingPairCache, GridBroadphase,
         },
-        dynamics::{
-            constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
-            discrete_dynamics_world::DiscreteDynamicsWorld,
-            rigid_body::{RigidBody, RigidBodyConstructionInfo},
+        dispatch::{
+            collision_dispatcher::CollisionDispatcher,
+            collision_object::{ActivationState, CollisionObject},
+            internal_edge_utility::adjust_internal_edge_contacts,
         },
+        narrowphase::{
+            manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
+        },
+        shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
     },
-    sim::{
-        collision_masks::CollisionMasks, BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState,
+    dynamics::{
+        constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
+        discrete_dynamics_world::DiscreteDynamicsWorld,
+        rigid_body::{RigidBody, RigidBodyConstructionInfo},
     },
-    GameMode,
-    ARENA_COLLISION_SHAPES,
-};
-use crate::sim::consts::*;
+}, consts, sim::{
+    collision_masks::CollisionMasks, BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState,
+}, GameMode, ARENA_COLLISION_SHAPES};
+use crate::consts::{BT_TO_UU, UU_TO_BT};
 use crate::sim::UserInfoTypes;
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]
@@ -95,8 +90,8 @@ impl ArenaData {
         manifold_point: &mut ManifoldPoint,
         ball_is_body_a: bool,
     ) {
-        manifold_point.combined_friction = CARBALL_COLLISION_FRICTION;
-        manifold_point.combined_restitution = CARBALL_COLLISION_RESTITUTION;
+        manifold_point.combined_friction = consts::car::HIT_BALL_COEFS.friction;
+        manifold_point.combined_restitution = consts::car::HIT_BALL_COEFS.restitution;
 
         let rel_ball_pos = if ball_is_body_a {
             manifold_point.local_point_a
@@ -128,8 +123,8 @@ impl ArenaData {
         car_2_id: u64,
         manifold_point: &mut ManifoldPoint,
     ) {
-        manifold_point.combined_friction = CARCAR_COLLISION_FRICTION;
-        manifold_point.combined_restitution = CARCAR_COLLISION_RESTITUTION;
+        manifold_point.combined_friction = consts::car::HIT_CAR_COEFS.friction;
+        manifold_point.combined_restitution = consts::car::HIT_CAR_COEFS.restitution;
 
         // SAFETY: car_1_id and car_2_id are guaranteed to be different;
         // a car cannot collide with itself.
@@ -181,7 +176,7 @@ impl ArenaData {
                 manifold_point.local_point_a
             };
 
-            let hit_with_bumper = local_point.x * BT_TO_UU > BUMP_MIN_FORWARD_DIST;
+            let hit_with_bumper = local_point.x * BT_TO_UU > consts::car::bump::MIN_FORWARD_DIST;
             if !hit_with_bumper {
                 // Didn't hit with bumper
                 continue;
@@ -201,9 +196,9 @@ impl ArenaData {
             } else {
                 let ground_hit = state_2.is_on_ground;
                 let base_scale = if ground_hit {
-                    BUMP_VEL_AMOUNT_GROUND_CURVE
+                    consts::curves::BUMP_VEL_AMOUNT_GROUND
                 } else {
-                    BUMP_VEL_AMOUNT_AIR_CURVE
+                    consts::curves::BUMP_VEL_AMOUNT_AIR
                 }
                 .get_output(speed_towards_other_car);
 
@@ -215,7 +210,7 @@ impl ArenaData {
 
                 let bump_impulse = vel_dir * base_scale
                     + hit_up_dir
-                        * BUMP_UPWARD_VEL_AMOUNT_CURVE.get_output(speed_towards_other_car)
+                        * consts::curves::BUMP_UPWARD_VEL_AMOUNT.get_output(speed_towards_other_car)
                         * self.mutator_config.bump_force_scale;
 
                 car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
@@ -351,32 +346,20 @@ impl Arena {
                 boost_pads.reserve(config.custom_boost_pads.len());
                 boost_pads.extend(config.custom_boost_pads.iter().copied().map(BoostPad::new));
             } else {
-                let amount_small = if game_mode == GameMode::Hoops {
-                    boostpads::LOCS_AMOUNT_SMALL_HOOPS
-                } else {
-                    boostpads::LOCS_AMOUNT_SMALL_SOCCAR
-                };
+                let small_pad_locs = consts::boost_pads::get_locations(game_mode, false);
+                let big_pad_locs = consts::boost_pads::get_locations(game_mode, true);
 
-                let num_pads = boostpads::LOCS_AMOUNT_BIG + amount_small;
-                boost_pads.reserve(num_pads);
-                for i in 0..num_pads {
-                    let is_big = i < boostpads::LOCS_AMOUNT_BIG;
+                boost_pads.reserve(small_pad_locs.len() + big_pad_locs.len());
 
-                    let pos = if game_mode == GameMode::Hoops {
-                        if is_big {
-                            boostpads::LOCS_BIG_HOOPS[i]
-                        } else {
-                            boostpads::LOCS_SMALL_HOOPS[i - boostpads::LOCS_AMOUNT_BIG]
-                        }
-                    } else if is_big {
-                        boostpads::LOCS_BIG_SOCCAR[i]
-                    } else {
-                        boostpads::LOCS_SMALL_SOCCAR[i - boostpads::LOCS_AMOUNT_BIG]
-                    };
-
-                    let pad_config = BoostPadConfig { pos, is_big };
-
-                    boost_pads.push(BoostPad::new(pad_config));
+                for small_pos in small_pad_locs {
+                    boost_pads.push(BoostPad::new(
+                        BoostPadConfig { pos: *small_pos, is_big: false }
+                    ));
+                }
+                for big_pos in big_pad_locs {
+                    boost_pads.push(BoostPad::new(
+                        BoostPadConfig { pos: *big_pos, is_big: true }
+                    ));
                 }
             }
         }
@@ -408,8 +391,8 @@ impl Arena {
         mask: u8,
     ) {
         let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
-        rb_constrution_info.restitution = ARENA_COLLISION_BASE_RESTITUTION;
-        rb_constrution_info.friction = ARENA_COLLISION_BASE_FRICTION;
+        rb_constrution_info.restitution = consts::arena::BASE_COEFS.restitution;
+        rb_constrution_info.friction = consts::arena::BASE_COEFS.friction;
         rb_constrution_info.start_world_transform.translation = pos_bt;
 
         let shape_rb = RigidBody::new(rb_constrution_info);
@@ -457,10 +440,11 @@ impl Arena {
 
         drop(collision_shapes);
 
+        // TODO: Move to consts
         let (extent_x, floor, height) = match game_mode {
-            GameMode::Hoops => (ARENA_EXTENT_X_HOOPS, 0.0, ARENA_HEIGHT_HOOPS),
-            GameMode::Dropshot => (ARENA_EXTENT_X, FLOOR_HEIGHT_DROPSHOT, ARENA_HEIGHT_DROPSHOT),
-            _ => (ARENA_EXTENT_X, 0.0, ARENA_HEIGHT),
+            GameMode::Hoops => (consts::arena::EXTENT_X_HOOPS, 0.0, consts::arena::HEIGHT_HOOPS),
+            GameMode::Dropshot => (consts::arena::EXTENT_X, consts::arena::FLOOR_HEIGHT_DROPSHOT, consts::arena::HEIGHT_DROPSHOT),
+            _ => (consts::arena::EXTENT_X, 0.0, consts::arena::HEIGHT),
         };
 
         let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: u8| {
@@ -503,13 +487,13 @@ impl Arena {
             GameMode::Hoops => {
                 // Y walls
                 add_plane(
-                    Vec3A::new(0.0, -ARENA_EXTENT_Y_HOOPS, height / 2.),
+                    Vec3A::new(0.0, -consts::arena::EXTENT_Y_HOOPS, height / 2.),
                     Vec3A::Y,
                     0,
                 );
 
                 add_plane(
-                    Vec3A::new(0.0, ARENA_EXTENT_Y_HOOPS, height / 2.),
+                    Vec3A::new(0.0, consts::arena::EXTENT_Y_HOOPS, height / 2.),
                     Vec3A::NEG_Y,
                     0,
                 );
@@ -551,7 +535,7 @@ impl Arena {
                         + self.data.mutator_config.ball_radius
             }
             GameMode::Hoops => {
-                if ball_pos.z < HOOPS_GOAL_SCORE_THRESHOLD_Z {
+                if ball_pos.z < consts::goal::HOOPS_GOAL_SCORE_THRESHOLD_Z {
                     Self::ball_within_hoops_goal_xy_margin_eq(ball_pos.x, ball_pos.y) < 0.0
                 } else {
                     false
@@ -568,32 +552,12 @@ impl Arena {
     }
 
     pub fn reset_to_random_kickoff(&mut self) {
-        let mut kickoff_order: [usize; CAR_SPAWN_LOCATION_AMOUNT] = from_fn(|i| i);
-        self.rng.shuffle(&mut kickoff_order);
+        let game_mode = self.data.game_mode;
+        let kickoff_locs = consts::car::spawn::get_kickoff_spawn_locations(game_mode);
+        let respawn_locs = consts::car::spawn::get_respawn_locations(game_mode);
 
-        let (location_amount, car_spawn_locations, car_respawn_locations) =
-            match self.data.game_mode {
-                GameMode::Hoops => (
-                    CAR_SPAWN_LOCATION_AMOUNT,
-                    CAR_SPAWN_LOCATIONS_HOOPS.as_slice(),
-                    CAR_RESPAWN_LOCATIONS_HOOPS,
-                ),
-                GameMode::Heatseeker => (
-                    CAR_SPAWN_LOCATION_AMOUNT_HEATSEEKER,
-                    CAR_SPAWN_LOCATIONS_HEATSEEKER.as_slice(),
-                    CAR_RESPAWN_LOCATIONS_SOCCAR,
-                ),
-                GameMode::Dropshot => (
-                    CAR_SPAWN_LOCATION_AMOUNT,
-                    CAR_SPAWN_LOCATIONS_DROPSHOT.as_slice(),
-                    CAR_RESPAWN_LOCATIONS_DROPSHOT,
-                ),
-                _ => (
-                    CAR_SPAWN_LOCATION_AMOUNT,
-                    CAR_SPAWN_LOCATIONS_SOCCAR.as_slice(),
-                    CAR_RESPAWN_LOCATIONS_SOCCAR,
-                ),
-            };
+        let mut kickoff_order_perm: Vec<usize> = (0..kickoff_locs.len()).collect();
+        self.rng.shuffle(&mut kickoff_order_perm);
 
         let mut blue_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
         let mut orange_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
@@ -607,17 +571,18 @@ impl Arena {
             .push(car);
         }
 
-        let mut num_cars_at_respawn_pos = [0; CAR_RESPAWN_LOCATION_AMOUNT];
+        let mut num_cars_at_respawn_pos: Vec<usize> = Vec::with_capacity(respawn_locs.len());
+        num_cars_at_respawn_pos.resize(respawn_locs.len(), 0);
 
         let kickoff_position_amount = blue_cars.len().max(orange_cars.len());
         for i in 0..kickoff_position_amount {
-            let spawn_pos = if i < location_amount {
-                car_spawn_locations[kickoff_order[i].min(location_amount - 1)]
+            let spawn_pos = if i < kickoff_locs.len() {
+                kickoff_locs[kickoff_order_perm[i]]
             } else {
                 const CAR_SPAWN_EXTRA_OFFSET_Y: f32 = 250.0;
 
-                let respawn_pos_idx = (i - location_amount) % location_amount;
-                let mut pos = car_respawn_locations[respawn_pos_idx];
+                let respawn_pos_idx = (i - kickoff_locs.len()) % respawn_locs.len();
+                let mut pos = respawn_locs[respawn_pos_idx];
                 pos.y += CAR_SPAWN_EXTRA_OFFSET_Y * num_cars_at_respawn_pos[respawn_pos_idx] as f32;
                 num_cars_at_respawn_pos[respawn_pos_idx] += 1;
 
@@ -626,7 +591,7 @@ impl Arena {
 
             let mut spawn_state = CarState {
                 phys: PhysState {
-                    pos: Vec3A::new(spawn_pos.x, spawn_pos.y, CAR_SPAWN_REST_Z),
+                    pos: Vec3A::new(spawn_pos.x, spawn_pos.y, consts::car::spawn::SPAWN_Z),
                     rot_mat: Mat3A::IDENTITY,
                     vel: Vec3A::ZERO,
                     ang_vel: Vec3A::ZERO,
@@ -670,9 +635,10 @@ impl Arena {
         match self.data.game_mode {
             GameMode::Heatseeker => {
                 let next_rand = self.rng.bool();
-                let scale = Vec3A::new(1.0, f32::from(i8::from(next_rand) * 2 - 1), 1.0);
-                ball_state.phys.pos = heatseeker::BALL_START_POS * scale;
-                ball_state.phys.vel = heatseeker::BALL_START_VEL * scale;
+                let y_sign = f32::from(i8::from(next_rand) * 2 - 1);
+                let scale = Vec3A::new(1.0, y_sign, 1.0);
+                ball_state.phys.pos = consts::heatseeker::BALL_START_POS * scale;
+                ball_state.phys.vel = consts::heatseeker::BALL_START_VEL * scale;
             }
             GameMode::Snowday => {
                 ball_state.phys.vel.z = f32::EPSILON;

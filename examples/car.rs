@@ -16,7 +16,7 @@ fn main() {
     arena.reset_to_random_kickoff();
 
     let mut ball_state = *arena.get_ball();
-    ball_state.phys.pos.z += 1000.;
+    ball_state.phys.pos.z += 1000.0;
     arena.set_ball(ball_state);
 
     let state = {
