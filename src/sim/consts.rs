@@ -286,8 +286,6 @@ pub mod ball {
     pub const MAX_SPEED: f32 = 6000.0;
 
     pub mod car_hit_impulse {
-        use super::*;
-
         pub const FORWARD_SCALE: f32 = 0.65;
         pub const MAX_DELTA_VEL_UU: f32 = 4600.0;
 
@@ -298,7 +296,6 @@ pub mod ball {
 }
 
 pub mod goal {
-    use super::*;
     pub const SOCCAR_GOAL_SCORE_BASE_THRESHOLD_Y: f32 = 5124.25;
     pub const HOOPS_GOAL_SCORE_THRESHOLD_Z: f32 = 270.0;
 }
