@@ -1,3 +1,5 @@
+#![cfg(feature = "rlviser")]
+
 use rocketsim::{
     GameMode, init_from_default,
     rlviser::RLViser,

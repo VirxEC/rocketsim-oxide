@@ -1,3 +1,5 @@
+#![cfg(feature = "flatbuffer")]
+
 use crate::sim;
 
 impl From<super::GameMode> for crate::GameMode {
