@@ -92,7 +92,7 @@ impl SequentialImpulseConstraintSolver {
         info: &ContactSolverInfo,
     ) {
         self.solve_group_setup(collision_objects, non_static_bodies, manifolds, info);
-        self.solve_group_iterations(info);
+        self.solve_group_iterations();
         self.solve_group_finish(collision_objects, info);
     }
 
@@ -247,7 +247,6 @@ impl SequentialImpulseConstraintSolver {
                     (rb0, rb1),
                     (rel_pos1, rel_pos2),
                     cp.lateral_friction_dir_1,
-                    info.sor,
                 );
 
                 self.tmp_solver_contact_friction_constraint_pool
@@ -286,10 +285,10 @@ impl SequentialImpulseConstraintSolver {
         let solver_body_a = &mut self.tmp_solver_body_pool[solver_body_id_a];
 
         let rel_pos1 = normal_world_on_b * -distance;
-        let relaxation = info.sor;
+        let relaxation = ContactSolverInfo::SOR;
 
         let inv_time_step = 1.0 / info.time_step;
-        let erp = info.erp_2;
+        let erp = ContactSolverInfo::ERP_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
         let angular_component_a = body.inertia_tensor_world * torque_axis_0;
@@ -302,17 +301,12 @@ impl SequentialImpulseConstraintSolver {
 
         let (contact_normal_1, rel_pos1_cross_normal) = (normal_world_on_b, torque_axis_0);
 
-        let penetration = distance + info.linear_slop;
+        let penetration = distance;
 
         let vel = body.get_velocity_in_local_point(rel_pos1);
         let rel_vel = normal_world_on_b.dot(vel);
 
-        let restitution = SolverConstraint::restitution_curve(
-            rel_vel,
-            sri.restitution,
-            info.restitution_velocity_threshold,
-        )
-        .max(0.0);
+        let restitution = SolverConstraint::restitution_curve(rel_vel, sri.restitution).max(0.0);
 
         let (external_force_impulse_a, external_torque_impulse_a) = (
             solver_body_a.external_force_impulse,
@@ -334,11 +328,12 @@ impl SequentialImpulseConstraintSolver {
         let penetration_impulse = positional_error * jac_diag_ab_inv;
         let velocity_impulse = velocity_error * jac_diag_ab_inv;
 
-        let (rhs, rhs_penetration) = if penetration > info.split_impulse_penetration_threshold {
-            (penetration_impulse + velocity_impulse, 0.0)
-        } else {
-            (velocity_impulse, penetration_impulse)
-        };
+        let (rhs, rhs_penetration) =
+            if penetration > ContactSolverInfo::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
+                (penetration_impulse + velocity_impulse, 0.0)
+            } else {
+                (velocity_impulse, penetration_impulse)
+            };
 
         self.tmp_solver_contact_constraint_pool
             .push(SolverConstraint {
@@ -409,10 +404,10 @@ impl SequentialImpulseConstraintSolver {
             });
     }
 
-    fn solve_group_split_impulse_iterations(&mut self, info: &ContactSolverInfo) {
+    fn solve_group_split_impulse_iterations(&mut self) {
         let mut should_run = (1u64 << self.tmp_solver_contact_constraint_pool.len()) - 1;
 
-        for _ in 0..info.num_iterations {
+        for _ in 0..ContactSolverInfo::NUM_ITERATIONS {
             for (i, contact) in self
                 .tmp_solver_contact_constraint_pool
                 .iter_mut()
@@ -489,10 +484,10 @@ impl SequentialImpulseConstraintSolver {
         least_squares_residual
     }
 
-    fn solve_group_iterations(&mut self, info: &ContactSolverInfo) {
-        self.solve_group_split_impulse_iterations(info);
+    fn solve_group_iterations(&mut self) {
+        self.solve_group_split_impulse_iterations();
 
-        for _ in 0..info.num_iterations {
+        for _ in 0..ContactSolverInfo::NUM_ITERATIONS {
             self.least_squares_residual = self.solve_single_iteration();
             if self.least_squares_residual == 0.0 {
                 break;
@@ -527,7 +522,7 @@ impl SequentialImpulseConstraintSolver {
                     integrate_transform(
                         &mut solver.world_transform,
                         solver.push_velocity,
-                        solver.turn_velocity * info.split_impulse_turn_erp,
+                        solver.turn_velocity * ContactSolverInfo::SPLIT_IMPULSE_TURN_ERP,
                         info.time_step,
                     );
                 }

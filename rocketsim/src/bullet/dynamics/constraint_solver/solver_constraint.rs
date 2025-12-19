@@ -34,8 +34,8 @@ pub struct SolverConstraint {
 }
 
 impl SolverConstraint {
-    pub fn restitution_curve(rel_vel: f32, restitution: f32, velocity_threshold: f32) -> f32 {
-        if rel_vel.abs() < velocity_threshold {
+    pub fn restitution_curve(rel_vel: f32, restitution: f32) -> f32 {
+        if rel_vel.abs() < ContactSolverInfo::RESTITUTION_VELOCITY_THRESHOLD {
             0.0
         } else {
             restitution * -rel_vel
@@ -51,8 +51,8 @@ impl SolverConstraint {
         cp: &ManifoldPoint,
     ) {
         let inv_time_step = 1.0 / info.time_step;
-        let erp = info.erp_2;
-        self.applied_impulse = cp.applied_impulse * info.warmstarting_factor;
+        let erp = ContactSolverInfo::ERP_2;
+        self.applied_impulse = cp.applied_impulse * ContactSolverInfo::WARMSTARTING_FACTOR;
 
         let (denom0, vel0, vel_1_dot_n) = rb0.map_or((0.0, Vec3A::ZERO, 0.0), |rb| {
             let torque_axis = rel_pos1.cross(cp.normal_world_on_b);
@@ -107,18 +107,13 @@ impl SolverConstraint {
             (denom, vel, vel_dot_n)
         });
 
-        self.jac_diag_ab_inv = info.sor / (denom0 + denom1);
+        self.jac_diag_ab_inv = ContactSolverInfo::SOR / (denom0 + denom1);
 
         let vel = vel0 - vel1;
         let rel_vel = cp.normal_world_on_b.dot(vel);
-        let restitution = Self::restitution_curve(
-            rel_vel,
-            cp.combined_restitution,
-            info.restitution_velocity_threshold,
-        )
-        .max(0.0);
+        let restitution = Self::restitution_curve(rel_vel, cp.combined_restitution).max(0.0);
 
-        let penetration = cp.distance_1 + info.linear_slop;
+        let penetration = cp.distance_1;
         let positional_error = if penetration > 0.0 {
             0.0
         } else {
@@ -131,12 +126,12 @@ impl SolverConstraint {
         let penetration_impulse = positional_error * self.jac_diag_ab_inv;
         let velocity_impulse = velocity_error * self.jac_diag_ab_inv;
 
-        (self.rhs, self.rhs_penetration) = if penetration > info.split_impulse_penetration_threshold
-        {
-            (penetration_impulse + velocity_impulse, 0.0)
-        } else {
-            (velocity_impulse, penetration_impulse)
-        };
+        (self.rhs, self.rhs_penetration) =
+            if penetration > ContactSolverInfo::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
+                (penetration_impulse + velocity_impulse, 0.0)
+            } else {
+                (velocity_impulse, penetration_impulse)
+            };
     }
 
     pub fn setup_friction_constraint(
@@ -145,7 +140,6 @@ impl SolverConstraint {
         (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),
         (rel_pos1, rel_pos2): (Vec3A, Vec3A),
         normal_axis: Vec3A,
-        relaxation: f32,
     ) {
         let (vel_1_dot_n, denom1) = rb0.map_or((0.0, 0.0), |rb| {
             let torque_axis = rel_pos1.cross(normal_axis);
@@ -184,7 +178,7 @@ impl SolverConstraint {
             (vel_dot_n, denom)
         });
 
-        self.jac_diag_ab_inv = relaxation / (denom1 + denom2);
+        self.jac_diag_ab_inv = ContactSolverInfo::SOR / (denom1 + denom2);
 
         let rel_vel = vel_1_dot_n + vel_2_dot_n;
         let velocity_error = -rel_vel;

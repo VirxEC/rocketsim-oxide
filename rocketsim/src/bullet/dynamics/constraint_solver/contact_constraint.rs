@@ -13,7 +13,7 @@ pub fn resolve_single_collision(
     body2: &RigidBody,
     contact_position_world: Vec3A,
     contact_normal_on_b: Vec3A,
-    solver_info: &ContactSolverInfo,
+    time_step: f32,
     distance: f32,
 ) -> f32 {
     let rel_pos1 =
@@ -26,7 +26,7 @@ pub fn resolve_single_collision(
     let vel = vel1 - vel2;
     let rel_vel = contact_normal_on_b.dot(vel);
 
-    let positional_error = solver_info.erp * -distance / solver_info.time_step;
+    let positional_error = ContactSolverInfo::ERP * -distance / time_step;
     let velocity_error = -rel_vel;
     let denom0 = body1.compute_impulse_denominator(contact_position_world, contact_normal_on_b);
     let denom1 = body2.compute_impulse_denominator(contact_position_world, contact_normal_on_b);

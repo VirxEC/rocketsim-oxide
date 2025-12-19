@@ -331,10 +331,6 @@ impl Arena {
             DiscreteDynamicsWorld::new(collision_dispatcher, broadphase, constraint_solver);
         bullet_world.set_gravity(mutator_config.gravity * UU_TO_BT);
 
-        let solver_info = &mut bullet_world.dynamics_world.solver_info;
-        solver_info.split_impulse_penetration_threshold = 1e30;
-        solver_info.erp_2 = 0.8;
-
         if game_mode != GameMode::TheVoid {
             Self::setup_arena_collision_shapes(&mut bullet_world, game_mode);
         }

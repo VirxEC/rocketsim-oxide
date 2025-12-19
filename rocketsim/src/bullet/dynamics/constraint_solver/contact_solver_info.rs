@@ -4,11 +4,11 @@ pub struct ContactSolverInfo {
     // pub friction: f32,
     pub time_step: f32,
     // pub restitution: f32,
-    pub num_iterations: u32,
+    // pub num_iterations: u32,
     // pub max_error_reduction: f32,
-    pub sor: f32,
-    pub erp: f32,
-    pub erp_2: f32,
+    // pub sor: f32,
+    // pub erp: f32,
+    // pub erp_2: f32,
     // pub deformable_erp: f32,
     // pub deformable_cfm: f32,
     // pub deformable_max_error_reduction: f32,
@@ -16,16 +16,16 @@ pub struct ContactSolverInfo {
     // pub friction_erp: f32,
     // pub friction_cfm: f32,
     // pub split_impulse: bool,
-    pub split_impulse_penetration_threshold: f32,
-    pub split_impulse_turn_erp: f32,
-    pub linear_slop: f32,
-    pub warmstarting_factor: f32,
+    // pub split_impulse_penetration_threshold: f32,
+    // pub split_impulse_turn_erp: f32,
+    // pub linear_slop: f32,
+    // pub warmstarting_factor: f32,
     // pub articulated_warmstarting_factor: f32,
     // pub solver_mode: i32,
     // pub minimum_solver_batch_size: i32,
     // pub max_gyroscopic_force: f32,
     // pub least_squares_residual_threshold: f32,
-    pub restitution_velocity_threshold: f32,
+    // pub restitution_velocity_threshold: f32,
     // pub joint_feedback_in_world_space: bool,
     // pub joint_feedback_in_joi32_frame: bool,
     // pub report_solver_analytics: i32,
@@ -40,11 +40,11 @@ impl Default for ContactSolverInfo {
             // friction: 0.3,
             time_step: 1. / 60.,
             // restitution: 0.,
-            num_iterations: 10,
+            // num_iterations: 10,
             // max_error_reduction: 20.0,
-            sor: 1.0,
-            erp: 0.2,
-            erp_2: 0.2,
+            // sor: 1.0,
+            // erp: 0.2,
+            // erp_2: 0.2,
             // deformable_erp: 0.06,
             // deformable_cfm: 0.01,
             // deformable_max_error_reduction: 0.1,
@@ -52,20 +52,31 @@ impl Default for ContactSolverInfo {
             // friction_erp: 0.2,
             // friction_cfm: 0.0,
             // split_impulse: true,
-            split_impulse_penetration_threshold: -0.04,
-            split_impulse_turn_erp: 0.1,
-            linear_slop: 0.0,
-            warmstarting_factor: 0.85,
+            // split_impulse_penetration_threshold: -0.04,
+            // split_impulse_turn_erp: 0.1,
+            // linear_slop: 0.0,
+            // warmstarting_factor: 0.85,
             // articulated_warmstarting_factor: 0.85,
             // solver_mode: SolverMode::UseWarmstarting as i32 | SolverMode::Simd as i32,
             // minimum_solver_batch_size: 128,
             // max_gyroscopic_force: 100.0,
             // least_squares_residual_threshold: 0.0,
-            restitution_velocity_threshold: 0.2,
+            // restitution_velocity_threshold: 0.2,
             // joint_feedback_in_world_space: false,
             // joint_feedback_in_joi32_frame: false,
             // report_solver_analytics: 0,
             // num_non_contact_inner_iterations: 1,
         }
     }
+}
+
+impl ContactSolverInfo {
+    pub const NUM_ITERATIONS: usize = 10;
+    pub const SOR: f32 = 1.0;
+    pub const ERP: f32 = 0.2;
+    pub const ERP_2: f32 = 0.8;
+    pub const SPLIT_IMPULSE_PENETRATION_THRESHOLD: f32 = 1e30;
+    pub const SPLIT_IMPULSE_TURN_ERP: f32 = 0.1;
+    pub const WARMSTARTING_FACTOR: f32 = 0.85;
+    pub const RESTITUTION_VELOCITY_THRESHOLD: f32 = 0.2;
 }

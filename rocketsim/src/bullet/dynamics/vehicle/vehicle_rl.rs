@@ -169,7 +169,7 @@ impl WheelInfoRL {
                     ray_results.rigid_body,
                     ray_results.hit_point_in_world,
                     ray_results.hit_normal_in_world,
-                    &collision_world.dynamics_world.solver_info,
+                    collision_world.dynamics_world.solver_info.time_step,
                     wheel_trace_dist_delta,
                 );
 
