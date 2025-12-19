@@ -14,7 +14,7 @@ pub enum ActivationState {
 pub enum CollisionFlags {
     // DynamicObject = 0,
     StaticObject = 1,
-    KinematicObject = (1 << 1),
+    // KinematicObject = (1 << 1),
     NoContactResponse = (1 << 2),
     CustomMaterialCallback = (1 << 3),
 }
@@ -37,7 +37,7 @@ pub struct CollisionObject {
     pub companion_id: Option<usize>,
     /// The index of this object in `CollisionWorld`
     pub world_array_index: usize,
-    pub activation_state: ActivationState,
+    activation_state: ActivationState,
     pub deactivation_time: f32,
     pub friction: f32,
     pub restitution: f32,
@@ -99,18 +99,6 @@ impl CollisionObject {
     }
 
     #[must_use]
-    pub const fn is_kinematic_object(&self) -> bool {
-        self.collision_flags & CollisionFlags::KinematicObject as u8 != 0
-    }
-
-    #[must_use]
-    pub const fn is_static_or_kinematic_object(&self) -> bool {
-        self.collision_flags
-            & (CollisionFlags::KinematicObject as u8 | CollisionFlags::StaticObject as u8)
-            != 0
-    }
-
-    #[must_use]
     pub const fn is_active(&self) -> bool {
         !matches!(
             self.activation_state,
@@ -123,6 +111,7 @@ impl CollisionObject {
         self.collision_flags & CollisionFlags::NoContactResponse as u8 == 0
     }
 
+    #[inline]
     #[must_use]
     pub const fn get_activation_state(&self) -> ActivationState {
         self.activation_state
@@ -137,10 +126,8 @@ impl CollisionObject {
         }
     }
 
-    pub const fn activate(&mut self) {
-        if self.is_static_or_kinematic_object() {
-            self.set_activation_state(ActivationState::Active);
-        }
+    pub const fn force_activate(&mut self) {
+        self.activation_state = ActivationState::Active;
     }
 
     pub const fn set_broadphase_handle(&mut self, handle: usize) {

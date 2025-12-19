@@ -184,7 +184,7 @@ impl RigidBody {
     }
 
     pub fn apply_gravity(&mut self) {
-        debug_assert!(!self.collision_object.is_static_or_kinematic_object());
+        debug_assert!(!self.collision_object.is_static_object());
         self.apply_central_force(self.gravity);
     }
 
@@ -212,8 +212,6 @@ impl RigidBody {
     }
 
     pub fn set_center_of_mass_transform(&mut self, xform: Affine3A) {
-        debug_assert!(!self.collision_object.is_kinematic_object());
-
         self.collision_object.interpolation_world_transform = xform;
         self.collision_object.interpolation_linear_velocity = self.linear_velocity;
         self.collision_object.interpolation_angular_velocity = self.angular_velocity;
@@ -228,7 +226,7 @@ impl RigidBody {
     }
 
     pub fn update_deactivation(&mut self, time_step: f32) {
-        let activation_state = self.collision_object.activation_state;
+        let activation_state = self.collision_object.get_activation_state();
 
         if matches!(
             activation_state,
@@ -252,7 +250,7 @@ impl RigidBody {
 
     #[must_use]
     pub fn wants_sleeping(&self) -> bool {
-        let activation_state = self.collision_object.activation_state;
+        let activation_state = self.collision_object.get_activation_state();
 
         activation_state == ActivationState::DisableDeactivation
             && (matches!(

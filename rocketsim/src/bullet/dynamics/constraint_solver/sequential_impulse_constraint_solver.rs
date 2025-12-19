@@ -61,9 +61,7 @@ impl SequentialImpulseConstraintSolver {
             return companion_id;
         }
 
-        if !rb.collision_object.is_static_object()
-            && (rb.inverse_mass != 0.0 || rb.collision_object.is_kinematic_object())
-        {
+        if !rb.collision_object.is_static_object() && rb.inverse_mass != 0.0 {
             let solver_body_id = self.tmp_solver_body_pool.len();
             rb.collision_object.companion_id = Some(solver_body_id);
 
@@ -121,7 +119,7 @@ impl SequentialImpulseConstraintSolver {
             let rb = &mut collision_objects[rb_idx];
             rb.collision_object.companion_id = None;
 
-            if rb.inverse_mass != 0.0 || rb.collision_object.is_kinematic_object() {
+            if rb.inverse_mass != 0.0 {
                 if !rb.collision_object.is_active() {
                     continue;
                 }

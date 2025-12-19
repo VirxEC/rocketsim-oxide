@@ -928,10 +928,11 @@ impl Car {
                     self.respawn(rb, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
-                rb.collision_object.activation_state = ActivationState::DisableSimulation;
+                rb.collision_object
+                    .set_activation_state(ActivationState::DisableSimulation);
                 rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as u8;
             } else {
-                rb.collision_object.activation_state = ActivationState::Active;
+                rb.collision_object.force_activate();
                 rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as u8);
             }
 
