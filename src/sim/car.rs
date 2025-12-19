@@ -8,7 +8,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::broadphase_proxy::CollisionFilterGroups,
-            dispatch::collision_object::{ACTIVE_TAG, CollisionFlags, DISABLE_SIMULATION},
+            dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{
                 box_shape::BoxShape, collision_shape::CollisionShapes,
                 compound_shape::CompoundShape,
@@ -384,6 +384,9 @@ impl Car {
     }
 
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: CarState) {
+        debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Car);
+        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
+
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
             translation: state.physics.pos * UU_TO_BT,
@@ -923,10 +926,10 @@ impl Car {
                     self.respawn(rb, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
-                rb.collision_object.activation_state_1 = DISABLE_SIMULATION;
+                rb.collision_object.activation_state = ActivationState::DisableSimulation;
                 rb.collision_object.collision_flags |= CollisionFlags::NoContactResponse as u8;
             } else {
-                rb.collision_object.activation_state_1 = ACTIVE_TAG;
+                rb.collision_object.activation_state = ActivationState::Active;
                 rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as u8);
             }
 

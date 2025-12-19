@@ -157,11 +157,11 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             return true;
         }
 
-        let obb = Obb {
-            center: self.convex_obj.world_transform.translation,
-            axis: self.convex_obj.world_transform.matrix3,
-            extent: self.box_shape.get_half_extents(),
-        };
+        let obb = Obb::new(
+            self.convex_obj.world_transform.translation,
+            self.convex_obj.world_transform.matrix3,
+            self.box_shape.get_half_extents(),
+        );
 
         let Some(hit) = obb_triangle_sat(&obb, triangle) else {
             return true;

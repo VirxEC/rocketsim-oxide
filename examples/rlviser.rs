@@ -14,8 +14,15 @@ fn main() {
     let mut rlviser = RLViser::new().unwrap();
     let mut arena = Arena::new(GameMode::Soccar);
 
-    arena.add_car(Team::Blue, CarConfig::OCTANE);
-    arena.add_car(Team::Orange, CarConfig::OCTANE);
+    let ids = [
+        arena.add_car(Team::Blue, CarConfig::OCTANE),
+        arena.add_car(Team::Orange, CarConfig::OCTANE),
+    ];
+
+    for id in ids {
+        arena.get_car_mut(id).unwrap().controls.throttle = 1.0;
+    }
+
     arena.reset_to_random_kickoff();
 
     let mut render_interval = Duration::from_secs_f32(1.0 / 120.);

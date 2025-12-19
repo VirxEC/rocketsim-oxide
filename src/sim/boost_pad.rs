@@ -31,6 +31,7 @@ impl BoostPadState {
     };
 }
 
+#[allow(unused)]
 pub struct BoostPad {
     config: BoostPadConfig,
     pos_bt: Vec3A,

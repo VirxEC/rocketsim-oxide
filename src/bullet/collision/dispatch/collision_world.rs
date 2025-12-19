@@ -343,7 +343,7 @@ impl CollisionWorld {
             aabb.min -= CBT;
             aabb.max += CBT;
 
-            if col_obj.internal_type == CollisionObjectTypes::RigidBody as i32
+            if col_obj.internal_type == CollisionObjectTypes::RigidBody
                 && !col_obj.is_static_or_kinematic_object()
             {
                 let mut aabb2 = col_obj

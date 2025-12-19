@@ -6,7 +6,7 @@ use crate::{
     bullet::{
         collision::{
             broadphase::broadphase_proxy::{BroadphaseNativeTypes, CollisionFilterGroups},
-            dispatch::collision_object::{ACTIVE_TAG, CollisionFlags},
+            dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{collision_shape::CollisionShapes, sphere_shape::SphereShape},
         },
         dynamics::{
@@ -14,8 +14,7 @@ use crate::{
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
     },
-    consts,
-    consts::{dropshot, heatseeker},
+    consts::{self, dropshot, heatseeker},
     sim::{BallHitInfo, Car, Team},
 };
 
@@ -166,6 +165,9 @@ impl Ball {
     }
 
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: BallState) {
+        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
+        debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Ball);
+
         rb.collision_object.set_world_transform(Affine3A {
             matrix3: state.physics.rot_mat,
             translation: state.physics.pos * UU_TO_BT,
@@ -176,7 +178,8 @@ impl Ball {
         rb.update_inertia_tensor();
 
         if state.physics.vel != Vec3A::ZERO || state.physics.ang_vel != Vec3A::ZERO {
-            rb.collision_object.set_activation_state(ACTIVE_TAG);
+            rb.collision_object
+                .set_activation_state(ActivationState::Active);
         }
 
         self.internal_state = state;

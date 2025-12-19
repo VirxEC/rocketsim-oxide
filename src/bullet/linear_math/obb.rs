@@ -4,19 +4,30 @@ pub struct Obb {
     pub center: Vec3A,
     pub axis: Mat3A,
     pub extent: Vec3A,
+    world_extents: Mat3A,
 }
 
 impl Obb {
+    pub fn new(center: Vec3A, axis: Mat3A, extent: Vec3A) -> Self {
+        let world_extents = Mat3A::from_cols(
+            axis.x_axis * extent.x,
+            axis.y_axis * extent.y,
+            axis.z_axis * extent.z,
+        );
+
+        Self {
+            center,
+            axis,
+            extent,
+            world_extents,
+        }
+    }
+
     /// Project an OBB onto an axis, returning the “radius” (half-projection length)
     pub fn project_obb_radius(&self, axis: Vec3A) -> f32 {
-        // For an OBB, the radius (projection half-length) is sum over each box local axis of:
-        //   | (local_axis * extent) dot axis |
-        // We assume self.axis.x_axis, etc. are the local axis unit vectors.
-        let x = self.axis.x_axis * self.extent.x;
-        let y = self.axis.y_axis * self.extent.y;
-        let z = self.axis.z_axis * self.extent.z;
-
-        axis.dot(x).abs() + axis.dot(y).abs() + axis.dot(z).abs()
+        axis.dot(self.world_extents.x_axis).abs()
+            + axis.dot(self.world_extents.y_axis).abs()
+            + axis.dot(self.world_extents.z_axis).abs()
     }
 
     pub fn closest_point_on_obb_edge(&self, point: Vec3A) -> Vec3A {

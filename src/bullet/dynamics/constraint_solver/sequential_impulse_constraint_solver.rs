@@ -7,7 +7,7 @@ use super::{
 use crate::bullet::{
     collision::{
         dispatch::collision_object::SpecialResolveInfo,
-        narrowphase::{manifold_point::ContactPointFlags, persistent_manifold::PersistentManifold},
+        narrowphase::persistent_manifold::PersistentManifold,
     },
     dynamics::rigid_body::RigidBody,
     linear_math::{
@@ -328,11 +328,6 @@ impl SequentialImpulseConstraintSolver {
                 let vel = vel1 - vel2;
                 let rel_vel = cp.normal_world_on_b.dot(vel);
 
-                debug_assert!(
-                    cp.contact_point_flags & ContactPointFlags::LateralFrictionInitialized as i32
-                        == 0
-                );
-
                 cp.lateral_friction_dir_1 = vel - cp.normal_world_on_b * rel_vel;
                 let lat_rel_vel = cp.lateral_friction_dir_1.length_squared();
 
@@ -392,10 +387,6 @@ impl SequentialImpulseConstraintSolver {
 
                 let velocity_error = -rel_vel;
                 let velocity_impulse = velocity_error * jac_diag_ab_inv;
-
-                debug_assert!(
-                    cp.contact_point_flags & ContactPointFlags::FrictionAnchor as i32 == 0
-                );
 
                 self.tmp_solver_contact_friction_constraint_pool
                     .push(SolverConstraint {

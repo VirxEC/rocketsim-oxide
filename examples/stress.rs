@@ -52,28 +52,17 @@ fn main() {
     }
 
     let start = Instant::now();
-    for _ in 0..2_000 {
+    for _ in 0..1_000 {
         arena.set_ball(ball_state);
         for (&id, &state) in ids.iter().zip(&states) {
             arena.set_car_state(id, state);
         }
 
         arena.step(720);
-
-        // for id in &ids {
-        //     let state = arena.objects.cars.get(id).unwrap().get_state();
-        //     println!("\npos: {}", state.physics.pos);
-        //     println!("vel: {}", state.physics.vel);
-        //     println!("ang_vel: {}", state.physics.ang_vel);
-        //     println!("rot_mat: {}", state.physics.rot_mat);
-        //     println!("is_demoed: {:?}", state.is_demoed);
-        //     println!("car_contact: {:?}", state.car_contact);
-        //     println!("wheels_with_contact: {:?}", state.wheels_with_contact);
-        // }
     }
     let elapsed = Instant::now().duration_since(start).as_secs_f32();
     println!(
         "Elapsed: {elapsed}\nTPS: {}",
-        (2_000 * 720) as f32 / elapsed
+        (1_000 * 720) as f32 / elapsed
     );
 }

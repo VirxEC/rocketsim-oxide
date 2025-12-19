@@ -14,7 +14,7 @@ use crate::{
             },
             dispatch::{
                 collision_dispatcher::CollisionDispatcher,
-                collision_object::{ACTIVE_TAG, CollisionObject, ISLAND_SLEEPING},
+                collision_object::{ActivationState, CollisionObject},
                 internal_edge_utility::adjust_internal_edge_contacts,
             },
             narrowphase::{
@@ -743,9 +743,9 @@ impl Arena {
             ball_rb
                 .collision_object
                 .set_activation_state(if should_sleep {
-                    ISLAND_SLEEPING
+                    ActivationState::Sleeping
                 } else {
-                    ACTIVE_TAG
+                    ActivationState::Active
                 });
         }
 
