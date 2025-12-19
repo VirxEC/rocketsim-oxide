@@ -1,5 +1,3 @@
-use glam::Affine3A;
-
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
@@ -10,10 +8,7 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::{
-        AffineExt,
-        aabb_util_2::{Aabb, test_aabb_against_aabb},
-    },
+    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
 
 struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
@@ -121,12 +116,9 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgor
             unreachable!()
         };
 
-        let xform1 = self.convex_obj.get_world_transform().transpose();
+        let xform1 = self.convex_obj.get_world_transform();
         let xform2 = self.concave_obj.get_world_transform();
-        let convex_in_triangle_space = Affine3A {
-            matrix3: xform1.matrix3 * xform2.matrix3,
-            translation: xform1.transform_point3a(xform2.translation),
-        };
+        let convex_in_triangle_space = xform1 * xform2;
 
         let aabb = sphere_shape.get_aabb(&convex_in_triangle_space);
         let mut convex_triangle_callback = ConvexTriangleCallback::new(
