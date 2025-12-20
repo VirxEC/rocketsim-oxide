@@ -5,3 +5,6 @@ planus_flat.rs
 *.data*
 *.svg
 /.idea
+
+# Anything starting with 3 underscores
+___*
