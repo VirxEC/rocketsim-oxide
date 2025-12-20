@@ -54,7 +54,6 @@ pub struct CarContact {
 )]
 pub struct CarState {
     pub phys: PhysState,
-    pub tick_count_since_update: u64,
     /// True if 3 or more wheels have contact
     pub is_on_ground: bool,
     /// Whether each of the 4 wheels have contact
@@ -128,7 +127,6 @@ impl CarState {
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
         },
-        tick_count_since_update: 0,
         is_on_ground: true,
         wheels_with_contact: [false; 4],
         has_jumped: false,
@@ -376,7 +374,6 @@ impl Car {
 
         self.velocity_impulse_cache = Vec3A::ZERO;
         self.internal_state = *state;
-        self.internal_state.tick_count_since_update = 0;
     }
 
     fn update_wheels(
@@ -1073,7 +1070,5 @@ impl Car {
             rb.collision_object.get_world_transform().translation * BT_TO_UU;
         self.internal_state.phys.vel = rb.linear_velocity * BT_TO_UU;
         self.internal_state.phys.ang_vel = rb.angular_velocity;
-
-        self.internal_state.tick_count_since_update += 1;
     }
 }

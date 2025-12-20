@@ -93,7 +93,6 @@ impl DropshotInfo {
 )]
 pub struct BallState {
     pub phys: PhysState,
-    pub ticks_since_update: u64,
     pub hs_info: HeatseekerInfo,
     pub ds_info: DropshotInfo,
 }
@@ -112,7 +111,6 @@ impl BallState {
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
         },
-        ticks_since_update: 0,
         hs_info: HeatseekerInfo::DEFAULT,
         ds_info: DropshotInfo::DEFAULT,
     };
@@ -200,7 +198,6 @@ impl Ball {
         }
 
         self.internal_state = state;
-        self.internal_state.ticks_since_update = 0;
     }
 
     pub(crate) fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
@@ -242,8 +239,6 @@ impl Ball {
         let trans = *rb.collision_object.get_world_transform();
         self.internal_state.phys.pos = trans.translation * consts::BT_TO_UU;
         self.internal_state.phys.rot_mat = trans.matrix3;
-
-        self.internal_state.ticks_since_update += 1;
     }
 
     pub(crate) fn on_hit(
