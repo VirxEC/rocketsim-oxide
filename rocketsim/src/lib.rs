@@ -19,18 +19,24 @@ use std::{
     sync::{Arc, RwLock},
     time::Instant,
 };
-
+use std::sync::OnceLock;
 use ahash::AHashMap;
 use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
-use log::{error, info};
+use log::{error, info, warn};
 use sim::collision_meshes::{
     COLLISION_MESH_BASE_PATH, COLLISION_MESH_FILE_EXTENSION, CollisionMeshFile,
 };
 pub use sim::*;
 
+static HAS_INITIALIZED_LOCK: OnceLock<()> = OnceLock::new();
+
 pub(crate) static ARENA_COLLISION_SHAPES: RwLock<
     Option<AHashMap<GameMode, Vec<Arc<BvhTriangleMeshShape>>>>,
 > = RwLock::new(None);
+
+pub fn is_initialized() -> bool {
+    HAS_INITIALIZED_LOCK.get().is_some()
+}
 
 pub fn init_from_default(silent: bool) -> IoResult<()> {
     init(COLLISION_MESH_BASE_PATH, silent)
@@ -93,6 +99,13 @@ pub fn init_from_mem(
 ) -> IoResult<()> {
     if !silent {
         let _ = logging::try_init();
+    }
+
+    if HAS_INITIALIZED_LOCK.set(()).is_ok() {
+        // Initialization locked successfully
+    } else {
+        warn!("RocketSim initialized again, ignoring...");
+        return Ok(());
     }
 
     info!("Initializing RocketSim, originally by ZealanL and ported to Rust by VirxEC...");
