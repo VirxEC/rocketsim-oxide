@@ -219,6 +219,10 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
             &mut manifold,
         );
 
+        if manifold.point_cache.is_empty() {
+            return None;
+        }
+
         manifold.refresh_contact_points(self.col1, self.col2);
         Some(manifold)
     }
@@ -355,7 +359,9 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
 
         // intersect the incident and reference faces
         let mut ret = intersect_rect_quad2(rect, &quad);
-        debug_assert!(!ret.is_empty());
+        if ret.is_empty() {
+            return;
+        }
 
         // convert the intersection points into reference-face coordinates,
         // and compute the contact position and depth for each point. only keep
@@ -379,7 +385,9 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
                 cnum += 1;
             }
         }
-        debug_assert_ne!(cnum, 0);
+        if cnum == 0 {
+            return;
+        }
 
         // we can't generate more contacts than we actually have
         let maxc = MANIFOLD_CACHE_SIZE.clamp(1, cnum);

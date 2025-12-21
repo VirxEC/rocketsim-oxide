@@ -56,53 +56,51 @@ impl SolverConstraint {
 
         let (denom0, vel0, vel_1_dot_n) = rb0.map_or((0.0, Vec3A::ZERO, 0.0), |rb| {
             let torque_axis = rel_pos1.cross(cp.normal_world_on_b);
-            let angular_component = rb.inertia_tensor_world * torque_axis;
-            let vec = angular_component.cross(rel_pos1);
+            self.angular_component_a = rb.inertia_tensor_world * torque_axis;
+            let vec = self.angular_component_a.cross(rel_pos1);
             let denom = rb.inverse_mass + cp.normal_world_on_b.dot(vec);
             let vel = rb.get_velocity_in_local_point(rel_pos1);
 
-            let (contact_normal, rel_pos_cross_normal) = (cp.normal_world_on_b, torque_axis);
+            self.contact_normal_1 = cp.normal_world_on_b;
+            self.rel_pos1_cross_normal = torque_axis;
 
             solver_body_a.internal_apply_impulse(
-                contact_normal * solver_body_a.inv_mass,
-                angular_component,
+                cp.normal_world_on_b * solver_body_a.inv_mass,
+                self.angular_component_a,
                 self.applied_impulse,
             );
 
-            let vel_dot_n = contact_normal
+            let vel_dot_n = self
+                .contact_normal_1
                 .dot(solver_body_a.linear_velocity + solver_body_a.external_force_impulse)
-                + rel_pos_cross_normal
+                + self
+                    .rel_pos1_cross_normal
                     .dot(solver_body_a.angular_velocity + solver_body_a.external_torque_impulse);
-
-            self.angular_component_a = angular_component;
-            self.contact_normal_1 = contact_normal;
-            self.rel_pos1_cross_normal = rel_pos_cross_normal;
 
             (denom, vel, vel_dot_n)
         });
 
         let (denom1, vel1, vel_2_dot_n) = rb1.map_or((0.0, Vec3A::ZERO, 0.0), |rb| {
-            let torque_axis = rel_pos2.cross(-cp.normal_world_on_b);
-            let angular_component = rb.inertia_tensor_world * torque_axis;
-            let vec = angular_component.cross(rel_pos2);
-            let denom = rb.inverse_mass + (-cp.normal_world_on_b).dot(vec);
+            let torque_axis = rel_pos2.cross(cp.normal_world_on_b);
+            self.angular_component_b = rb.inertia_tensor_world * -torque_axis;
+            let vec = (-self.angular_component_b).cross(rel_pos2);
+            let denom = rb.inverse_mass + cp.normal_world_on_b.dot(vec);
             let vel = rb.get_velocity_in_local_point(rel_pos2);
-            let (contact_normal, rel_pos_cross_normal) = (-cp.normal_world_on_b, -torque_axis);
+            self.contact_normal_2 = -cp.normal_world_on_b;
+            self.rel_pos2_cross_normal = -torque_axis;
 
             solver_body_b.internal_apply_impulse(
-                -contact_normal * solver_body_b.inv_mass,
-                -angular_component,
+                cp.normal_world_on_b * solver_body_b.inv_mass,
+                -self.angular_component_b,
                 -self.applied_impulse,
             );
 
-            let vel_dot_n = contact_normal
+            let vel_dot_n = self
+                .contact_normal_2
                 .dot(solver_body_b.linear_velocity + solver_body_b.external_force_impulse)
-                + rel_pos_cross_normal
+                + self
+                    .rel_pos2_cross_normal
                     .dot(solver_body_b.angular_velocity + solver_body_b.external_torque_impulse);
-
-            self.angular_component_b = angular_component;
-            self.contact_normal_2 = contact_normal;
-            self.rel_pos2_cross_normal = rel_pos_cross_normal;
 
             (denom, vel, vel_dot_n)
         });
@@ -142,38 +140,37 @@ impl SolverConstraint {
         normal_axis: Vec3A,
     ) {
         let (vel_1_dot_n, denom1) = rb0.map_or((0.0, 0.0), |rb| {
-            let torque_axis = rel_pos1.cross(normal_axis);
+            self.contact_normal_1 = normal_axis;
+            self.rel_pos1_cross_normal = rel_pos1.cross(self.contact_normal_1);
+            self.angular_component_a = rb.inertia_tensor_world * self.rel_pos1_cross_normal;
 
-            let vel_dot_n = normal_axis
-                .dot(solver_body_a.linear_velocity + solver_body_a.external_force_impulse)
-                + torque_axis.dot(solver_body_a.angular_velocity);
-
-            let angular_component = rb.inertia_tensor_world * torque_axis;
-            let vec = angular_component.cross(rel_pos1);
+            let vec = self.angular_component_a.cross(rel_pos1);
             let denom = rb.inverse_mass + normal_axis.dot(vec);
 
-            self.contact_normal_1 = normal_axis;
-            self.rel_pos1_cross_normal = torque_axis;
-            self.angular_component_a = angular_component;
+            let vel_dot_n = self
+                .contact_normal_1
+                .dot(solver_body_a.linear_velocity + solver_body_a.external_force_impulse)
+                + self
+                    .rel_pos1_cross_normal
+                    .dot(solver_body_a.angular_velocity);
 
             (vel_dot_n, denom)
         });
 
         let (vel_2_dot_n, denom2) = rb1.map_or((0.0, 0.0), |rb| {
-            let normal_axis = -normal_axis;
-            let torque_axis = rel_pos2.cross(normal_axis);
+            self.contact_normal_2 = -normal_axis;
+            self.rel_pos2_cross_normal = rel_pos2.cross(self.contact_normal_2);
+            self.angular_component_b = rb.inertia_tensor_world * self.rel_pos2_cross_normal;
 
-            let vel_dot_n = normal_axis
-                .dot(solver_body_b.linear_velocity + solver_body_b.external_force_impulse)
-                + torque_axis.dot(solver_body_b.angular_velocity);
-
-            let angular_component = rb.inertia_tensor_world * torque_axis;
-            let vec = angular_component.cross(rel_pos2);
+            let vec = (-self.angular_component_b).cross(rel_pos2);
             let denom = rb.inverse_mass + normal_axis.dot(vec);
 
-            self.contact_normal_2 = normal_axis;
-            self.rel_pos2_cross_normal = torque_axis;
-            self.angular_component_b = angular_component;
+            let vel_dot_n = self
+                .contact_normal_2
+                .dot(solver_body_b.linear_velocity + solver_body_b.external_force_impulse)
+                + self
+                    .rel_pos2_cross_normal
+                    .dot(solver_body_b.angular_velocity);
 
             (vel_dot_n, denom)
         });
