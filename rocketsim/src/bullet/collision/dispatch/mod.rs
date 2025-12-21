@@ -1,3 +1,4 @@
+mod box_box_detector;
 pub mod collision_dispatcher;
 pub mod collision_object;
 mod collision_object_wrapper;
