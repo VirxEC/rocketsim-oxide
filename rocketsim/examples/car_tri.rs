@@ -1,5 +1,6 @@
 #![cfg(feature = "rlviser")]
 
+use glam::{Mat3A, Vec3A};
 use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default, rlviser::RLViser};
 
 fn main() {
@@ -9,11 +10,17 @@ fn main() {
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
 
     let car = arena.get_car_mut(id).unwrap();
-    // car.controls.throttle = 1.0;
     let mut state = *car.get_state();
+    let f = Vec3A::new(0., -1., 0.5).normalize();
+    let up = Vec3A::NEG_Z;
+    let tr = up.cross(f);
+    let u = f.cross(tr).normalize();
+    let r = u.cross(f).normalize();
+    state.phys.rot_mat = Mat3A::from_cols(f, r, u);
+
     state.phys.pos.x = 2000.0;
-    state.phys.pos.y = 4925.0;
-    state.phys.pos.z = 17.0;
+    state.phys.pos.y = 4960.0;
+    state.phys.pos.z = 40.0;
     arena.set_car_state(id, state);
 
     arena.step(1);

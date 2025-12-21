@@ -26,11 +26,11 @@ struct Hit {
     axis_index: usize,
 }
 
-fn project_triangle(tri: &TriangleShape, obb_center: Vec3A, axis: Vec3A) -> (f32, f32) {
+fn project_triangle(tri: &TriangleShape, axis: Vec3A) -> (f32, f32) {
     let projections = Vec3A::new(
-        (tri.points[0] - obb_center).dot(axis),
-        (tri.points[1] - obb_center).dot(axis),
-        (tri.points[2] - obb_center).dot(axis),
+        tri.points[0].dot(axis),
+        tri.points[1].dot(axis),
+        tri.points[2].dot(axis),
     );
 
     (projections.min_element(), projections.max_element())
@@ -42,76 +42,70 @@ fn closest_point_on_segment(p: Vec3A, a: Vec3A, b: Vec3A) -> Vec3A {
     a + ab * t.clamp(0.0, 1.0)
 }
 
-/// Check SAT between OBB and triangle; if collision, return penetration depth & normal
-fn obb_triangle_sat(obb: &Obb, tri: &TriangleShape) -> Option<Hit> {
-    // Prepare candidate axes
-    let axes = [
-        tri.normal,
-        obb.axis.x_axis,
-        obb.axis.y_axis,
-        obb.axis.z_axis,
-    ];
+/// Project an AABB onto an axis, returning the “radius” (half-projection length)
+pub fn project_aabb_radius(extent: Vec3A, axis: Vec3A) -> f32 {
+    axis.abs().dot(extent)
+}
 
-    let mut min_overlap = f32::INFINITY;
-    let mut min_axis = Vec3A::ZERO;
+/// Check SAT between AABB and triangle; if collision, return penetration depth & normal
+fn aabb_triangle_sat(
+    extent: Vec3A,
+    tri: &TriangleShape,
+    tri_normal_overlap: f32,
+    contact_breaking_threshold: f32,
+) -> Option<Hit> {
+    const IDENT_AXES: [Vec3A; 3] = [Vec3A::X, Vec3A::Y, Vec3A::Z];
+
+    let mut min_overlap = tri_normal_overlap;
+    let mut min_axis = tri.normal;
     let mut min_axis_index = 0;
 
-    for (axis_index, axis) in axes.into_iter().enumerate() {
-        // Project OBB
-        let r_obb = obb.project_obb_radius(axis);
+    let mut axis_index = 0;
+    for obb_axis in IDENT_AXES {
+        axis_index += 1;
 
-        // Project triangle
-        let (tri_min, tri_max) = project_triangle(tri, obb.center, axis);
+        let r_obb = project_aabb_radius(extent, obb_axis);
+        let (tri_min, tri_max) = project_triangle(tri, obb_axis);
 
-        // Compute projected interval of triangle relative to 0 (centered at obb.center): [tri_min, tri_max]
-        // Compute overlap: OBB projection is [-r_obb, +r_obb]
-        // So overlap amount = (r_obb) - distance from center to triangle interval center, but simpler:
-        // overlap = r_obb + (r_obb) - (tri_max - tri_min)? No: better to think:
-        // If projections are [-r_obb, +r_obb] and [tri_min, tri_max], the distance between centers is (tri_min + tri_max)/2,
-        // But simpler: compute overlap length = (r_obb * 2) + (tri_max - tri_min) - separation
-        // However, Eberly’s method is simpler: check if interval [tri_min, tri_max] intersects [-r_obb, +r_obb];
-        // Then compute overlap as min( r_obb - tri_min, tri_max + r_obb ) (depending on which side is penetrating).
-        // We'll compute separation:
         let tri_center = (tri_min + tri_max) * 0.5;
         let tri_radius = (tri_max - tri_min) * 0.5;
-        let distance = tri_center.abs(); // because OBB interval is symmetric at 0
-        let overlap = (r_obb - distance) + tri_radius;
+        let distance = tri_center.abs();
+        let overlap = (distance - r_obb) - tri_radius;
 
-        if overlap < 0.0 {
+        if overlap > contact_breaking_threshold {
             // found separating axis
             return None;
         }
 
-        if overlap < min_overlap {
+        if overlap.abs() < min_overlap.abs() {
             min_overlap = overlap;
-            min_axis = axis;
+            min_axis = obb_axis;
             min_axis_index = axis_index;
         }
     }
 
     // Edge-edge cross axes: edges of triangle × axes of OBB
-    let mut axis_index = 3;
     for &tri_edge in &tri.edges {
-        for obb_axis in &[obb.axis.x_axis, obb.axis.y_axis, obb.axis.z_axis] {
+        for obb_axis in IDENT_AXES {
             axis_index += 1;
             let Some(axis) = obb_axis.cross(tri_edge).try_normalize() else {
                 // Parallel edges — skip this axis
                 continue;
             };
 
-            let r_obb = obb.project_obb_radius(axis);
-            let (tri_min, tri_max) = project_triangle(tri, obb.center, axis);
+            let r_obb = project_aabb_radius(extent, axis);
+            let (tri_min, tri_max) = project_triangle(tri, axis);
 
             let tri_center = (tri_min + tri_max) * 0.5;
             let tri_radius = (tri_max - tri_min) * 0.5;
-            let distance = tri_center.abs(); // because OBB interval is symmetric at 0
-            let overlap = (r_obb - distance) + tri_radius;
+            let distance = tri_center.abs();
+            let overlap = (distance - r_obb) - tri_radius;
 
-            if overlap < 0.0 {
+            if overlap > contact_breaking_threshold {
                 return None;
             }
 
-            if overlap < min_overlap {
+            if overlap.abs() < min_overlap.abs() {
                 min_overlap = overlap;
                 min_axis = axis;
                 min_axis_index = axis_index;
@@ -120,20 +114,10 @@ fn obb_triangle_sat(obb: &Obb, tri: &TriangleShape) -> Option<Hit> {
     }
 
     // No separating axis found => collision
-    // Choose the axis of least penetration as the collision normal
-    let mut normal = min_axis;
-
-    // Relative vector from OBB center to triangle (pick one triangle point, e.g., points[0])
-    let d0 = tri.points[0] - obb.center;
-    // Make sure normal points from OBB → triangle (based on d0)
-    if d0.dot(normal) < 0.0 {
-        normal = -normal;
-    }
-
     Some(Hit {
         axis_index: min_axis_index,
         depth: min_overlap,
-        normal,
+        normal: min_axis,
     })
 }
 
@@ -141,9 +125,19 @@ struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,
     pub convex_obj: CollisionObjectWrapper<'a>,
     pub tri_obj: &'a CollisionObject,
-    pub aabb: &'a Aabb,
+    pub local_convex_aabb: &'a Aabb,
     pub box_shape: &'a BoxShape,
     pub contact_added_callback: &'a mut T,
+}
+
+impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
+    fn get_triangle_separation(&self, triangle: &[Vec3A; 3], inv_tri_normal: Vec3A) -> f32 {
+        let local_pt = self.box_shape.local_get_supporting_vertex(inv_tri_normal);
+        let proj_dist_pt = inv_tri_normal.dot(local_pt);
+        let proj_dist_tr = inv_tri_normal.dot(triangle[0]);
+
+        proj_dist_tr - proj_dist_pt
+    }
 }
 
 impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T> {
@@ -153,9 +147,46 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         tri_aabb: &Aabb,
         triangle_index: usize,
     ) -> bool {
-        if !test_aabb_against_aabb(tri_aabb, self.aabb) {
+        if !test_aabb_against_aabb(tri_aabb, self.local_convex_aabb) {
             return true;
         }
+
+        // transform the triangle into OBB space
+        let xform1 = self.convex_obj.world_transform.transpose();
+        let xform2 = self.tri_obj.get_world_transform();
+        let triangle_in_obb = Affine3A {
+            matrix3: xform1.matrix3 * xform2.matrix3,
+            translation: xform1.transform_point3a(xform2.translation),
+        };
+
+        let triangle_points_in_obb = [
+            triangle_in_obb.transform_point3a(triangle.points[0]),
+            triangle_in_obb.transform_point3a(triangle.points[1]),
+            triangle_in_obb.transform_point3a(triangle.points[2]),
+        ];
+
+        let local_triangle = TriangleShape::new(triangle_points_in_obb);
+
+        // check if this is fully on one side of the triangle
+        // check the back side first because we expect that to be the most likely
+        let back_dist =
+            self.get_triangle_separation(&local_triangle.points, -local_triangle.normal);
+        if back_dist > self.manifold.contact_breaking_threshold {
+            return true;
+        }
+
+        // now check the other side
+        let front_dist =
+            self.get_triangle_separation(&local_triangle.points, local_triangle.normal);
+        if front_dist > self.manifold.contact_breaking_threshold {
+            return true;
+        }
+
+        let tri_normal_overlap = if front_dist.abs() < back_dist.abs() {
+            front_dist
+        } else {
+            back_dist
+        };
 
         let obb = Obb::new(
             self.convex_obj.world_transform.translation,
@@ -163,10 +194,16 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             self.box_shape.get_half_extents(),
         );
 
-        let Some(hit) = obb_triangle_sat(&obb, triangle) else {
+        let Some(hit) = aabb_triangle_sat(
+            obb.extent,
+            &local_triangle,
+            tri_normal_overlap,
+            self.manifold.contact_breaking_threshold,
+        ) else {
             return true;
         };
 
+        // transform hit.normal back into world space from obb space
         let normal_on_b_in_world = self
             .convex_obj
             .world_transform
@@ -176,8 +213,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             0 => {
                 // Triangle normal axis
                 // Find closest point on OBB to triangle plane
-                let plane_d = -triangle.normal.dot(triangle.points[0]);
-                let dist_to_plane = triangle.normal.dot(obb.center) + plane_d;
+                let dist_to_plane = -local_triangle.normal.dot(local_triangle.points[0]);
                 let closest_point = obb.center - triangle.normal * dist_to_plane;
 
                 self.manifold.add_contact_point(
@@ -185,7 +221,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                     self.tri_obj,
                     normal_on_b_in_world,
                     closest_point,
-                    dist_to_plane,
+                    hit.depth,
                     -1,
                     triangle_index as i32,
                     self.contact_added_callback,
@@ -195,13 +231,13 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
                 // OBB face axis — use face projection
                 let face_axis_idx = hit.axis_index - 1;
                 let face_verts = obb.get_face_verts(face_axis_idx, 1.0);
+                let plane_d = -triangle.normal.dot(triangle.points[0]);
 
                 // Find closest point on triangle to face
-                let mut closest_point = face_verts[0];
+                let mut closest_point = Vec3A::ZERO;
                 let mut min_dist_sq = f32::INFINITY;
                 for &face_vert in &face_verts {
                     // Project face_vert onto triangle plane
-                    let plane_d = -triangle.normal.dot(triangle.points[0]);
                     let dist_to_plane = triangle.normal.dot(face_vert) + plane_d;
                     let proj_point = face_vert - triangle.normal * dist_to_plane;
 
@@ -317,7 +353,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                     matrix3: xform1.matrix3 * xform2.matrix3,
                     translation: xform1.transform_point3a(xform2.translation),
                 };
-                let aabb = box_shape.get_aabb(&convex_in_triangle_space);
+                let aabb_in_triangle = box_shape.get_aabb(&convex_in_triangle_space);
 
                 let mut convex_triangle_callback = {
                     ConvexTriangleCallback {
@@ -328,13 +364,13 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                         ),
                         convex_obj: compound_obj_wrap,
                         tri_obj: self.other_obj,
-                        aabb: &aabb,
+                        local_convex_aabb: &aabb_in_triangle,
                         box_shape,
                         contact_added_callback: self.contact_added_callback,
                     }
                 };
 
-                tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb);
+                tri_mesh.process_all_triangles(&mut convex_triangle_callback, &aabb_in_triangle);
 
                 convex_triangle_callback
                     .manifold
