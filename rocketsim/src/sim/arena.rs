@@ -122,15 +122,14 @@ impl ArenaData {
 
     fn on_car_car_collision(
         &mut self,
-        car_1_id: u64,
-        car_2_id: u64,
+        mut car_1_id: u64,
+        mut car_2_id: u64,
         manifold_point: &mut ManifoldPoint,
     ) {
         manifold_point.combined_friction = consts::car::HIT_CAR_COEFS.friction;
         manifold_point.combined_restitution = consts::car::HIT_CAR_COEFS.restitution;
 
-        // SAFETY: car_1_id and car_2_id are guaranteed to be different;
-        // a car cannot collide with itself.
+        debug_assert_ne!(car_1_id, car_2_id);
         let [car_1, car_2] =
             unsafe { self.cars.get_disjoint_unchecked_mut([&car_1_id, &car_2_id]) };
         let mut car_1 = car_1.unwrap();
@@ -144,6 +143,7 @@ impl ArenaData {
         for is_swapped in [false, true] {
             if is_swapped {
                 mem::swap(&mut car_1, &mut car_2);
+                mem::swap(&mut car_1_id, &mut car_2_id);
             }
 
             let state_1 = &car_1.internal_state;
@@ -163,7 +163,7 @@ impl ArenaData {
                 continue;
             }
 
-            let vel_dir = state_1.phys.vel.normalize();
+            let vel_dir = state_1.phys.vel.normalize_or_zero();
             let dir_to_other_car = delta_pos.normalize();
 
             let speed_towards_other_car = state_1.phys.vel.dot(dir_to_other_car);

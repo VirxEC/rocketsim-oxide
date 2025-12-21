@@ -57,14 +57,17 @@ impl Obb {
         let eu = self.extent[(face_axis_idx + 1) % 3];
         let ev = self.extent[(face_axis_idx + 2) % 3];
 
+        let ueu = u * eu;
+        let vev = v * ev;
+
         let center = self.center + axis[face_axis_idx] * self.extent[face_axis_idx] * side_sign;
 
         // CCW ordering
         [
-            center + u * eu + v * ev,
-            center + u * eu - v * ev,
-            center - u * eu - v * ev,
-            center - u * eu + v * ev,
+            center + ueu + vev,
+            center + ueu - vev,
+            center - ueu - vev,
+            center - ueu + vev,
         ]
     }
 
