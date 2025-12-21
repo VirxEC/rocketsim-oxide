@@ -48,12 +48,7 @@ pub fn project_aabb_radius(extent: Vec3A, axis: Vec3A) -> f32 {
 }
 
 /// Check SAT between AABB and triangle; if collision, return penetration depth & normal
-fn aabb_triangle_sat(
-    extent: Vec3A,
-    tri: &TriangleShape,
-    tri_normal_overlap: f32,
-    contact_breaking_threshold: f32,
-) -> Option<Hit> {
+fn aabb_triangle_sat(extent: Vec3A, tri: &TriangleShape, tri_normal_overlap: f32) -> Option<Hit> {
     const IDENT_AXES: [Vec3A; 3] = [Vec3A::X, Vec3A::Y, Vec3A::Z];
 
     let mut min_overlap = tri_normal_overlap;
@@ -72,12 +67,12 @@ fn aabb_triangle_sat(
         let distance = tri_center.abs();
         let overlap = (distance - r_obb) - tri_radius;
 
-        if overlap > contact_breaking_threshold {
+        if overlap > 0.0 {
             // found separating axis
             return None;
         }
 
-        if overlap.abs() < min_overlap.abs() {
+        if overlap > min_overlap {
             min_overlap = overlap;
             min_axis = obb_axis;
             min_axis_index = axis_index;
@@ -101,11 +96,11 @@ fn aabb_triangle_sat(
             let distance = tri_center.abs();
             let overlap = (distance - r_obb) - tri_radius;
 
-            if overlap > contact_breaking_threshold {
+            if overlap > 0.0 {
                 return None;
             }
 
-            if overlap.abs() < min_overlap.abs() {
+            if overlap > min_overlap {
                 min_overlap = overlap;
                 min_axis = axis;
                 min_axis_index = axis_index;
@@ -182,11 +177,10 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             return true;
         }
 
-        let tri_normal_overlap = if front_dist.abs() < back_dist.abs() {
-            front_dist
-        } else {
-            back_dist
-        };
+        let tri_normal_overlap = front_dist.min(back_dist);
+        if tri_normal_overlap > 0.0 {
+            return true;
+        }
 
         let obb = Obb::new(
             self.convex_obj.world_transform.translation,
@@ -194,12 +188,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             self.box_shape.get_half_extents(),
         );
 
-        let Some(hit) = aabb_triangle_sat(
-            obb.extent,
-            &local_triangle,
-            tri_normal_overlap,
-            self.manifold.contact_breaking_threshold,
-        ) else {
+        let Some(hit) = aabb_triangle_sat(obb.extent, &local_triangle, tri_normal_overlap) else {
             return true;
         };
 
