@@ -713,6 +713,13 @@ impl Arena {
         }
     }
 
+    pub fn remove_all_cars(&mut self) {
+        while !self.cars().is_empty() {
+            let id = *self.cars().keys().next().unwrap();
+            self.remove_car(id);
+        }
+    }
+
     fn internal_step(&mut self) {
         {
             let ball_rb = &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx];
