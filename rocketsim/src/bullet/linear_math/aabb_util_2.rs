@@ -1,6 +1,6 @@
 use std::ops::{Add, AddAssign};
 
-use glam::{Affine3A, Vec3A};
+use glam::{Affine3A, Vec3A, Vec4};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Aabb {
@@ -64,20 +64,37 @@ pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> Aabb {
     }
 }
 
-pub fn intersect_ray_aabb(
-    ray_from: Vec3A,
-    ray_dir_inv: Vec3A,
+/// Packet slab test for 4 rays using Vec4 lanes.
+///
+/// Returns a bitmask (bit i set if ray i overlaps the AABB).
+/// Only the lowest 4 bits are set.
+pub fn intersect_ray_aabb_packet(
+    origins: &[Vec4; 3],
+    inv_dir: &[Vec4; 3],
     bounds: &Aabb,
-    lambda_max: f32,
-) -> bool {
-    let t0 = (bounds.min - ray_from) * ray_dir_inv;
-    let t1 = (bounds.max - ray_from) * ray_dir_inv;
+    lambda_max: Vec4,
+) -> u8 {
+    let t0x = (bounds.min.x - origins[0]) * inv_dir[0];
+    let t1x = (bounds.max.x - origins[0]) * inv_dir[0];
+    let tminx = t0x.min(t1x);
+    let tmaxx = t0x.max(t1x);
 
-    let t_enter = t0.min(t1);
-    let t_exit = t0.max(t1);
+    let t0y = (bounds.min.y - origins[1]) * inv_dir[1];
+    let t1y = (bounds.max.y - origins[1]) * inv_dir[1];
+    let tminy = t0y.min(t1y);
+    let tmaxy = t0y.max(t1y);
 
-    let t_near = t_enter.max_element();
-    let t_far = t_exit.min_element();
+    let t0z = (bounds.min.z - origins[2]) * inv_dir[2];
+    let t1z = (bounds.max.z - origins[2]) * inv_dir[2];
+    let tminz = t0z.min(t1z);
+    let tmaxz = t0z.max(t1z);
 
-    (t_near <= t_far) && (t_far >= 0.0) && (t_near <= lambda_max)
+    let t_enter = tminx.max(tminy).max(tminz);
+    let t_exit = tmaxx.min(tmaxy).min(tmaxz);
+
+    let cond1 = t_enter.cmple(t_exit);
+    let cond2 = t_exit.cmpge(Vec4::ZERO);
+    let cond3 = t_enter.cmple(lambda_max);
+
+    (cond1 & cond2 & cond3).bitmask() as u8
 }

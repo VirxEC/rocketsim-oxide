@@ -9,7 +9,7 @@ use super::{
 use crate::bullet::{
     collision::{
         broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
+        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
         shapes::sphere_shape::SPHERE_RADIUS_MARGIN,
     },
     linear_math::aabb_util_2::Aabb,
@@ -127,9 +127,9 @@ impl CollisionShapes {
 
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
-        result_callback: &mut BridgeTriangleRaycastCallback<T>,
-        ray_from_local: Vec3A,
-        ray_to_local: Vec3A,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
+        ray_from_local: &[Vec3A; 4],
+        ray_to_local: &[Vec3A; 4],
     ) {
         match self {
             Self::Compound(compound) => {

@@ -4,7 +4,7 @@ use super::concave_shape::ConcaveShape;
 use crate::bullet::{
     collision::{
         broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
+        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
         shapes::collision_shape::CollisionShape,
     },
     linear_math::{
@@ -97,9 +97,21 @@ impl StaticPlaneShape {
 
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
-        result_callback: &mut BridgeTriangleRaycastCallback<T>,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
+        ray_source: &[Vec3A; 4],
+        ray_target: &[Vec3A; 4],
+    ) {
+        for i in 0..4 {
+            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+        }
+    }
+
+    fn internal_perform_raycast<T: RayResultCallback>(
+        &self,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
         ray_source: Vec3A,
         ray_target: Vec3A,
+        ray_idx: usize,
     ) {
         let aabb = self.concave_shape.collision_shape.aabb_cache.unwrap();
         let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
@@ -123,6 +135,6 @@ impl StaticPlaneShape {
         }
 
         let hit_fraction = t / dist;
-        result_callback.report_hit(self.plane_normal, hit_fraction);
+        result_callback.report_hit(self.plane_normal, hit_fraction, ray_idx);
     }
 }

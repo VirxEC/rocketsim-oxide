@@ -9,7 +9,7 @@ use super::{
 use crate::bullet::{
     collision::{
         broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
+        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     },
     linear_math::aabb_util_2::Aabb,
 };
@@ -73,9 +73,21 @@ impl SphereShape {
 
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
-        result_callback: &mut BridgeTriangleRaycastCallback<T>,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
+        ray_source: &[Vec3A; 4],
+        ray_target: &[Vec3A; 4],
+    ) {
+        for i in 0..4 {
+            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+        }
+    }
+
+    fn internal_perform_raycast<T: RayResultCallback>(
+        &self,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
         ray_source: Vec3A,
         ray_target: Vec3A,
+        ray_idx: usize,
     ) {
         let ray_aabb_min = ray_source.min(ray_target);
         let ray_aabb_max = ray_source.max(ray_target);
@@ -121,6 +133,6 @@ impl SphereShape {
         let normal = hit_point / radius;
         let hit_fraction = t / dist;
 
-        result_callback.report_hit(normal, hit_fraction);
+        result_callback.report_hit(normal, hit_fraction, ray_idx);
     }
 }

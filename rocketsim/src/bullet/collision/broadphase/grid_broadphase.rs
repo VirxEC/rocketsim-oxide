@@ -407,12 +407,15 @@ impl GridBroadphase {
 
     pub fn ray_test<T: BroadphaseAabbCallback>(
         &self,
-        ray_from: Vec3A,
-        ray_to: Vec3A,
+        ray_from: &[Vec3A; 4],
+        ray_to: &[Vec3A; 4],
         ray_callback: &mut T,
     ) {
-        debug_assert!(ray_from.distance_squared(ray_to) < self.cell_grid.cell_size_sq);
-        let cell = &self.cell_grid.cells[self.cell_grid.get_cell_index(ray_from)];
+        debug_assert!(ray_from[0].distance_squared(ray_to[0]) < self.cell_grid.cell_size_sq);
+        debug_assert!(ray_from[1].distance_squared(ray_to[1]) < self.cell_grid.cell_size_sq);
+        debug_assert!(ray_from[2].distance_squared(ray_to[2]) < self.cell_grid.cell_size_sq);
+        debug_assert!(ray_from[3].distance_squared(ray_to[3]) < self.cell_grid.cell_size_sq);
+        let cell = &self.cell_grid.cells[self.cell_grid.get_cell_index(ray_from[0])];
 
         for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
             let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;

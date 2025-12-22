@@ -36,34 +36,28 @@ fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {
     aabb
 }
 
-pub struct OptimizedBvh {
-    pub bvh: Bvh,
-}
-
-impl OptimizedBvh {
-    pub fn new(triangles: &TriangleMesh, aabb: Aabb) -> Self {
-        let mut leaf_nodes: Vec<_> = triangles
-            .get_tris_aabbs()
-            .1
-            .iter()
-            .copied()
-            .map(update_triangle_aabb)
-            .enumerate()
-            .map(|(triangle_index, aabb)| BvhNode {
-                aabb,
-                node_type: NodeType::Leaf { triangle_index },
-            })
-            .collect();
-        let num_leaf_nodes = leaf_nodes.len();
-
-        let mut bvh = Bvh {
+pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Bvh {
+    let mut leaf_nodes: Vec<_> = triangles
+        .get_tris_aabbs()
+        .1
+        .iter()
+        .copied()
+        .map(update_triangle_aabb)
+        .enumerate()
+        .map(|(triangle_index, aabb)| BvhNode {
             aabb,
-            cur_node_index: 0,
-            nodes: repeat_n(BvhNode::DEFAULT, 2 * num_leaf_nodes).collect(),
-        };
+            node_type: NodeType::Leaf { triangle_index },
+        })
+        .collect();
+    let num_leaf_nodes = leaf_nodes.len();
 
-        bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);
+    let mut bvh = Bvh {
+        aabb,
+        cur_node_index: 0,
+        nodes: repeat_n(BvhNode::DEFAULT, 2 * num_leaf_nodes).collect(),
+    };
 
-        Self { bvh }
-    }
+    bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);
+
+    bvh
 }

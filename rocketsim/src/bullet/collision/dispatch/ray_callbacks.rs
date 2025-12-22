@@ -4,7 +4,7 @@ use crate::bullet::{
     collision::{
         broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
         dispatch::{collision_object::CollisionObject, collision_world::CollisionWorld},
-        shapes::{triangle_callback::TriangleRayCallback, triangle_shape::TriangleShape},
+        shapes::{triangle_callback::TriangleRayPacketCallback, triangle_shape::TriangleShape},
     },
     linear_math::interpolate_3,
 };
@@ -15,9 +15,10 @@ pub struct LocalRayResult {
     hit_fraction: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct RayResultCallbackBase {
-    pub closest_hit_fraction: f32,
-    pub collision_object_index: Option<usize>,
+    pub closest_hit_fraction: [f32; 4],
+    pub collision_object_index: [Option<usize>; 4],
     pub ignore_object_world_index: Option<usize>,
     pub collision_filter_group: u8,
     pub collision_filter_mask: u8,
@@ -26,8 +27,8 @@ pub struct RayResultCallbackBase {
 impl Default for RayResultCallbackBase {
     fn default() -> Self {
         Self {
-            closest_hit_fraction: 1.0,
-            collision_object_index: None,
+            closest_hit_fraction: [1.0; 4],
+            collision_object_index: [None; 4],
             collision_filter_group: CollisionFilterGroups::Default as u8,
             collision_filter_mask: CollisionFilterGroups::All as u8,
             ignore_object_world_index: None,
@@ -37,8 +38,8 @@ impl Default for RayResultCallbackBase {
 
 pub trait RayResultCallback {
     fn get_base(&self) -> &RayResultCallbackBase;
-    fn has_hit(&self) -> bool {
-        self.get_base().collision_object_index.is_some()
+    fn has_hit(&self, ray_idx: usize) -> bool {
+        self.get_base().collision_object_index[ray_idx].is_some()
     }
     fn needs_collision(&self, proxy0: &BroadphaseProxy) -> bool {
         let base = self.get_base();
@@ -49,21 +50,21 @@ pub trait RayResultCallback {
         proxy0.collision_filter_group & base.collision_filter_mask != 0
             && base.collision_filter_group & proxy0.collision_filter_mask != 0
     }
-    fn add_single_result(&mut self, ray_result: LocalRayResult) -> f32;
+    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize) -> f32;
 }
 
-pub struct ClosestRayResultCallback {
+pub struct ClosestRayResultCallback<'a> {
     pub base: RayResultCallbackBase,
-    ray_from_world: Vec3A,
-    ray_to_world: Vec3A,
-    pub hit_normal_world: Vec3A,
-    pub hit_point_world: Vec3A,
+    ray_from_world: &'a [Vec3A; 4],
+    ray_to_world: &'a [Vec3A; 4],
+    pub hit_normal_world: [Vec3A; 4],
+    pub hit_point_world: [Vec3A; 4],
 }
 
-impl ClosestRayResultCallback {
+impl<'a> ClosestRayResultCallback<'a> {
     pub fn new(
-        ray_from_world: Vec3A,
-        ray_to_world: Vec3A,
+        ray_from_world: &'a [Vec3A; 4],
+        ray_to_world: &'a [Vec3A; 4],
         ignore_object: &CollisionObject,
     ) -> Self {
         Self {
@@ -73,28 +74,28 @@ impl ClosestRayResultCallback {
             },
             ray_from_world,
             ray_to_world,
-            hit_normal_world: Vec3A::ZERO,
-            hit_point_world: Vec3A::ZERO,
+            hit_normal_world: [Vec3A::ZERO; 4],
+            hit_point_world: [Vec3A::ZERO; 4],
         }
     }
 }
 
-impl RayResultCallback for ClosestRayResultCallback {
+impl<'a> RayResultCallback for ClosestRayResultCallback<'a> {
     #[inline]
     fn get_base(&self) -> &RayResultCallbackBase {
         &self.base
     }
 
-    fn add_single_result(&mut self, ray_result: LocalRayResult) -> f32 {
-        debug_assert!(ray_result.hit_fraction <= self.base.closest_hit_fraction);
+    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize) -> f32 {
+        debug_assert!(ray_result.hit_fraction <= self.base.closest_hit_fraction[ray_idx]);
 
-        self.base.closest_hit_fraction = ray_result.hit_fraction;
-        self.hit_normal_world = ray_result.hit_normal_world;
+        self.base.closest_hit_fraction[ray_idx] = ray_result.hit_fraction;
+        self.hit_normal_world[ray_idx] = ray_result.hit_normal_world;
 
-        self.base.collision_object_index = Some(ray_result.collision_object_index);
-        self.hit_point_world = interpolate_3(
-            self.ray_from_world,
-            self.ray_to_world,
+        self.base.collision_object_index[ray_idx] = Some(ray_result.collision_object_index);
+        self.hit_point_world[ray_idx] = interpolate_3(
+            self.ray_from_world[ray_idx],
+            self.ray_to_world[ray_idx],
             ray_result.hit_fraction,
         );
 
@@ -102,17 +103,17 @@ impl RayResultCallback for ClosestRayResultCallback {
     }
 }
 
-pub struct SingleRayCallback<'a, T: RayResultCallback> {
-    ray_from_world: Vec3A,
-    ray_to_world: Vec3A,
+pub struct QuadRayCallback<'a, T: RayResultCallback> {
+    ray_from_world: &'a [Vec3A; 4],
+    ray_to_world: &'a [Vec3A; 4],
     world: &'a CollisionWorld,
     result_callback: &'a mut T,
 }
 
-impl<'a, T: RayResultCallback> SingleRayCallback<'a, T> {
+impl<'a, T: RayResultCallback> QuadRayCallback<'a, T> {
     pub const fn new(
-        ray_from_world: Vec3A,
-        ray_to_world: Vec3A,
+        ray_from_world: &'a [Vec3A; 4],
+        ray_to_world: &'a [Vec3A; 4],
         world: &'a CollisionWorld,
         result_callback: &'a mut T,
     ) -> Self {
@@ -125,11 +126,11 @@ impl<'a, T: RayResultCallback> SingleRayCallback<'a, T> {
     }
 }
 
-impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
+impl<T: RayResultCallback> BroadphaseAabbCallback for QuadRayCallback<'_, T> {
     fn process(&mut self, proxy: &BroadphaseProxy) -> bool {
-        if self.result_callback.get_base().closest_hit_fraction == 0.0 {
-            return false;
-        }
+        // if self.result_callback.get_base().closest_hit_fraction == 0.0 {
+        //     return false;
+        // }
 
         let obj_index = proxy.client_object_idx.unwrap();
         let rb = &self.world.collision_objects[proxy.client_object_idx.unwrap()];
@@ -137,7 +138,7 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
         let handle = &self.world.broadphase_pair_cache.handles[handle_idx].broadphase_proxy;
 
         if self.result_callback.needs_collision(handle) {
-            CollisionWorld::ray_test_single(
+            CollisionWorld::quad_ray_test(
                 self.ray_from_world,
                 self.ray_to_world,
                 &rb.collision_object,
@@ -150,41 +151,17 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for SingleRayCallback<'_, T> {
     }
 }
 
-pub struct BridgeTriangleRaycastCallback<'a, T: RayResultCallback> {
-    to: Vec3A,
-    from: Vec3A,
-    hit_fraction: f32,
-    result_callback: &'a mut T,
-    collision_object: &'a CollisionObject,
-    collision_object_index: usize,
+pub struct BridgeTriangleRaycastPacketCallback<'a, T: RayResultCallback> {
+    pub to: &'a [Vec3A; 4],
+    pub from: &'a [Vec3A; 4],
+    pub hit_fraction: [f32; 4],
+    pub collision_object: &'a CollisionObject,
+    pub collision_object_index: usize,
+    pub result_callback: &'a mut T,
 }
 
-impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
-    pub fn new(
-        from: Vec3A,
-        to: Vec3A,
-        result_callback: &'a mut T,
-        collision_object: &'a CollisionObject,
-        collision_object_index: usize,
-    ) -> Self {
-        let hit_fraction = result_callback.get_base().closest_hit_fraction;
-
-        Self {
-            to,
-            from,
-            hit_fraction,
-            result_callback,
-            collision_object,
-            collision_object_index,
-        }
-    }
-
-    pub fn report_hit(&mut self, hit_normal_local: Vec3A, hit_fraction: f32) {
-        if hit_fraction >= self.hit_fraction {
-            return;
-        }
-
-        self.hit_fraction = hit_fraction;
+impl<'a, T: RayResultCallback> BridgeTriangleRaycastPacketCallback<'a, T> {
+    fn internal_report_hit(&mut self, hit_normal_local: Vec3A, hit_fraction: f32, ray_idx: usize) {
         let hit_normal_world =
             self.collision_object.get_world_transform().matrix3 * hit_normal_local;
 
@@ -193,52 +170,75 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
             hit_normal_world,
             collision_object_index: self.collision_object_index,
         };
-        self.result_callback.add_single_result(ray_result);
+        self.result_callback.add_single_result(ray_result, ray_idx);
     }
-}
 
-impl<T: RayResultCallback> TriangleRayCallback for BridgeTriangleRaycastCallback<'_, T> {
-    fn process_triangle(&mut self, triangle: &TriangleShape) -> f32 {
+    pub fn report_hit(&mut self, hit_normal_local: Vec3A, hit_fraction: f32, ray_idx: usize) {
+        if hit_fraction >= self.hit_fraction[ray_idx] {
+            return;
+        }
+
+        self.internal_report_hit(hit_normal_local, hit_fraction, ray_idx);
+    }
+
+    fn process_triangle(&mut self, triangle: &TriangleShape, lambda_max: &mut f32, ray_idx: usize) {
         const EDGE_TOLERANCE: f32 = -0.0001;
 
         let dist = triangle.points[0].dot(triangle.normal);
-        let dist_a = triangle.normal.dot(self.from) - dist;
-        let dist_b = triangle.normal.dot(self.to) - dist;
+        let dist_a = triangle.normal.dot(self.from[ray_idx]) - dist;
+        let dist_b = triangle.normal.dot(self.to[ray_idx]) - dist;
         if dist_a * dist_b >= 0.0 {
-            return self.hit_fraction; // same sign
+            return; // same sign
         }
 
         let proj_length = dist_a - dist_b;
         let distance = dist_a / proj_length;
-        if distance >= self.hit_fraction {
-            return self.hit_fraction;
+        if distance >= self.hit_fraction[ray_idx] {
+            *lambda_max = self.hit_fraction[ray_idx];
+            return;
         }
 
-        let point = self.from.lerp(self.to, distance);
+        let point = self.from[ray_idx].lerp(self.to[ray_idx], distance);
         let v0p = triangle.points[0] - point;
         let v1p = triangle.points[1] - point;
         let cp0 = v0p.cross(v1p);
         if cp0.dot(triangle.normal) < EDGE_TOLERANCE {
-            return self.hit_fraction;
+            return;
         }
 
         let v2p = triangle.points[2] - point;
         let cp1 = v1p.cross(v2p);
         if cp1.dot(triangle.normal) < EDGE_TOLERANCE {
-            return self.hit_fraction;
+            return;
         }
 
         let cp2 = v2p.cross(v0p);
         if cp2.dot(triangle.normal) < EDGE_TOLERANCE {
-            return self.hit_fraction;
+            return;
         }
 
+        *lambda_max = distance;
         if dist_a <= 0.0 {
-            self.report_hit(-triangle.normal, distance);
+            self.internal_report_hit(-triangle.normal, distance, ray_idx);
         } else {
-            self.report_hit(triangle.normal, distance);
+            self.internal_report_hit(triangle.normal, distance, ray_idx);
         }
+    }
+}
 
-        self.hit_fraction
+impl<T: RayResultCallback> TriangleRayPacketCallback
+    for BridgeTriangleRaycastPacketCallback<'_, T>
+{
+    fn process_node(
+        &mut self,
+        triangle: &TriangleShape,
+        active_mask: u8,
+        lambda_max: &mut [f32; 4],
+    ) {
+        for (i, lambda_max) in lambda_max.iter_mut().enumerate() {
+            if (active_mask & (1 << i)) != 0 {
+                self.process_triangle(triangle, lambda_max, i);
+            }
+        }
     }
 }

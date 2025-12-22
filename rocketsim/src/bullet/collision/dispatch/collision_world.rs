@@ -8,7 +8,7 @@ use crate::bullet::{
     collision::{
         broadphase::GridBroadphase,
         dispatch::ray_callbacks::{
-            BridgeTriangleRaycastCallback, RayResultCallback, SingleRayCallback,
+            BridgeTriangleRaycastPacketCallback, QuadRayCallback, RayResultCallback,
         },
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
     },
@@ -141,37 +141,50 @@ impl CollisionWorld {
         );
     }
 
-    pub(crate) fn ray_test_single<T: RayResultCallback>(
-        ray_from: Vec3A,
-        ray_to: Vec3A,
+    pub(crate) fn quad_ray_test<T: RayResultCallback>(
+        ray_from: &[Vec3A; 4],
+        ray_to: &[Vec3A; 4],
         co: &CollisionObject,
         object_index: usize,
         result_callback: &mut T,
     ) {
         let world_to_co = co.get_world_transform().transpose();
-        let ray_from_local = world_to_co.transform_point3a(ray_from);
-        let ray_to_local = world_to_co.transform_point3a(ray_to);
 
-        let mut rcb = BridgeTriangleRaycastCallback::new(
-            ray_from_local,
-            ray_to_local,
+        let ray_from_local = [
+            world_to_co.transform_point3a(ray_from[0]),
+            world_to_co.transform_point3a(ray_from[1]),
+            world_to_co.transform_point3a(ray_from[2]),
+            world_to_co.transform_point3a(ray_from[3]),
+        ];
+
+        let ray_to_local = [
+            world_to_co.transform_point3a(ray_to[0]),
+            world_to_co.transform_point3a(ray_to[1]),
+            world_to_co.transform_point3a(ray_to[2]),
+            world_to_co.transform_point3a(ray_to[3]),
+        ];
+
+        let mut rcb = BridgeTriangleRaycastPacketCallback {
+            from: &ray_from_local,
+            to: &ray_to_local,
+            hit_fraction: result_callback.get_base().closest_hit_fraction,
+            collision_object: co,
+            collision_object_index: object_index,
             result_callback,
-            co,
-            object_index,
-        );
+        };
+
         co.get_collision_shape()
             .unwrap()
-            .perform_raycast(&mut rcb, ray_from_local, ray_to_local);
+            .perform_raycast(&mut rcb, &ray_from_local, &ray_to_local);
     }
 
     pub fn ray_test<T: RayResultCallback>(
         &self,
-        ray_from_world: Vec3A,
-        ray_to_world: Vec3A,
+        ray_from_world: &[Vec3A; 4],
+        ray_to_world: &[Vec3A; 4],
         result_callback: &mut T,
     ) {
-        let mut ray_cb =
-            SingleRayCallback::new(ray_from_world, ray_to_world, self, result_callback);
+        let mut ray_cb = QuadRayCallback::new(ray_from_world, ray_to_world, self, result_callback);
         self.broadphase_pair_cache
             .ray_test(ray_from_world, ray_to_world, &mut ray_cb);
     }

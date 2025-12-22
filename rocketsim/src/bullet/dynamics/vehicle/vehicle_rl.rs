@@ -14,6 +14,7 @@ use crate::{
             },
             discrete_dynamics_world::DiscreteDynamicsWorld,
             rigid_body::RigidBody,
+            vehicle::raycaster::VehicleRaycasterResult,
         },
         linear_math::{Mat3AExt, QuatExt},
     },
@@ -78,12 +79,7 @@ impl WheelInfoRL {
         }
     }
 
-    fn ray_cast(
-        &mut self,
-        chassis: &RigidBody,
-        raycaster: &VehicleRaycaster,
-        collision_world: &DiscreteDynamicsWorld,
-    ) {
+    fn prepare_for_raycast(&mut self, chassis: &RigidBody) -> (Vec3A, Vec3A, f32) {
         self.update_wheel_transform_ws(chassis.collision_object.get_world_transform());
 
         let suspension_travel = self.wheel_info.max_suspension_travel_cm / 100.0;
@@ -97,19 +93,26 @@ impl WheelInfoRL {
         self.wheel_info.raycast_info.contact_point_ws = target;
         self.wheel_info.raycast_info.ground_object = None;
 
-        let Some(ray_results) =
-            raycaster.cast_ray(collision_world, source, target, &chassis.collision_object)
-        else {
-            self.wheel_info.raycast_info.suspension_length =
-                self.wheel_info.suspension_rest_length_1 + suspension_travel;
-            self.wheel_info.suspension_relative_velcity = 0.0;
-            self.wheel_info.raycast_info.contact_normal_ws =
-                -self.wheel_info.raycast_info.wheel_direction_ws;
-            self.wheel_info.clipped_inv_contact_dot_suspension = 1.0;
-            self.extra_pushback = 0.0;
-            return;
-        };
+        (source, target, suspension_travel)
+    }
 
+    fn reset_wheel_suspension(&mut self, suspension_travel: f32) {
+        self.wheel_info.raycast_info.suspension_length =
+            self.wheel_info.suspension_rest_length_1 + suspension_travel;
+        self.wheel_info.suspension_relative_velcity = 0.0;
+        self.wheel_info.raycast_info.contact_normal_ws =
+            -self.wheel_info.raycast_info.wheel_direction_ws;
+        self.wheel_info.clipped_inv_contact_dot_suspension = 1.0;
+        self.extra_pushback = 0.0;
+    }
+
+    fn apply_ray_cast(
+        &mut self,
+        chassis: &RigidBody,
+        collision_world: &DiscreteDynamicsWorld,
+        suspension_travel: f32,
+        ray_results: VehicleRaycasterResult,
+    ) {
         let co = &ray_results.rigid_body.collision_object;
         self.wheel_info.raycast_info.contact_point_ws = ray_results.hit_point_in_world;
         self.wheel_info.raycast_info.contact_normal_ws = ray_results.hit_normal_in_world;
@@ -177,6 +180,24 @@ impl WheelInfoRL {
             }
         }
     }
+
+    // fn ray_cast(
+    //     &mut self,
+    //     chassis: &RigidBody,
+    //     raycaster: &VehicleRaycaster,
+    //     collision_world: &DiscreteDynamicsWorld,
+    // ) {
+    //     let (source, target, suspension_travel) = self.prepare_for_raycast(chassis);
+
+    //     let Some(ray_results) =
+    //         raycaster.cast_ray(collision_world, source, target, &chassis.collision_object)
+    //     else {
+    //         self.reset_wheel_suspension(suspension_travel);
+    //         return;
+    //     };
+
+    //     self.apply_ray_cast(chassis, collision_world, suspension_travel, ray_results);
+    // }
 
     fn calc_friction_impulses(
         &mut self,
@@ -394,7 +415,32 @@ impl VehicleRL {
         let friction_scale = chassis.get_mass() / 3.0;
         for wheel in &mut self.wheels {
             wheel.update_wheel_transform(&chassis.collision_object);
-            wheel.ray_cast(chassis, &self.raycaster, collision_world);
+        }
+
+        let mut sources = [Vec3A::ZERO; 4];
+        let mut targets = [Vec3A::ZERO; 4];
+        let mut suspension_travels = [0.0; 4];
+
+        for (i, wheel) in self.wheels.iter_mut().enumerate() {
+            (sources[i], targets[i], suspension_travels[i]) = wheel.prepare_for_raycast(chassis);
+        }
+
+        let ray_results = self.raycaster.cast_rays(
+            collision_world,
+            &sources,
+            &targets,
+            &chassis.collision_object,
+        );
+
+        for (i, wheel) in self.wheels.iter_mut().enumerate() {
+            if let Some(ray_result) = ray_results[i] {
+                wheel.apply_ray_cast(chassis, collision_world, suspension_travels[i], ray_result);
+            } else {
+                wheel.reset_wheel_suspension(suspension_travels[i]);
+            }
+        }
+
+        for wheel in &mut self.wheels {
             wheel.calc_friction_impulses(chassis, collision_world.bodies(), friction_scale, step);
         }
     }

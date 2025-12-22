@@ -10,6 +10,11 @@ pub trait TriangleCallback {
     ) -> bool;
 }
 
-pub trait TriangleRayCallback {
-    fn process_triangle(&mut self, triangle: &TriangleShape) -> f32;
+pub trait TriangleRayPacketCallback {
+    fn process_node(
+        &mut self,
+        triangle: &TriangleShape,
+        active_mask: u8,
+        lambda_max: &mut [f32; 4],
+    );
 }

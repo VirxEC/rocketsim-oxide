@@ -6,7 +6,7 @@ use super::{box_shape::BoxShape, collision_shape::CollisionShape};
 use crate::bullet::{
     collision::{
         broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastCallback, RayResultCallback},
+        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     },
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
@@ -81,9 +81,21 @@ impl CompoundShape {
 
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
-        result_callback: &mut BridgeTriangleRaycastCallback<T>,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
+        ray_source: &[Vec3A; 4],
+        ray_target: &[Vec3A; 4],
+    ) {
+        for i in 0..4 {
+            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+        }
+    }
+
+    fn internal_perform_raycast<T: RayResultCallback>(
+        &self,
+        result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
         ray_source: Vec3A,
         ray_target: Vec3A,
+        ray_idx: usize,
     ) {
         let box_aabb = self.get_ident_aabb();
         let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
@@ -147,6 +159,6 @@ impl CompoundShape {
         hit_normal[hit_axis] = -dir[hit_axis].signum();
 
         let hit_fraction = tenter.max(0.0) / dist;
-        result_callback.report_hit(hit_normal, hit_fraction);
+        result_callback.report_hit(hit_normal, hit_fraction, ray_idx);
     }
 }
