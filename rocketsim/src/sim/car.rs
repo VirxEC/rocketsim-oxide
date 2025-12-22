@@ -1045,8 +1045,8 @@ impl Car {
     }
 
     pub(crate) fn finish_physics_tick(&mut self, rb: &mut RigidBody) {
-        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
         const MAX_SPEED: f32 = car_consts::MAX_SPEED * UU_TO_BT;
+        debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
 
         if self.internal_state.is_demoed {
             return;

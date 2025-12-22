@@ -49,7 +49,6 @@ pub struct RayInfo {
     source: Vec3A,
     aabb: Aabb,
     direction_inverse: Vec3A,
-    sign: [usize; 3],
     lambda_max: f32,
 }
 
@@ -61,74 +60,127 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    fn calc_means(leaf_nodes: &[BvhNode], start_index: usize, end_index: usize) -> Vec3A {
-        let mut means = Vec3A::ZERO;
-        for leaf in &leaf_nodes[start_index..end_index] {
-            let center = 0.5 * (leaf.aabb.max + leaf.aabb.min);
-            means += center;
+    const SAH_BINS: usize = 12;
+
+    fn calc_sah_split(leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) -> usize {
+        let count = end_index - start_index;
+        debug_assert!(count >= 2);
+
+        if count == 2 {
+            return start_index + 1;
         }
 
-        let num_indices = end_index - start_index;
-        means / num_indices as f32
-    }
-
-    fn calc_splitting_axis(
-        leaf_nodes: &[BvhNode],
-        start_index: usize,
-        end_index: usize,
-        means: Vec3A,
-    ) -> usize {
-        let mut variance = Vec3A::ZERO;
+        // Compute centroid bounds
+        let mut cmin = Vec3A::splat(f32::INFINITY);
+        let mut cmax = Vec3A::splat(f32::NEG_INFINITY);
         for leaf in &leaf_nodes[start_index..end_index] {
-            let center = 0.5 * (leaf.aabb.max + leaf.aabb.min);
-            let diff = center - means;
-            variance += diff * diff;
+            let c = 0.5 * (leaf.aabb.min + leaf.aabb.max);
+            cmin = cmin.min(c);
+            cmax = cmax.max(c);
         }
 
-        let num_indices = end_index - start_index;
-        variance /= (num_indices - 1) as f32;
-        variance.max_position()
+        let extent = cmax - cmin;
+
+        let mut best_axis = None;
+        let mut best_cost = f32::INFINITY;
+        let mut best_bin = 0;
+
+        // Temporary storage per axis
+        let mut bin_counts = [0usize; Self::SAH_BINS];
+        let mut bin_bounds = [Aabb::ZERO; Self::SAH_BINS];
+
+        for axis in 0..3 {
+            if extent[axis] <= f32::EPSILON {
+                continue;
+            }
+
+            // reset bins
+            bin_counts.fill(0);
+            bin_bounds.fill(Aabb::ZERO);
+
+            // Fill bins
+            let scale = (Self::SAH_BINS as f32 - 1.0) / extent[axis];
+            for leaf in &leaf_nodes[start_index..end_index] {
+                let c = 0.5 * (leaf.aabb.min + leaf.aabb.max);
+                let idx = ((c[axis] - cmin[axis]) * scale).clamp(0.0, (Self::SAH_BINS - 1) as f32)
+                    as usize;
+                if bin_counts[idx] == 0 {
+                    bin_bounds[idx] = leaf.aabb;
+                } else {
+                    bin_bounds[idx] += leaf.aabb;
+                }
+                bin_counts[idx] += 1;
+            }
+
+            // Prefix areas/counts
+            let mut prefix_area = [0.0; Self::SAH_BINS];
+            let mut prefix_count = [0usize; Self::SAH_BINS];
+            let mut running_aabb = Aabb::ZERO;
+            let mut running_count = 0usize;
+            for i in 0..Self::SAH_BINS {
+                if bin_counts[i] > 0 {
+                    running_aabb += bin_bounds[i];
+                    running_count += bin_counts[i];
+                }
+                prefix_area[i] = running_aabb.area();
+                prefix_count[i] = running_count;
+            }
+
+            // Suffix areas/counts
+            let mut suffix_area = [0.0; Self::SAH_BINS];
+            let mut suffix_count = [0usize; Self::SAH_BINS];
+            running_aabb = Aabb::ZERO;
+            running_count = 0;
+            for i in (0..Self::SAH_BINS).rev() {
+                if bin_counts[i] > 0 {
+                    running_aabb += bin_bounds[i];
+                    running_count += bin_counts[i];
+                }
+
+                suffix_area[i] = running_aabb.area();
+                suffix_count[i] = running_count;
+            }
+
+            // Evaluate splits between bins
+            for i in 0..Self::SAH_BINS - 1 {
+                let nl = prefix_count[i];
+                let nr = suffix_count[i + 1];
+                if nl == 0 || nr == 0 {
+                    continue;
+                }
+
+                let cost = prefix_area[i] * nl as f32 + suffix_area[i + 1] * nr as f32;
+                if cost < best_cost {
+                    best_cost = cost;
+                    best_axis = Some(axis);
+                    best_bin = i;
+                }
+            }
+        }
+
+        let axis = best_axis.unwrap();
+
+        // Partition by chosen axis/bin
+        let split_value =
+            cmin[axis] + extent[axis] * ((best_bin + 1) as f32) / (Self::SAH_BINS as f32);
+        let mut mid = start_index;
+        for i in start_index..end_index {
+            let c = 0.5 * (leaf_nodes[i].aabb.min + leaf_nodes[i].aabb.max);
+            if c[axis] <= split_value {
+                if i != mid {
+                    Self::swap_leaf_nodes(leaf_nodes, i, mid);
+                }
+                mid += 1;
+            }
+        }
+
+        mid
     }
 
     fn swap_leaf_nodes(leaf_nodes: &mut [BvhNode], i: usize, split_index: usize) {
         debug_assert_ne!(i, split_index);
         let [a, b] = unsafe { leaf_nodes.get_disjoint_unchecked_mut([split_index, i]) };
         mem::swap(a, b);
-    }
-
-    fn sort_and_calc_splitting_index(
-        leaf_nodes: &mut [BvhNode],
-        start_index: usize,
-        end_index: usize,
-        split_axis: usize,
-        means: Vec3A,
-    ) -> usize {
-        let mut split_index = start_index;
-
-        let split_value = means[split_axis];
-        for i in start_index..end_index {
-            let center = 0.5 * (leaf_nodes[i].aabb.max + leaf_nodes[i].aabb.min);
-            if center[split_axis] > split_value {
-                if i != split_index {
-                    Self::swap_leaf_nodes(leaf_nodes, i, split_index);
-                }
-                split_index += 1;
-            }
-        }
-
-        let num_indices = end_index - start_index;
-        let range_balanced_indices = num_indices / 3;
-        let unbalanced = split_index <= start_index + range_balanced_indices
-            || split_index >= end_index - 1 - range_balanced_indices;
-
-        if unbalanced {
-            split_index = start_index + (num_indices >> 1);
-        }
-
-        debug_assert_ne!(split_index, start_index, "tree is unbalanced");
-        debug_assert_ne!(split_index, end_index, "tree is unbalanced");
-
-        split_index
     }
 
     pub fn build_tree(&mut self, leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) {
@@ -143,15 +195,7 @@ impl Bvh {
             return;
         }
 
-        let means = Self::calc_means(leaf_nodes, start_index, end_index);
-        let split_axis = Self::calc_splitting_axis(leaf_nodes, start_index, end_index, means);
-        let split_index = Self::sort_and_calc_splitting_index(
-            leaf_nodes,
-            start_index,
-            end_index,
-            split_axis,
-            means,
-        );
+        let split_index = Self::calc_sah_split(leaf_nodes, start_index, end_index);
 
         let internal_node_index = self.cur_node_index;
 
@@ -160,7 +204,6 @@ impl Bvh {
             node.aabb.min = self.aabb.max;
             node.aabb.max = self.aabb.min;
 
-            // calculate subtree aabb
             for leaf in &leaf_nodes[start_index..end_index] {
                 node.aabb += leaf.aabb;
             }
@@ -260,7 +303,6 @@ impl Bvh {
 
         let ray_info = RayInfo {
             aabb,
-            sign: <[bool; 3]>::from(ray_direction.cmplt(Vec3A::ZERO)).map(usize::from),
             source: ray_source,
             direction_inverse: ray_dir_inv,
             lambda_max,

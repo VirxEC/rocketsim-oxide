@@ -215,7 +215,7 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
             &transform_a.matrix3,
             &obb2,
             &transform_b.matrix3,
-            hit,
+            &hit,
             &mut manifold,
         );
 
@@ -233,7 +233,7 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
         mut r1t: &'b Mat3A,
         mut obb2: &'b Obb,
         mut r2t: &'b Mat3A,
-        hit: Hit,
+        hit: &Hit,
         manifold: &mut PersistentManifold,
     ) {
         let mut r1t_axes = [r1t.x_axis, r1t.y_axis, r1t.z_axis];
@@ -468,6 +468,7 @@ impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
 
 fn box_box_sat(obb1: &Obb, r1t: &Mat3A, obb2: &Obb) -> Option<Hit> {
     const FUDGE_FACTOR: f32 = 1.05;
+    const FUDGE_2: Vec3A = Vec3A::splat(1e-5);
 
     let p = obb2.center - obb1.center;
     let pp = r1t * p;
@@ -589,7 +590,6 @@ fn box_box_sat(obb1: &Obb, r1t: &Mat3A, obb2: &Obb) -> Option<Hit> {
         true
     };
 
-    const FUDGE_2: Vec3A = Vec3A::splat(1e-5);
     q.x_axis += FUDGE_2;
     q.y_axis += FUDGE_2;
     q.z_axis += FUDGE_2;

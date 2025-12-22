@@ -146,7 +146,7 @@ struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub contact_added_callback: &'a mut T,
 }
 
-impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
+impl<T: ContactAddedCallback> ConvexTriangleCallback<'_, T> {
     fn get_triangle_separation(&self, triangle: &[Vec3A; 3], inv_tri_normal: Vec3A) -> f32 {
         let local_pt = self.box_shape.local_get_supporting_vertex(inv_tri_normal);
         let proj_dist_pt = inv_tri_normal.dot(local_pt);

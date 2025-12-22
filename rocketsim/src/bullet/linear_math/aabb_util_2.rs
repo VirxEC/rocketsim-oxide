@@ -18,6 +18,11 @@ impl Aabb {
     pub const fn new(min: Vec3A, max: Vec3A) -> Self {
         Self { min, max }
     }
+
+    pub fn area(&self) -> f32 {
+        let extents = self.max - self.min;
+        2.0 * (extents.x * extents.y + extents.x * extents.z + extents.y * extents.z)
+    }
 }
 
 impl Add for Aabb {
