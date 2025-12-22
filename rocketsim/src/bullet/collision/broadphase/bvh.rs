@@ -9,7 +9,7 @@ use crate::bullet::{
     },
     linear_math::{
         LARGE_FLOAT,
-        aabb_util_2::{Aabb, ray_aabb_2, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb, test_aabb_against_aabb},
     },
 };
 
@@ -217,11 +217,10 @@ impl Bvh {
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
                     if overlap
-                        && ray_aabb_2(
+                        && intersect_ray_aabb(
                             ray_info.source,
                             ray_info.direction_inverse,
-                            &ray_info.sign,
-                            &[root_node.aabb.min, root_node.aabb.max],
+                            &root_node.aabb,
                             ray_info.lambda_max,
                         )
                     {

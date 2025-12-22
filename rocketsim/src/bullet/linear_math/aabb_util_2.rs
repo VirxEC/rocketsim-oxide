@@ -54,34 +54,20 @@ pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> Aabb {
     }
 }
 
-pub fn ray_aabb_2(
+pub fn intersect_ray_aabb(
     ray_from: Vec3A,
-    ray_inv_dir: Vec3A,
-    ray_sign: &[usize; 3],
-    bounds: &[Vec3A; 2],
+    ray_dir_inv: Vec3A,
+    bounds: &Aabb,
     lambda_max: f32,
 ) -> bool {
-    let mut tmin = (bounds[ray_sign[0]].x - ray_from.x) * ray_inv_dir.x;
-    let mut tmax = (bounds[1 - ray_sign[0]].x - ray_from.x) * ray_inv_dir.x;
-    let tymin = (bounds[ray_sign[1]].y - ray_from.y) * ray_inv_dir.y;
-    let tymax = (bounds[1 - ray_sign[1]].y - ray_from.y) * ray_inv_dir.y;
+    let t0 = (bounds.min - ray_from) * ray_dir_inv;
+    let t1 = (bounds.max - ray_from) * ray_dir_inv;
 
-    if tmin > tymax || tymin > tmax {
-        return false;
-    }
+    let t_enter = t0.min(t1);
+    let t_exit = t0.max(t1);
 
-    tmin = tmin.max(tymin);
-    tmax = tmax.min(tymax);
+    let t_near = t_enter.max_element();
+    let t_far = t_exit.min_element();
 
-    let tzmin = (bounds[ray_sign[2]].z - ray_from.z) * ray_inv_dir.z;
-    let tzmax = (bounds[1 - ray_sign[2]].z - ray_from.z) * ray_inv_dir.z;
-
-    if tmin > tzmax || tzmin > tmax {
-        return false;
-    }
-
-    tmin = tmin.max(tzmin);
-    tmax = tmax.min(tzmax);
-
-    tmin < lambda_max && tmax > 0.0
+    (t_near <= t_far) && (t_far >= 0.0) && (t_near <= lambda_max)
 }
