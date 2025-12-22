@@ -4,9 +4,9 @@ use crate::bullet::{
     collision::{
         broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
         dispatch::{collision_object::CollisionObject, collision_world::CollisionWorld},
-        shapes::{triangle_callback::TriangleCallback, triangle_shape::TriangleShape},
+        shapes::{triangle_callback::TriangleRayCallback, triangle_shape::TriangleShape},
     },
-    linear_math::{aabb_util_2::Aabb, interpolate_3},
+    linear_math::interpolate_3,
 };
 
 pub struct LocalRayResult {
@@ -197,26 +197,21 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastCallback<'a, T> {
     }
 }
 
-impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_, T> {
-    fn process_triangle(
-        &mut self,
-        triangle: &TriangleShape,
-        _tri_aabb: &Aabb,
-        _triangle_index: usize,
-    ) -> bool {
+impl<T: RayResultCallback> TriangleRayCallback for BridgeTriangleRaycastCallback<'_, T> {
+    fn process_triangle(&mut self, triangle: &TriangleShape) -> f32 {
         const EDGE_TOLERANCE: f32 = -0.0001;
 
         let dist = triangle.points[0].dot(triangle.normal);
         let dist_a = triangle.normal.dot(self.from) - dist;
         let dist_b = triangle.normal.dot(self.to) - dist;
         if dist_a * dist_b >= 0.0 {
-            return true; // same sign
+            return self.hit_fraction; // same sign
         }
 
         let proj_length = dist_a - dist_b;
         let distance = dist_a / proj_length;
         if distance >= self.hit_fraction {
-            return true;
+            return self.hit_fraction;
         }
 
         let point = self.from.lerp(self.to, distance);
@@ -224,18 +219,18 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
         let v1p = triangle.points[1] - point;
         let cp0 = v0p.cross(v1p);
         if cp0.dot(triangle.normal) < EDGE_TOLERANCE {
-            return true;
+            return self.hit_fraction;
         }
 
         let v2p = triangle.points[2] - point;
         let cp1 = v1p.cross(v2p);
         if cp1.dot(triangle.normal) < EDGE_TOLERANCE {
-            return true;
+            return self.hit_fraction;
         }
 
         let cp2 = v2p.cross(v0p);
         if cp2.dot(triangle.normal) < EDGE_TOLERANCE {
-            return true;
+            return self.hit_fraction;
         }
 
         if dist_a <= 0.0 {
@@ -244,6 +239,6 @@ impl<T: RayResultCallback> TriangleCallback for BridgeTriangleRaycastCallback<'_
             self.report_hit(triangle.normal, distance);
         }
 
-        true
+        self.hit_fraction
     }
 }

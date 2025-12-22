@@ -4,7 +4,8 @@ use glam::Vec3A;
 
 use crate::bullet::{
     collision::shapes::{
-        triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
+        triangle_callback::{TriangleCallback, TriangleRayCallback},
+        triangle_mesh::TriangleMesh,
         triangle_shape::TriangleShape,
     },
     linear_math::{
@@ -42,6 +43,30 @@ impl<T: TriangleCallback> NodeOverlapCallback for BvhNodeOverlapCallback<'_, T> 
             &self.aabbs[node_triangle_index],
             node_triangle_index,
         );
+    }
+}
+
+pub trait RayNodeOverlapCallback {
+    fn process_node(&mut self, triangle_index: usize) -> f32;
+}
+
+pub struct BvhRayNodeOverlapCallback<'a, T: TriangleRayCallback> {
+    tris: &'a [TriangleShape],
+    callback: &'a mut T,
+}
+
+impl<'a, T: TriangleRayCallback> BvhRayNodeOverlapCallback<'a, T> {
+    pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
+        let (tris, _) = mesh_interface.get_tris_aabbs();
+
+        Self { tris, callback }
+    }
+}
+
+impl<T: TriangleRayCallback> RayNodeOverlapCallback for BvhRayNodeOverlapCallback<'_, T> {
+    fn process_node(&mut self, node_triangle_index: usize) -> f32 {
+        self.callback
+            .process_triangle(&self.tris[node_triangle_index])
     }
 }
 
@@ -245,10 +270,10 @@ impl Bvh {
         }
     }
 
-    fn walk_stackless_tree_against_ray<T: NodeOverlapCallback>(
+    fn walk_stackless_tree_against_ray<T: RayNodeOverlapCallback>(
         &self,
         node_callback: &mut T,
-        ray_info: &RayInfo,
+        ray_info: &mut RayInfo,
         start_node_index: usize,
         end_node_index: usize,
     ) {
@@ -267,7 +292,7 @@ impl Bvh {
                             ray_info.lambda_max,
                         )
                     {
-                        node_callback.process_node(triangle_index);
+                        ray_info.lambda_max = node_callback.process_node(triangle_index);
                     }
 
                     cur_index += 1;
@@ -279,7 +304,7 @@ impl Bvh {
         }
     }
 
-    pub fn report_ray_overlapping_node<T: NodeOverlapCallback>(
+    pub fn report_ray_overlapping_node<T: RayNodeOverlapCallback>(
         &self,
         node_callback: &mut T,
         ray_source: Vec3A,
@@ -290,8 +315,7 @@ impl Bvh {
             return;
         }
 
-        let ray_direction = (ray_target - ray_source).normalize();
-        let lambda_max = ray_direction.dot(ray_target - ray_source);
+        let ray_direction = ray_target - ray_source;
 
         let mut ray_dir_inv = 1.0 / ray_direction;
         // replace -inf and inf with LARGE_FLOAT
@@ -301,14 +325,14 @@ impl Bvh {
             const { Vec3A::splat(LARGE_FLOAT) },
         );
 
-        let ray_info = RayInfo {
+        let mut ray_info = RayInfo {
             aabb,
             source: ray_source,
             direction_inverse: ray_dir_inv,
-            lambda_max,
+            lambda_max: 1.0,
         };
 
-        self.walk_stackless_tree_against_ray(node_callback, &ray_info, 0, self.cur_node_index);
+        self.walk_stackless_tree_against_ray(node_callback, &mut ray_info, 0, self.cur_node_index);
     }
 
     pub fn report_aabb_overlapping_node<T: NodeOverlapCallback>(

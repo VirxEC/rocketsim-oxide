@@ -7,8 +7,9 @@ use super::{
 };
 use crate::bullet::{
     collision::{
-        broadphase::{BroadphaseNativeTypes, BvhNodeOverlapCallback},
+        broadphase::{BroadphaseNativeTypes, BvhNodeOverlapCallback, BvhRayNodeOverlapCallback},
         dispatch::internal_edge_utility::generate_internal_edge_info,
+        shapes::triangle_callback::TriangleRayCallback,
     },
     linear_math::aabb_util_2::Aabb,
 };
@@ -67,13 +68,14 @@ impl BvhTriangleMeshShape {
             .report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 
-    pub fn perform_raycast<T: TriangleCallback>(
+    pub fn perform_raycast<T: TriangleRayCallback>(
         &self,
         callback: &mut T,
         ray_source: Vec3A,
         ray_target: Vec3A,
     ) {
-        let mut my_node_callback = BvhNodeOverlapCallback::new(self.get_mesh_interface(), callback);
+        let mut my_node_callback =
+            BvhRayNodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
             .bvh
             .report_ray_overlapping_node(&mut my_node_callback, ray_source, ray_target);

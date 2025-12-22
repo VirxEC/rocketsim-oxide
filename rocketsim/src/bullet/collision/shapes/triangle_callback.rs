@@ -9,3 +9,7 @@ pub trait TriangleCallback {
         triangle_index: usize,
     ) -> bool;
 }
+
+pub trait TriangleRayCallback {
+    fn process_triangle(&mut self, triangle: &TriangleShape) -> f32;
+}
