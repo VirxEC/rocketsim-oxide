@@ -50,7 +50,7 @@ pub trait RayResultCallback {
         proxy0.collision_filter_group & base.collision_filter_mask != 0
             && base.collision_filter_group & proxy0.collision_filter_mask != 0
     }
-    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize) -> f32;
+    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize);
 }
 
 pub struct ClosestRayResultCallback<'a> {
@@ -86,8 +86,10 @@ impl RayResultCallback for ClosestRayResultCallback<'_> {
         &self.base
     }
 
-    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize) -> f32 {
-        debug_assert!(ray_result.hit_fraction <= self.base.closest_hit_fraction[ray_idx]);
+    fn add_single_result(&mut self, ray_result: LocalRayResult, ray_idx: usize) {
+        if ray_result.hit_fraction > self.base.closest_hit_fraction[ray_idx] {
+            return;
+        }
 
         self.base.closest_hit_fraction[ray_idx] = ray_result.hit_fraction;
         self.hit_normal_world[ray_idx] = ray_result.hit_normal_world;
@@ -98,8 +100,6 @@ impl RayResultCallback for ClosestRayResultCallback<'_> {
             self.ray_to_world[ray_idx],
             ray_result.hit_fraction,
         );
-
-        ray_result.hit_fraction
     }
 }
 
