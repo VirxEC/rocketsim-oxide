@@ -81,7 +81,7 @@ pub struct RayInfo {
 pub struct Bvh {
     pub aabb: Aabb,
     pub cur_node_index: usize,
-    pub contiguous_nodes: Box<[BvhNode]>,
+    pub nodes: Box<[BvhNode]>,
 }
 
 impl Bvh {
@@ -99,7 +99,7 @@ impl Bvh {
         let mut cmin = Vec3A::splat(f32::INFINITY);
         let mut cmax = Vec3A::splat(f32::NEG_INFINITY);
         for leaf in &leaf_nodes[start_index..end_index] {
-            let c = 0.5 * (leaf.aabb.min + leaf.aabb.max);
+            let c = leaf.aabb.center();
             cmin = cmin.min(c);
             cmax = cmax.max(c);
         }
@@ -126,7 +126,7 @@ impl Bvh {
             // Fill bins
             let scale = (Self::SAH_BINS as f32 - 1.0) / extent[axis];
             for leaf in &leaf_nodes[start_index..end_index] {
-                let c = 0.5 * (leaf.aabb.min + leaf.aabb.max);
+                let c = leaf.aabb.center();
                 let idx = ((c[axis] - cmin[axis]) * scale).clamp(0.0, (Self::SAH_BINS - 1) as f32)
                     as usize;
                 if bin_counts[idx] == 0 {
@@ -190,7 +190,7 @@ impl Bvh {
             cmin[axis] + extent[axis] * ((best_bin + 1) as f32) / (Self::SAH_BINS as f32);
         let mut mid = start_index;
         for i in start_index..end_index {
-            let c = 0.5 * (leaf_nodes[i].aabb.min + leaf_nodes[i].aabb.max);
+            let c = leaf_nodes[i].aabb.center();
             if c[axis] <= split_value {
                 if i != mid {
                     Self::swap_leaf_nodes(leaf_nodes, i, mid);
@@ -215,7 +215,7 @@ impl Bvh {
         debug_assert!(num_indices > 0);
 
         if num_indices == 1 {
-            self.contiguous_nodes[self.cur_node_index] = leaf_nodes[start_index];
+            self.nodes[self.cur_node_index] = leaf_nodes[start_index];
             self.cur_node_index += 1;
             return;
         }
@@ -225,7 +225,7 @@ impl Bvh {
         let internal_node_index = self.cur_node_index;
 
         {
-            let node = &mut self.contiguous_nodes[internal_node_index];
+            let node = &mut self.nodes[internal_node_index];
             node.aabb.min = self.aabb.max;
             node.aabb.max = self.aabb.min;
 
@@ -240,7 +240,7 @@ impl Bvh {
         self.build_tree(leaf_nodes, split_index, end_index);
 
         let escape_index = self.cur_node_index - cur_index;
-        self.contiguous_nodes[internal_node_index].node_type = NodeType::Branch { escape_index };
+        self.nodes[internal_node_index].node_type = NodeType::Branch { escape_index };
     }
 
     fn walk_stackless_tree<T: NodeOverlapCallback>(
@@ -252,7 +252,7 @@ impl Bvh {
     ) {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
-            let root_node = &self.contiguous_nodes[cur_index];
+            let root_node = &self.nodes[cur_index];
             let aabb_overlap = test_aabb_against_aabb(aabb, &root_node.aabb);
 
             match root_node.node_type {
@@ -279,7 +279,7 @@ impl Bvh {
     ) {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
-            let root_node = &self.contiguous_nodes[cur_index];
+            let root_node = &self.nodes[cur_index];
             let overlap = test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb);
 
             match root_node.node_type {

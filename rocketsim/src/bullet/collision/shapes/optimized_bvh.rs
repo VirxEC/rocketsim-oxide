@@ -1,3 +1,5 @@
+use std::iter::repeat_n;
+
 use glam::Vec3A;
 
 use super::triangle_mesh::TriangleMesh;
@@ -57,7 +59,7 @@ impl OptimizedBvh {
         let mut bvh = Bvh {
             aabb,
             cur_node_index: 0,
-            contiguous_nodes: vec![BvhNode::DEFAULT; 2 * num_leaf_nodes].into_boxed_slice(),
+            nodes: repeat_n(BvhNode::DEFAULT, 2 * num_leaf_nodes).collect(),
         };
 
         bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);
