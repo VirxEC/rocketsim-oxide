@@ -5,10 +5,12 @@ use super::{
     solver_constraint::SolverConstraint,
 };
 use crate::bullet::{
-    collision::narrowphase::persistent_manifold::PersistentManifold,
+    collision::narrowphase::{
+        manifold_point::ManifoldPoint, persistent_manifold::PersistentManifold,
+    },
     dynamics::rigid_body::RigidBody,
     linear_math::{
-        plane_space_1, plane_space_2,
+        plane_space_1,
         transform_util::{integrate_transform, integrate_transform_no_rot},
     },
 };
@@ -31,6 +33,29 @@ impl SpecialResolveInfo {
         restitution: 0.0,
         friction: 0.0,
     };
+
+    fn add_special_collision(
+        &mut self,
+        body0: &RigidBody,
+        body1: &RigidBody,
+        cp: &ManifoldPoint,
+        rel_pos1: Vec3A,
+        rel_pos2: Vec3A,
+    ) {
+        for (obj, rel_pos) in [
+            (&body0.collision_object, rel_pos1),
+            (&body1.collision_object, rel_pos2),
+        ] {
+            if !obj.is_static_object() {
+                self.object_index = obj.world_array_index;
+                self.num_special_collisions += 1;
+                self.friction = cp.combined_friction;
+                self.restitution = cp.combined_restitution;
+                self.total_normal += cp.normal_world_on_b;
+                self.total_dist += rel_pos.length();
+            }
+        }
+    }
 }
 
 pub struct SequentialImpulseConstraintSolver {
@@ -101,6 +126,112 @@ impl SequentialImpulseConstraintSolver {
         manifolds: &mut Vec<PersistentManifold>,
         time_step: f32,
     ) {
+        self.setup_solver_bodies(collision_objects, non_static_bodies, manifolds, time_step);
+
+        for manifold in manifolds.iter_mut() {
+            debug_assert!(manifold.body0_idx < collision_objects.len());
+            debug_assert!(manifold.body1_idx < collision_objects.len());
+            debug_assert_ne!(manifold.body0_idx, manifold.body1_idx);
+            let [body0, body1] = unsafe {
+                collision_objects
+                    .get_disjoint_unchecked_mut([manifold.body0_idx, manifold.body1_idx])
+            };
+
+            let solver_body_id_a = self.get_or_init_solver_body(body0, time_step);
+            let solver_body_id_b = self.get_or_init_solver_body(body1, time_step);
+
+            debug_assert!(solver_body_id_a < self.tmp_solver_body_pool.len());
+            debug_assert!(solver_body_id_b < self.tmp_solver_body_pool.len());
+            debug_assert_ne!(solver_body_id_a, solver_body_id_b);
+            let [solver_body_a, solver_body_b] = unsafe {
+                self.tmp_solver_body_pool
+                    .get_disjoint_unchecked_mut([solver_body_id_a, solver_body_id_b])
+            };
+
+            body0.collision_object.companion_id = Some(solver_body_id_a);
+            body1.collision_object.companion_id = Some(solver_body_id_b);
+
+            for cp in &mut manifold.point_cache {
+                assert!(cp.distance_1 <= manifold.contact_processing_threshold);
+
+                let rel_pos1 = cp.position_world_on_a
+                    - body0.collision_object.get_world_transform().translation;
+                let rel_pos2 = cp.position_world_on_b
+                    - body1.collision_object.get_world_transform().translation;
+
+                if cp.is_special {
+                    self.special_resolve_info
+                        .add_special_collision(body0, body1, cp, rel_pos1, rel_pos2);
+
+                    // Skip normal contact processing for special contacts
+                    continue;
+                }
+
+                let rb0 = solver_body_a.original_body.map(|_| &*body0);
+                let rb1 = solver_body_b.original_body.map(|_| &*body1);
+
+                let mut constraint = SolverConstraint {
+                    solver_body_id_a,
+                    solver_body_id_b,
+                    friction_index: self.tmp_solver_contact_friction_constraint_pool.len(),
+                    friction: cp.combined_friction,
+                    is_special: cp.is_special,
+                    lower_limit: 0.0,
+                    upper_limit: 1e10,
+                    ..Default::default()
+                };
+
+                constraint.setup_contact_constraint(
+                    (solver_body_a, solver_body_b),
+                    (rb0, rb1),
+                    (rel_pos1, rel_pos2),
+                    cp,
+                    time_step,
+                );
+
+                let friction_index = self.tmp_solver_contact_constraint_pool.len();
+                self.tmp_solver_contact_constraint_pool.push(constraint);
+
+                cp.calc_lat_friction_dir(solver_body_a, solver_body_b, rel_pos1, rel_pos2);
+
+                let mut constraint = SolverConstraint {
+                    friction_index,
+                    solver_body_id_a,
+                    solver_body_id_b,
+                    lower_limit: -cp.combined_friction,
+                    upper_limit: cp.combined_friction,
+                    friction: cp.combined_friction,
+                    ..Default::default()
+                };
+
+                constraint.setup_friction_constraint(
+                    (solver_body_a, solver_body_b),
+                    (rb0, rb1),
+                    (rel_pos1, rel_pos2),
+                    cp.lateral_friction_dir_1,
+                );
+
+                self.tmp_solver_contact_friction_constraint_pool
+                    .push(constraint);
+            }
+        }
+
+        manifolds.clear();
+
+        if self.special_resolve_info.num_special_collisions > 0 {
+            let body = &mut collision_objects[self.special_resolve_info.object_index];
+            self.convert_contact_special(body, time_step);
+            self.special_resolve_info = SpecialResolveInfo::DEFAULT;
+        }
+    }
+
+    fn setup_solver_bodies(
+        &mut self,
+        collision_objects: &mut [RigidBody],
+        non_static_bodies: &[usize],
+        manifolds: &[PersistentManifold],
+        time_step: f32,
+    ) {
         self.fixed_body_id = None;
 
         self.tmp_solver_body_pool.clear();
@@ -136,128 +267,6 @@ impl SequentialImpulseConstraintSolver {
                 self.fixed_body_id = Some(solver_body_id);
                 self.tmp_solver_body_pool.push(SolverBody::DEFAULT);
             }
-        }
-
-        for manifold in manifolds.iter_mut() {
-            debug_assert!(manifold.body0_idx < collision_objects.len());
-            debug_assert!(manifold.body1_idx < collision_objects.len());
-            debug_assert_ne!(manifold.body0_idx, manifold.body1_idx);
-            let [body0, body1] = unsafe {
-                collision_objects
-                    .get_disjoint_unchecked_mut([manifold.body0_idx, manifold.body1_idx])
-            };
-
-            let solver_body_id_a = self.get_or_init_solver_body(body0, time_step);
-            let solver_body_id_b = self.get_or_init_solver_body(body1, time_step);
-
-            debug_assert!(solver_body_id_a < self.tmp_solver_body_pool.len());
-            debug_assert!(solver_body_id_b < self.tmp_solver_body_pool.len());
-            debug_assert_ne!(solver_body_id_a, solver_body_id_b);
-            let [solver_body_a, solver_body_b] = unsafe {
-                self.tmp_solver_body_pool
-                    .get_disjoint_unchecked_mut([solver_body_id_a, solver_body_id_b])
-            };
-
-            body0.collision_object.companion_id = Some(solver_body_id_a);
-            body1.collision_object.companion_id = Some(solver_body_id_b);
-
-            for cp in &mut manifold.point_cache {
-                assert!(cp.distance_1 <= manifold.contact_processing_threshold);
-
-                let rel_pos1 = cp.position_world_on_a
-                    - body0.collision_object.get_world_transform().translation;
-                let rel_pos2 = cp.position_world_on_b
-                    - body1.collision_object.get_world_transform().translation;
-
-                if cp.is_special {
-                    for (obj, rel_pos) in [
-                        (&body0.collision_object, rel_pos1),
-                        (&body1.collision_object, rel_pos2),
-                    ] {
-                        if !obj.is_static_object() {
-                            self.special_resolve_info.object_index = obj.world_array_index;
-                            self.special_resolve_info.num_special_collisions += 1;
-                            self.special_resolve_info.friction = cp.combined_friction;
-                            self.special_resolve_info.restitution = cp.combined_restitution;
-                            self.special_resolve_info.total_normal += cp.normal_world_on_b;
-                            self.special_resolve_info.total_dist += rel_pos.length();
-                        }
-                    }
-
-                    // Skip normal contact processing for special contacts
-                    continue;
-                }
-
-                let rb0 = solver_body_a.original_body.map(|_| &*body0);
-                let rb1 = solver_body_b.original_body.map(|_| &*body1);
-
-                let mut constraint = SolverConstraint {
-                    solver_body_id_a,
-                    solver_body_id_b,
-                    friction_index: self.tmp_solver_contact_friction_constraint_pool.len(),
-                    friction: cp.combined_friction,
-                    is_special: cp.is_special,
-                    lower_limit: 0.0,
-                    upper_limit: 1e10,
-                    ..Default::default()
-                };
-
-                constraint.setup_contact_constraint(
-                    (solver_body_a, solver_body_b),
-                    (rb0, rb1),
-                    (rel_pos1, rel_pos2),
-                    cp,
-                    time_step,
-                );
-
-                let friction_index = self.tmp_solver_contact_constraint_pool.len();
-                self.tmp_solver_contact_constraint_pool.push(constraint);
-
-                // convertContactInner
-                let vel1 = solver_body_a.get_velocity_in_local_point_no_delta(rel_pos1);
-                let vel2 = solver_body_b.get_velocity_in_local_point_no_delta(rel_pos2);
-
-                let vel = vel1 - vel2;
-                let rel_vel = cp.normal_world_on_b.dot(vel);
-
-                cp.lateral_friction_dir_1 = vel - cp.normal_world_on_b * rel_vel;
-                let lat_rel_vel = cp.lateral_friction_dir_1.length_squared();
-
-                if lat_rel_vel > f32::EPSILON {
-                    cp.lateral_friction_dir_1 *= 1.0 / lat_rel_vel.sqrt();
-                } else {
-                    (cp.lateral_friction_dir_1, cp.lateral_friction_dir_2) =
-                        plane_space_2(cp.normal_world_on_b);
-                }
-
-                let mut constraint = SolverConstraint {
-                    friction_index,
-                    solver_body_id_a,
-                    solver_body_id_b,
-                    lower_limit: -cp.combined_friction,
-                    upper_limit: cp.combined_friction,
-                    friction: cp.combined_friction,
-                    ..Default::default()
-                };
-
-                constraint.setup_friction_constraint(
-                    (solver_body_a, solver_body_b),
-                    (rb0, rb1),
-                    (rel_pos1, rel_pos2),
-                    cp.lateral_friction_dir_1,
-                );
-
-                self.tmp_solver_contact_friction_constraint_pool
-                    .push(constraint);
-            }
-        }
-
-        manifolds.clear();
-
-        if self.special_resolve_info.num_special_collisions > 0 {
-            let body = &mut collision_objects[self.special_resolve_info.object_index];
-            self.convert_contact_special(body, time_step);
-            self.special_resolve_info = SpecialResolveInfo::DEFAULT;
         }
     }
 

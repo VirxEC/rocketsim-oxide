@@ -80,7 +80,7 @@ impl<'a> ClosestRayResultCallback<'a> {
     }
 }
 
-impl<'a> RayResultCallback for ClosestRayResultCallback<'a> {
+impl RayResultCallback for ClosestRayResultCallback<'_> {
     #[inline]
     fn get_base(&self) -> &RayResultCallbackBase {
         &self.base

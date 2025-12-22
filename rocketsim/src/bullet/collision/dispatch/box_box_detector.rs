@@ -191,7 +191,7 @@ pub struct BoxBoxDetector<'a, T: ContactAddedCallback> {
     pub contact_added_callback: &'a mut T,
 }
 
-impl<'a, T: ContactAddedCallback> BoxBoxDetector<'a, T> {
+impl<T: ContactAddedCallback> BoxBoxDetector<'_, T> {
     pub fn get_closest_points(
         &mut self,
         transform_a: Affine3A,
