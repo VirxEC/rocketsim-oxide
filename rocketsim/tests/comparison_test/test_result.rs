@@ -1,7 +1,6 @@
-use crate::comparison_test::state_compare::StateErrSet;
 use ahash::AHashMap;
-use rocketsim::GameMode;
-use crate::comparison_test::TestResultState;
+
+use crate::comparison_test::{TestResultState, state_compare::StateErrSet};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ValueErrorStat {
@@ -11,8 +10,8 @@ pub struct ValueErrorStat {
 }
 
 impl Default for ValueErrorStat {
-    fn default() -> ValueErrorStat {
-        ValueErrorStat {
+    fn default() -> Self {
+        Self {
             num_samples: 0,
             total: 0.0,
             max: -f32::INFINITY,
@@ -43,7 +42,12 @@ impl TestResult {
                 &StateErrSet::new()
             };
 
-            let all_errs_iter = tick.comparison.car_errs.iter().flatten().chain(ball_err.iter());
+            let all_errs_iter = tick
+                .comparison
+                .car_errs
+                .iter()
+                .flatten()
+                .chain(ball_err.iter());
             for (name, err) in all_errs_iter {
                 let entry = val_err_stats
                     .entry(name.clone())
@@ -54,6 +58,9 @@ impl TestResult {
             }
         }
 
-        TestResult { ticks, val_err_stats }
+        Self {
+            ticks,
+            val_err_stats,
+        }
     }
 }

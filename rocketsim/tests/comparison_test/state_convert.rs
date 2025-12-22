@@ -1,7 +1,8 @@
-use glam::{Vec3A, Mat3A};
+use glam::{Mat3A, Vec3A};
+use rocketsim::{
+    BallHitInfo, BallState, CarContact, CarControls, CarState, GameMode, PhysState, Team,
+};
 use rocketsim_rs::cxx::UniquePtr;
-use rocketsim::{CarControls, CarState, CarContact, PhysState, BallHitInfo, BallState, Team};
-use rocketsim::GameMode;
 
 pub type OldArena = rocketsim_rs::sim::Arena;
 pub type OldArenaPtr = UniquePtr<rocketsim_rs::sim::Arena>;
@@ -19,8 +20,13 @@ pub type OldGameMode = rocketsim_rs::sim::GameMode;
 pub type OldTeam = rocketsim_rs::sim::Team;
 pub type OldCarConfig = rocketsim_rs::sim::CarConfig;
 
-fn vec3_to_old(v: Vec3A) -> OldVec3 { OldVec3::new(v.x, v.y, v.z) }
-fn vec3_to_new(v: OldVec3) -> Vec3A { Vec3A::new(v.x, v.y, v.z) }
+fn vec3_to_old(v: Vec3A) -> OldVec3 {
+    OldVec3::new(v.x, v.y, v.z)
+}
+
+const fn vec3_to_new(v: OldVec3) -> Vec3A {
+    Vec3A::new(v.x, v.y, v.z)
+}
 
 fn rot_mat_to_old(m: Mat3A) -> OldRotMat {
     OldRotMat {
@@ -30,7 +36,7 @@ fn rot_mat_to_old(m: Mat3A) -> OldRotMat {
     }
 }
 
-fn rot_mat_to_new(m: OldRotMat) -> Mat3A {
+const fn rot_mat_to_new(m: OldRotMat) -> Mat3A {
     Mat3A::from_cols(
         vec3_to_new(m.forward),
         vec3_to_new(m.right),
@@ -38,7 +44,7 @@ fn rot_mat_to_new(m: OldRotMat) -> Mat3A {
     )
 }
 
-pub fn conv_to_old_car_controls(c: CarControls) -> OldCarControls {
+pub const fn conv_to_old_car_controls(c: CarControls) -> OldCarControls {
     OldCarControls {
         throttle: c.throttle,
         steer: c.steer,
@@ -51,7 +57,7 @@ pub fn conv_to_old_car_controls(c: CarControls) -> OldCarControls {
     }
 }
 
-pub fn conv_to_new_car_controls(c: OldCarControls) -> CarControls {
+pub const fn conv_to_new_car_controls(c: OldCarControls) -> CarControls {
     CarControls {
         throttle: c.throttle,
         steer: c.steer,
@@ -98,7 +104,10 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
             contact_normal: vec3_to_old(state.world_contact_normal.unwrap_or_default()),
         },
         car_contact: OldCarContact {
-            other_car_id: state.car_contact.map(|c| c.other_car_id as u32).unwrap_or(0),
+            other_car_id: state
+                .car_contact
+                .map(|c| c.other_car_id as u32)
+                .unwrap_or(0),
             cooldown_timer: state.car_contact.map(|c| c.cooldown_timer).unwrap_or(0.0),
         },
         is_demoed: state.is_demoed,
@@ -106,24 +115,24 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
         ball_hit_info: OldBallHitInfo {
             is_valid: state.ball_hit_info.is_some(),
             relative_pos_on_ball: vec3_to_old(
-                state.ball_hit_info
+                state
+                    .ball_hit_info
                     .map(|h| h.relative_pos_on_ball)
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
             ),
-            ball_pos: vec3_to_old(
-                state.ball_hit_info
-                    .map(|h| h.ball_pos)
-                    .unwrap_or_default()
-            ),
+            ball_pos: vec3_to_old(state.ball_hit_info.map(|h| h.ball_pos).unwrap_or_default()),
             extra_hit_vel: vec3_to_old(
-                state.ball_hit_info
+                state
+                    .ball_hit_info
                     .map(|h| h.extra_hit_vel)
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
             ),
-            tick_count_when_hit: state.ball_hit_info
+            tick_count_when_hit: state
+                .ball_hit_info
                 .map(|h| h.tick_count_when_hit)
                 .unwrap_or(0),
-            tick_count_when_extra_impulse_applied: state.ball_hit_info
+            tick_count_when_extra_impulse_applied: state
+                .ball_hit_info
                 .map(|h| h.tick_count_when_extra_impulse_applied)
                 .unwrap_or(0),
         },
@@ -182,7 +191,9 @@ pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
                 ball_pos: vec3_to_new(old.ball_hit_info.ball_pos),
                 extra_hit_vel: vec3_to_new(old.ball_hit_info.extra_hit_vel),
                 tick_count_when_hit: old.ball_hit_info.tick_count_when_hit,
-                tick_count_when_extra_impulse_applied: old.ball_hit_info.tick_count_when_extra_impulse_applied,
+                tick_count_when_extra_impulse_applied: old
+                    .ball_hit_info
+                    .tick_count_when_extra_impulse_applied,
             })
         } else {
             None
@@ -234,7 +245,7 @@ pub fn conv_to_old_game_mode(game_mode: GameMode) -> OldGameMode {
     }
 }
 
-pub fn conv_to_old_team(team: Team) -> OldTeam {
+pub const fn conv_to_old_team(team: Team) -> OldTeam {
     match team {
         Team::Blue => OldTeam::Blue,
         Team::Orange => OldTeam::Orange,

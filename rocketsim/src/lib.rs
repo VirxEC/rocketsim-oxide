@@ -16,10 +16,10 @@ use std::{
     fs,
     io::{Error as IoError, ErrorKind, Result as IoResult},
     path::Path,
-    sync::{Arc, RwLock},
+    sync::{Arc, OnceLock, RwLock},
     time::Instant,
 };
-use std::sync::OnceLock;
+
 use ahash::AHashMap;
 use bullet::collision::shapes::bvh_triangle_mesh_shape::BvhTriangleMeshShape;
 use log::{error, info, warn};

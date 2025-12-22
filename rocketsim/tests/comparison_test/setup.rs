@@ -1,7 +1,7 @@
 use glam::{Mat3A, Vec3A};
+use rocketsim::{BallState, CarControls, CarState, Team};
 use rocketsim_rs::consts;
 use serde::Serialize;
-use rocketsim::{BallState, CarControls, CarState, Team};
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub struct CarSetup {
@@ -19,7 +19,7 @@ pub struct CarSetup {
 
 impl CarSetup {
     pub const fn new(team: Team, pos: Vec3A) -> Self {
-        CarSetup {
+        Self {
             team,
             controls: CarControls::DEFAULT,
             pos,
@@ -27,7 +27,7 @@ impl CarSetup {
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
             boost: consts::BOOST_MAX,
-            on_ground: false
+            on_ground: false,
         }
     }
 
@@ -61,7 +61,7 @@ impl CarSetup {
         self
     }
 
-    pub fn make_car_state(&self) -> CarState {
+    pub const fn make_car_state(&self) -> CarState {
         let mut result = CarState::DEFAULT;
         result.phys.pos = self.pos;
         result.phys.rot_mat = self.rot_mat;
@@ -83,7 +83,7 @@ pub struct BallSetup {
 
 impl BallSetup {
     pub const fn new(pos: Vec3A) -> Self {
-        BallSetup {
+        Self {
             pos,
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
@@ -106,7 +106,7 @@ impl BallSetup {
         self
     }
 
-    pub fn make_ball_state(&self) -> BallState {
+    pub const fn make_ball_state(&self) -> BallState {
         let mut result = BallState::DEFAULT;
         result.phys.pos = self.pos;
         result.phys.rot_mat = self.rot_mat;

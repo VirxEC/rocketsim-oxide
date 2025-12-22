@@ -1,10 +1,15 @@
-use crate::comparison_test::setup::{BallSetup, CarSetup};
-use crate::comparison_test::state_compare::StateComparison;
-use crate::comparison_test::state_convert::{OldArena, OldArenaConfig, OldArenaPtr, OldCarConfig};
-use crate::comparison_test::{TestResult, TestResultState, state_compare, state_convert};
 use glam::Vec3A;
 use log::info;
 use rocketsim::*;
+
+use crate::comparison_test::{
+    TestResult, TestResultState,
+    setup::{BallSetup, CarSetup},
+    state_compare,
+    state_compare::StateComparison,
+    state_convert,
+    state_convert::{OldArena, OldArenaConfig, OldArenaPtr, OldCarConfig},
+};
 
 #[derive(Debug, Clone)]
 pub struct TestCase {
@@ -16,8 +21,8 @@ pub struct TestCase {
 }
 
 impl TestCase {
-    pub fn is_valid(&self) -> bool {
-        !self.car_setups.is_empty() || !self.ball_setup.is_none()
+    pub const fn is_valid(&self) -> bool {
+        !self.car_setups.is_empty() || self.ball_setup.is_some()
     }
 
     fn make_new_old_arenas(&self) -> (Arena, OldArenaPtr) {

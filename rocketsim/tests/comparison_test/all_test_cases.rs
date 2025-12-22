@@ -1,7 +1,7 @@
 use glam::{EulerRot, IVec3, Mat3A};
+use rocketsim::{CarControls, GameMode, Team};
 
 use crate::comparison_test::{BallSetup, CarSetup, ControlsBuilder, TestCase};
-use rocketsim::{CarControls, GameMode, Team};
 
 pub fn make_ball_cases() -> Vec<TestCase> {
     let simple_ball_case = |name: &'static str,
@@ -125,7 +125,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, 0),
             (0, 0, 0),
             ControlsBuilder::new().with_throttle(1.0).build(),
-            true
+            true,
         ),
         simple_car_case(
             "drive_forward_boost",
@@ -138,7 +138,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                 .with_throttle(1.0)
                 .with_boost(true)
                 .build(),
-            true
+            true,
         ),
         simple_car_case(
             "drive_forward_turn",
@@ -151,7 +151,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                 .with_throttle(1.0)
                 .with_steer(1.0)
                 .build(),
-            true
+            true,
         ),
         simple_car_case(
             "drive_forward_turn_handbrake",
@@ -165,7 +165,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                 .with_steer(1.0)
                 .with_handbrake(true)
                 .build(),
-            true
+            true,
         ),
         simple_car_case(
             "drive_up_slope",
@@ -175,7 +175,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, 0),
             (0, 0, 0),
             ControlsBuilder::new().with_throttle(1.0).build(),
-            true
+            true,
         ),
         simple_car_case(
             "jump_long_stationary",
@@ -185,7 +185,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, 0),
             (0, 0, 0),
             ControlsBuilder::new().with_jump(true).build(),
-            true
+            true,
         ),
         simple_car_case(
             "land_ground_simple",
@@ -195,7 +195,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, 0),
             (0, 0, 0),
             ControlsBuilder::new().build(),
-            false
+            false,
         ),
         simple_car_case(
             "land_ground_complex",
@@ -205,7 +205,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (100, -50, -300),
             (0, 0, 0),
             ControlsBuilder::new().build(),
-            false
+            false,
         ),
         simple_car_case(
             "pogo",
@@ -215,7 +215,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, -2100),
             (0, 0, 0),
             ControlsBuilder::new().build(),
-            false
+            false,
         ),
         simple_car_case(
             "double_jump",
@@ -225,7 +225,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
             (0, 0, 0),
             (0, 0, 0),
             ControlsBuilder::new().with_jump(true).build(),
-            true
+            true,
         ),
         simple_car_case(
             "flip_forward",
@@ -238,7 +238,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                 .with_pitch(-1.0)
                 .with_jump(true)
                 .build(),
-            false
+            false,
         ),
         simple_car_case(
             "flip_partial_input",
@@ -253,7 +253,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                 .with_roll(0.8)
                 .with_jump(true)
                 .build(),
-            false
+            false,
         ),
     ]
 }

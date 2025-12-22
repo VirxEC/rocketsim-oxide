@@ -1,4 +1,5 @@
 use std::fmt::Display;
+
 use glam::{Mat3A, Vec3A};
 
 /// Default is not implemented for this struct,
