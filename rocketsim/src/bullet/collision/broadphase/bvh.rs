@@ -4,13 +4,13 @@ use glam::{Vec3A, Vec4};
 
 use crate::bullet::{
     collision::shapes::{
-        triangle_callback::{TriangleCallback, TriangleRayPacketCallback},
+        triangle_callback::{TriangleCallback, TriangleRayCallback},
         triangle_mesh::TriangleMesh,
         triangle_shape::TriangleShape,
     },
     linear_math::{
-        LARGE_FLOAT,
         aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        ray_packet::RayInfo,
     },
 };
 
@@ -46,16 +46,16 @@ impl<T: TriangleCallback> NodeOverlapCallback for BvhNodeOverlapCallback<'_, T> 
     }
 }
 
-pub trait RayPacketNodeOverlapCallback {
-    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut [f32; 4]);
+pub trait RayNodeOverlapCallback {
+    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4);
 }
 
-pub struct BvhRayPacketNodeOverlapCallback<'a, T: TriangleRayPacketCallback> {
+pub struct BvhRayNodeOverlapCallback<'a, T: TriangleRayCallback> {
     tris: &'a [TriangleShape],
     callback: &'a mut T,
 }
 
-impl<'a, T: TriangleRayPacketCallback> BvhRayPacketNodeOverlapCallback<'a, T> {
+impl<'a, T: TriangleRayCallback> BvhRayNodeOverlapCallback<'a, T> {
     pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
         let (tris, _) = mesh_interface.get_tris_aabbs();
 
@@ -63,20 +63,11 @@ impl<'a, T: TriangleRayPacketCallback> BvhRayPacketNodeOverlapCallback<'a, T> {
     }
 }
 
-impl<T: TriangleRayPacketCallback> RayPacketNodeOverlapCallback
-    for BvhRayPacketNodeOverlapCallback<'_, T>
-{
-    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut [f32; 4]) {
+impl<T: TriangleRayCallback> RayNodeOverlapCallback for BvhRayNodeOverlapCallback<'_, T> {
+    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4) {
         self.callback
             .process_node(&self.tris[triangle_index], active_mask, lambda_max);
     }
-}
-
-pub struct RayPacketInfo {
-    origins: [Vec4; 3],
-    inv_dir: [Vec4; 3],
-    lambda_max: [f32; 4],
-    packet_aabb: Aabb,
 }
 
 #[derive(Default)]
@@ -282,34 +273,35 @@ impl Bvh {
         }
     }
 
-    fn walk_stackless_tree_against_ray_packet<T: RayPacketNodeOverlapCallback>(
+    fn walk_stackless_tree_against_ray_packet<T: RayNodeOverlapCallback>(
         &self,
         node_callback: &mut T,
-        packet_info: &mut RayPacketInfo,
+        ray_info: &mut RayInfo,
+        origins: &[Vec4; 3],
+        inv_dir: &[Vec4; 3],
         start_node_index: usize,
         end_node_index: usize,
     ) {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let overlap = test_aabb_against_aabb(&packet_info.packet_aabb, &root_node.aabb);
+            let overlap = test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
                     if overlap {
-                        let lambda_vec = Vec4::from_array(packet_info.lambda_max);
                         let mask = intersect_ray_aabb_packet(
-                            &packet_info.origins,
-                            &packet_info.inv_dir,
+                            origins,
+                            inv_dir,
                             &root_node.aabb,
-                            lambda_vec,
+                            ray_info.lambda_max,
                         );
 
                         if mask != 0 {
                             node_callback.process_node(
                                 triangle_index,
                                 mask,
-                                &mut packet_info.lambda_max,
+                                &mut ray_info.lambda_max,
                             );
                         }
                     }
@@ -322,73 +314,21 @@ impl Bvh {
         }
     }
 
-    pub fn report_ray_packet_overlapping_node<T: RayPacketNodeOverlapCallback>(
+    pub fn report_ray_packet_overlapping_node<T: RayNodeOverlapCallback>(
         &self,
         node_callback: &mut T,
-        ray_sources: &[Vec3A; 4],
-        ray_targets: &[Vec3A; 4],
+        ray_info: &mut RayInfo,
     ) {
-        // Union AABB of the 4 segments for quick root rejection.
-        let mut packet_aabb = Aabb::new(
-            ray_sources[0].min(ray_targets[0]),
-            ray_sources[0].max(ray_targets[0]),
-        );
-        for i in 1..4 {
-            packet_aabb += Aabb::new(
-                ray_sources[i].min(ray_targets[i]),
-                ray_sources[i].max(ray_targets[i]),
-            );
-        }
-
-        if !test_aabb_against_aabb(&packet_aabb, &self.aabb) {
+        if !test_aabb_against_aabb(&ray_info.aabb, &self.aabb) {
             return;
         }
 
-        let mut inv_dir = [Vec4::ZERO; 3];
-
-        for i in 0..4 {
-            let dir = ray_targets[i] - ray_sources[i];
-            let mut inv = 1.0 / dir;
-            inv = Vec3A::select(
-                inv.is_finite_mask(),
-                inv,
-                const { Vec3A::splat(LARGE_FLOAT) },
-            );
-
-            inv_dir[0][i] = inv.x;
-            inv_dir[1][i] = inv.y;
-            inv_dir[2][i] = inv.z;
-        }
-
-        let mut packet_info = RayPacketInfo {
-            origins: [
-                Vec4::from_array([
-                    ray_sources[0].x,
-                    ray_sources[1].x,
-                    ray_sources[2].x,
-                    ray_sources[3].x,
-                ]),
-                Vec4::from_array([
-                    ray_sources[0].y,
-                    ray_sources[1].y,
-                    ray_sources[2].y,
-                    ray_sources[3].y,
-                ]),
-                Vec4::from_array([
-                    ray_sources[0].z,
-                    ray_sources[1].z,
-                    ray_sources[2].z,
-                    ray_sources[3].z,
-                ]),
-            ],
-            inv_dir,
-            lambda_max: [1.0; 4],
-            packet_aabb,
-        };
-
+        let (origins, inv_dirs) = ray_info.calc_pos_dir();
         self.walk_stackless_tree_against_ray_packet(
             node_callback,
-            &mut packet_info,
+            ray_info,
+            &origins,
+            &inv_dirs,
             0,
             self.cur_node_index,
         );

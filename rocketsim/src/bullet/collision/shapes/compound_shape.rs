@@ -8,7 +8,10 @@ use crate::bullet::{
         broadphase::BroadphaseNativeTypes,
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     },
-    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
+    linear_math::{
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        ray_packet::RayInfo,
+    },
 };
 
 pub struct CompoundShapeChild {
@@ -82,27 +85,40 @@ impl CompoundShape {
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
-        ray_source: &[Vec3A; 4],
-        ray_target: &[Vec3A; 4],
+        ray_info: &RayInfo,
     ) {
+        let box_aabb = self.get_ident_aabb();
+        if !test_aabb_against_aabb(&ray_info.aabb, &box_aabb) {
+            return;
+        }
+
+        let (origins, inv_dirs) = ray_info.calc_pos_dir();
+        let mask =
+            intersect_ray_aabb_packet(&origins, &inv_dirs, &box_aabb, result_callback.hit_fraction);
+
         for i in 0..4 {
-            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+            if (mask & (1 << i)) == 0 {
+                continue;
+            }
+
+            self.internal_perform_raycast(
+                result_callback,
+                &box_aabb,
+                ray_info.ray_sources[i],
+                ray_info.ray_targets[i],
+                i,
+            );
         }
     }
 
     fn internal_perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
+        box_aabb: &Aabb,
         ray_source: Vec3A,
         ray_target: Vec3A,
         ray_idx: usize,
     ) {
-        let box_aabb = self.get_ident_aabb();
-        let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
-        if !test_aabb_against_aabb(&ray_aabb, &box_aabb) {
-            return;
-        }
-
         let delta = ray_target - ray_source;
         let dist = delta.length();
         let dir = delta / dist;

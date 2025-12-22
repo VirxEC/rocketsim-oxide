@@ -11,7 +11,7 @@ use crate::bullet::{
         broadphase::BroadphaseNativeTypes,
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     },
-    linear_math::aabb_util_2::Aabb,
+    linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
 
 pub const SPHERE_RADIUS_MARGIN: f32 = 0.08;
@@ -74,11 +74,15 @@ impl SphereShape {
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
-        ray_source: &[Vec3A; 4],
-        ray_target: &[Vec3A; 4],
+        ray_info: &RayInfo,
     ) {
         for i in 0..4 {
-            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+            self.internal_perform_raycast(
+                result_callback,
+                ray_info.ray_sources[i],
+                ray_info.ray_targets[i],
+                i,
+            );
         }
     }
 

@@ -1,10 +1,10 @@
-use glam::Vec3A;
+use glam::{Vec3A, Vec4};
 
 use crate::bullet::{
     collision::{
         broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
         dispatch::{collision_object::CollisionObject, collision_world::CollisionWorld},
-        shapes::{triangle_callback::TriangleRayPacketCallback, triangle_shape::TriangleShape},
+        shapes::{triangle_callback::TriangleRayCallback, triangle_shape::TriangleShape},
     },
     linear_math::interpolate_3,
 };
@@ -17,7 +17,7 @@ pub struct LocalRayResult {
 
 #[derive(Clone, Copy)]
 pub struct RayResultCallbackBase {
-    pub closest_hit_fraction: [f32; 4],
+    pub closest_hit_fraction: Vec4,
     pub collision_object_index: [Option<usize>; 4],
     pub ignore_object_world_index: Option<usize>,
     pub collision_filter_group: u8,
@@ -27,7 +27,7 @@ pub struct RayResultCallbackBase {
 impl Default for RayResultCallbackBase {
     fn default() -> Self {
         Self {
-            closest_hit_fraction: [1.0; 4],
+            closest_hit_fraction: Vec4::ONE,
             collision_object_index: [None; 4],
             collision_filter_group: CollisionFilterGroups::Default as u8,
             collision_filter_mask: CollisionFilterGroups::All as u8,
@@ -128,10 +128,6 @@ impl<'a, T: RayResultCallback> QuadRayCallback<'a, T> {
 
 impl<T: RayResultCallback> BroadphaseAabbCallback for QuadRayCallback<'_, T> {
     fn process(&mut self, proxy: &BroadphaseProxy) -> bool {
-        // if self.result_callback.get_base().closest_hit_fraction == 0.0 {
-        //     return false;
-        // }
-
         let obj_index = proxy.client_object_idx.unwrap();
         let rb = &self.world.collision_objects[proxy.client_object_idx.unwrap()];
         let handle_idx = rb.collision_object.get_broadphase_handle().unwrap();
@@ -154,7 +150,7 @@ impl<T: RayResultCallback> BroadphaseAabbCallback for QuadRayCallback<'_, T> {
 pub struct BridgeTriangleRaycastPacketCallback<'a, T: RayResultCallback> {
     pub to: &'a [Vec3A; 4],
     pub from: &'a [Vec3A; 4],
-    pub hit_fraction: [f32; 4],
+    pub hit_fraction: Vec4,
     pub collision_object: &'a CollisionObject,
     pub collision_object_index: usize,
     pub result_callback: &'a mut T,
@@ -226,18 +222,11 @@ impl<'a, T: RayResultCallback> BridgeTriangleRaycastPacketCallback<'a, T> {
     }
 }
 
-impl<T: RayResultCallback> TriangleRayPacketCallback
-    for BridgeTriangleRaycastPacketCallback<'_, T>
-{
-    fn process_node(
-        &mut self,
-        triangle: &TriangleShape,
-        active_mask: u8,
-        lambda_max: &mut [f32; 4],
-    ) {
-        for (i, lambda_max) in lambda_max.iter_mut().enumerate() {
+impl<T: RayResultCallback> TriangleRayCallback for BridgeTriangleRaycastPacketCallback<'_, T> {
+    fn process_node(&mut self, triangle: &TriangleShape, active_mask: u8, lambda_max: &mut Vec4) {
+        for i in 0..4 {
             if (active_mask & (1 << i)) != 0 {
-                self.process_triangle(triangle, lambda_max, i);
+                self.process_triangle(triangle, &mut lambda_max[i], i);
             }
         }
     }

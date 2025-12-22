@@ -12,7 +12,7 @@ use crate::bullet::{
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
         shapes::sphere_shape::SPHERE_RADIUS_MARGIN,
     },
-    linear_math::aabb_util_2::Aabb,
+    linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
 
 #[derive(Clone, Debug)]
@@ -128,21 +128,20 @@ impl CollisionShapes {
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
-        ray_from_local: &[Vec3A; 4],
-        ray_to_local: &[Vec3A; 4],
+        ray_info: &mut RayInfo,
     ) {
         match self {
             Self::Compound(compound) => {
-                compound.perform_raycast(result_callback, ray_from_local, ray_to_local);
+                compound.perform_raycast(result_callback, ray_info);
             }
             Self::Sphere(sphere) => {
-                sphere.perform_raycast(result_callback, ray_from_local, ray_to_local);
+                sphere.perform_raycast(result_callback, ray_info);
             }
             Self::StaticPlane(plane) => {
-                plane.perform_raycast(result_callback, ray_from_local, ray_to_local);
+                plane.perform_raycast(result_callback, ray_info);
             }
             Self::TriangleMesh(mesh) => {
-                mesh.perform_raycast(result_callback, ray_from_local, ray_to_local);
+                mesh.perform_raycast(result_callback, ray_info);
             }
         }
     }

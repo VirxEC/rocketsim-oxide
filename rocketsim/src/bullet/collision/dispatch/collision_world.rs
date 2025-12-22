@@ -13,7 +13,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{CONTACT_BREAKING_THRESHOLD, ContactAddedCallback},
     },
     dynamics::rigid_body::RigidBody,
-    linear_math::AffineExt,
+    linear_math::{AffineExt, ray_packet::RayInfo},
 };
 
 pub struct CollisionWorld {
@@ -173,9 +173,12 @@ impl CollisionWorld {
             result_callback,
         };
 
+        let mut ray_info = RayInfo::new(&ray_from_local, &ray_to_local);
+        ray_info.lambda_max = rcb.hit_fraction;
+
         co.get_collision_shape()
             .unwrap()
-            .perform_raycast(&mut rcb, &ray_from_local, &ray_to_local);
+            .perform_raycast(&mut rcb, &mut ray_info);
     }
 
     pub fn ray_test<T: RayResultCallback>(

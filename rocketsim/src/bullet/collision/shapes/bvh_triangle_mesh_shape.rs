@@ -1,4 +1,4 @@
-use glam::{Affine3A, Vec3A};
+use glam::Affine3A;
 
 use super::{
     collision_shape::CollisionShape, triangle_callback::TriangleCallback,
@@ -8,12 +8,12 @@ use super::{
 use crate::bullet::{
     collision::{
         broadphase::{
-            BroadphaseNativeTypes, Bvh, BvhNodeOverlapCallback, BvhRayPacketNodeOverlapCallback,
+            BroadphaseNativeTypes, Bvh, BvhNodeOverlapCallback, BvhRayNodeOverlapCallback,
         },
         dispatch::internal_edge_utility::generate_internal_edge_info,
-        shapes::{optimized_bvh::create_bvh, triangle_callback::TriangleRayPacketCallback},
+        shapes::{optimized_bvh::create_bvh, triangle_callback::TriangleRayCallback},
     },
-    linear_math::aabb_util_2::Aabb,
+    linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
 
 pub struct BvhTriangleMeshShape {
@@ -69,16 +69,15 @@ impl BvhTriangleMeshShape {
             .report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 
-    pub fn perform_raycast<T: TriangleRayPacketCallback>(
+    pub fn perform_raycast<T: TriangleRayCallback>(
         &self,
         callback: &mut T,
-        ray_source: &[Vec3A; 4],
-        ray_target: &[Vec3A; 4],
+        ray_info: &mut RayInfo,
     ) {
         let mut my_node_callback =
-            BvhRayPacketNodeOverlapCallback::new(self.get_mesh_interface(), callback);
+            BvhRayNodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
-            .report_ray_packet_overlapping_node(&mut my_node_callback, ray_source, ray_target);
+            .report_ray_packet_overlapping_node(&mut my_node_callback, ray_info);
     }
 
     #[must_use]

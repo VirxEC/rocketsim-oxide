@@ -9,7 +9,8 @@ use crate::bullet::{
     },
     linear_math::{
         LARGE_FLOAT,
-        aabb_util_2::{Aabb, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        ray_packet::RayInfo,
     },
 };
 
@@ -98,11 +99,28 @@ impl StaticPlaneShape {
     pub fn perform_raycast<T: RayResultCallback>(
         &self,
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
-        ray_source: &[Vec3A; 4],
-        ray_target: &[Vec3A; 4],
+        ray_info: &RayInfo,
     ) {
+        let plane = self.concave_shape.collision_shape.aabb_cache.unwrap();
+        if !test_aabb_against_aabb(&ray_info.aabb, &plane) {
+            return;
+        }
+
+        let (origins, inv_dirs) = ray_info.calc_pos_dir();
+        let mask =
+            intersect_ray_aabb_packet(&origins, &inv_dirs, &plane, result_callback.hit_fraction);
+
         for i in 0..4 {
-            self.internal_perform_raycast(result_callback, ray_source[i], ray_target[i], i);
+            if (mask & (1 << i)) == 0 {
+                continue;
+            }
+
+            self.internal_perform_raycast(
+                result_callback,
+                ray_info.ray_sources[i],
+                ray_info.ray_targets[i],
+                i,
+            );
         }
     }
 
@@ -113,12 +131,6 @@ impl StaticPlaneShape {
         ray_target: Vec3A,
         ray_idx: usize,
     ) {
-        let aabb = self.concave_shape.collision_shape.aabb_cache.unwrap();
-        let ray_aabb = Aabb::new(ray_source.min(ray_target), ray_source.max(ray_target));
-        if !test_aabb_against_aabb(&ray_aabb, &aabb) {
-            return;
-        }
-
         let delta = ray_target - ray_source;
         let dist = delta.length();
         let ray_direction = delta / dist;
