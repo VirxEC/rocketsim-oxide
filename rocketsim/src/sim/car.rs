@@ -937,7 +937,7 @@ impl Car {
                 return;
             }
 
-            self.controls.clamp_fix();
+            self.controls = self.controls.clamp();
 
             rb.get_forward_speed() * BT_TO_UU
         };
