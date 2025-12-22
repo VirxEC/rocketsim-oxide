@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use glam::{Mat3A, Vec3A};
 
 /// Default is not implemented for this struct,
@@ -30,5 +31,16 @@ impl PhysState {
         }
 
         self
+    }
+}
+
+impl Display for PhysState {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("PhysState {")?;
+        f.write_fmt(format_args!("\n\tpos: {}", self.pos))?;
+        f.write_fmt(format_args!("\n\trot_mat: {}", self.rot_mat))?;
+        f.write_fmt(format_args!("\n\tvel: {}", self.vel))?;
+        f.write_fmt(format_args!("\n\tang_vel: {}", self.ang_vel))?;
+        f.write_str("}")
     }
 }
