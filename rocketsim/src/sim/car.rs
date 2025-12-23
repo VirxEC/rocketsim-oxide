@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{
@@ -321,9 +322,15 @@ impl Car {
     /// - `boost_amount` by default is `rocketsim::consts::BOOST_RESPAWN_AMOUNT`
     ///
     /// Respawn the car, called after we have been demolished and waited for the respawn timer
-    pub(crate) fn respawn(&mut self, rb: &mut RigidBody, game_mode: GameMode, boost_amount: f32) {
+    pub(crate) fn respawn(
+        &mut self,
+        rb: &mut RigidBody,
+        rng: &mut Rng,
+        game_mode: GameMode,
+        boost_amount: f32,
+    ) {
         let respawn_locations = car_consts::spawn::get_respawn_locations(game_mode);
-        let spawn_pos_index = fastrand::usize(0..respawn_locations.len());
+        let spawn_pos_index = rng.usize(0..respawn_locations.len());
         let spawn_pos = respawn_locations[spawn_pos_index];
 
         let new_state = CarState {
@@ -914,6 +921,7 @@ impl Car {
     pub(crate) fn pre_tick_update(
         &mut self,
         collision_world: &mut DiscreteDynamicsWorld,
+        rng: &mut Rng,
         game_mode: GameMode,
         tick_time: f32,
         mutator_config: &MutatorConfig,
@@ -928,7 +936,7 @@ impl Car {
                 self.internal_state.demo_respawn_timer =
                     (self.internal_state.demo_respawn_timer - tick_time).max(0.0);
                 if self.internal_state.demo_respawn_timer == 0.0 {
-                    self.respawn(rb, game_mode, mutator_config.car_spawn_boost_amount);
+                    self.respawn(rb, rng, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
                 rb.collision_object

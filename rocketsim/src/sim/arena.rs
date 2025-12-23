@@ -680,6 +680,7 @@ impl Arena {
         );
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
+            &mut self.rng,
             self.data.game_mode,
             self.data.mutator_config.car_spawn_boost_amount,
         );
@@ -738,6 +739,7 @@ impl Arena {
         for car in self.data.cars.values_mut() {
             car.pre_tick_update(
                 &mut self.bullet_world,
+                &mut self.rng,
                 self.data.game_mode,
                 self.tick_time,
                 &self.data.mutator_config,
@@ -868,6 +870,7 @@ impl Arena {
 
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
+            &mut self.rng,
             self.data.game_mode,
             self.data.mutator_config.car_spawn_boost_amount,
         );
