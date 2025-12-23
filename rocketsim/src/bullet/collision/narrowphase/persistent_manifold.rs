@@ -245,25 +245,24 @@ impl PersistentManifold {
                 .dot(manifold_point.normal_world_on_b);
         }
 
-        #[cfg(debug_assertions)]
-        {
-            let contact_breaking_threshold_sq =
-                self.contact_breaking_threshold * self.contact_breaking_threshold;
+        let contact_breaking_threshold_sq =
+            self.contact_breaking_threshold * self.contact_breaking_threshold;
 
-            for i in (0..self.point_cache.len()).rev() {
-                let point = &self.point_cache[i];
-                assert!(
-                    point.distance_1 <= self.contact_breaking_threshold,
-                    "{:?} | {}",
-                    point,
-                    self.contact_breaking_threshold
-                );
+        for i in (0..self.point_cache.len()).rev() {
+            let point = &self.point_cache[i];
+            if point.distance_1 > self.contact_breaking_threshold {
+                // contact becomes invalid when signed distance exceeds margin (projected on contact normal direction)
+                self.point_cache.remove(i);
+                continue;
+            }
 
-                let projected_point =
-                    point.position_world_on_a - point.normal_world_on_b * point.distance_1;
-                let projected_difference = point.position_world_on_b - projected_point;
-                let distance_2d = projected_difference.dot(projected_difference);
-                assert!(distance_2d <= contact_breaking_threshold_sq);
+            let projected_point =
+                point.position_world_on_a - point.normal_world_on_b * point.distance_1;
+            let projected_difference = point.position_world_on_b - projected_point;
+            let distance_2d = projected_difference.dot(projected_difference);
+            if distance_2d > contact_breaking_threshold_sq {
+                // contact also becomes invalid when relative movement orthogonal to normal exceeds margin
+                self.point_cache.remove(i);
             }
         }
     }
