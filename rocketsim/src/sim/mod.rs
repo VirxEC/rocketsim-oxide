@@ -16,8 +16,10 @@ mod mutator_config;
 mod phys_state;
 mod team;
 mod user_info_types;
+mod arena_config;
 
 pub use arena::*;
+pub use arena_config::*;
 pub use ball::*;
 pub use ball_hit_info::*;
 pub use boost_pad::*;
