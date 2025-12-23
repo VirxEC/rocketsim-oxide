@@ -49,25 +49,27 @@ impl TriangleShape {
     /// Check if a point projected onto the same place as the triangle
     /// is within the bounds of it.
     pub fn face_contains(&self, n: Vec3A, obj_to_points: &[Vec3A; 3]) -> bool {
-        let edge_normals = [
-            self.edges[0].cross(n),
-            self.edges[1].cross(n),
-            self.edges[2].cross(n),
-        ];
+        let c0 = self.edges[0].cross(obj_to_points[0]);
+        if c0.dot(n) < 0. {
+            return false;
+        }
 
-        let r = [
-            edge_normals[0].dot(obj_to_points[0]),
-            edge_normals[1].dot(obj_to_points[1]),
-            edge_normals[2].dot(obj_to_points[2]),
-        ];
+        let c1 = self.edges[1].cross(obj_to_points[1]);
+        if c1.dot(n) < 0. {
+            return false;
+        }
 
-        (r[0] > 0. && r[1] > 0. && r[2] > 0.) || (r[0] <= 0. && r[1] <= 0. && r[2] <= 0.)
+        let c2 = self.edges[2].cross(obj_to_points[2]);
+        c2.dot(n) >= 0.
     }
 
     /// Instead of using bullet's method,
     /// we use the method described here which is much faster:
     /// <https://stackoverflow.com/a/74395029/10930209>
-    pub fn closest_point(&self, obj_to_points: [Vec3A; 3], ab: Vec3A, ac: Vec3A) -> Vec3A {
+    pub fn closest_point(&self, obj_to_points: &[Vec3A; 3]) -> Vec3A {
+        let ab = self.edges[0];
+        let ac = -self.edges[2];
+
         let d1 = ab.dot(obj_to_points[0]);
         let d2 = ac.dot(obj_to_points[0]);
         if d1 <= 0. && d2 <= 0. {
@@ -141,7 +143,7 @@ impl TriangleShape {
         let contact_point = if self.face_contains(triangle_normal, &obj_to_points) {
             obj_center - triangle_normal * distance_from_plane
         } else {
-            let closest_point = self.closest_point(obj_to_points, self.edges[0], -self.edges[2]);
+            let closest_point = self.closest_point(&obj_to_points);
             let distance_sqr = (closest_point - obj_center).length_squared();
 
             if distance_sqr < radius_with_threshold * radius_with_threshold {
