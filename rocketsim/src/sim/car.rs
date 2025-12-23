@@ -55,6 +55,10 @@ pub struct CarContact {
 )]
 pub struct CarState {
     pub phys: PhysState,
+    /// Controls to simulate the car with
+    pub controls: CarControls,
+    /// Controls from the last time this car was simulated (equals `controls` after step)
+    pub prev_controls: CarControls,
     /// True if 3 or more wheels have contact
     pub is_on_ground: bool,
     /// Whether each of the 4 wheels have contact
@@ -110,8 +114,6 @@ pub struct CarState {
     pub is_demoed: bool,
     pub demo_respawn_timer: f32,
     pub ball_hit_info: Option<BallHitInfo>,
-    /// Controls from last tick, set to this->controls after simulation
-    pub last_controls: CarControls,
 }
 
 impl Default for CarState {
@@ -128,6 +130,8 @@ impl CarState {
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
         },
+        controls: CarControls::DEFAULT,
+        prev_controls: CarControls::DEFAULT,
         is_on_ground: true,
         wheels_with_contact: [false; 4],
         has_jumped: false,
@@ -155,7 +159,6 @@ impl CarState {
         is_demoed: false,
         demo_respawn_timer: 0.0,
         ball_hit_info: None,
-        last_controls: CarControls::DEFAULT,
     };
 
     #[must_use]
@@ -180,7 +183,6 @@ impl CarState {
 pub struct Car {
     pub team: Team,
     /// The controls to simulate the car with
-    pub controls: CarControls,
     config: CarConfig,
     pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
@@ -280,7 +282,6 @@ impl Car {
             config,
             rigid_body_idx,
             bullet_vehicle,
-            controls: CarControls::DEFAULT,
             velocity_impulse_cache: Vec3A::ZERO,
             internal_state: CarState {
                 boost: mutator_config.car_spawn_boost_amount,
@@ -366,6 +367,10 @@ impl Car {
         &self.config
     }
 
+    pub const fn set_controls(&mut self, new_controls: CarControls) {
+        self.internal_state.controls = new_controls;
+    }
+
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: &CarState) {
         debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Car);
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
@@ -390,21 +395,21 @@ impl Car {
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
     ) {
-        self.internal_state.handbrake_val += (f32::from(self.controls.handbrake) * 2.0 - 1.0)
+        self.internal_state.handbrake_val += (f32::from(self.internal_state.controls.handbrake) * 2.0 - 1.0)
             * drive_consts::POWERSLIDE_FALL_RATE
             * tick_time;
         self.internal_state.handbrake_val = self.internal_state.handbrake_val.clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
-        let real_throttle = if self.controls.boost && self.internal_state.boost > 0.0 {
+        let real_throttle = if self.internal_state.controls.boost && self.internal_state.boost > 0.0 {
             1.0
         } else {
-            self.controls.throttle
+            self.internal_state.controls.throttle
         };
 
         let abs_forward_speed_uu = forward_speed_uu.abs();
         let mut engine_throttle = real_throttle;
-        if !self.controls.handbrake {
+        if !self.internal_state.controls.handbrake {
             if real_throttle.abs() >= drive_consts::THROTTLE_DEADZONE {
                 if abs_forward_speed_uu > drive_consts::STOPPING_FORWARD_VEL
                     && real_throttle.signum() != forward_speed_uu.signum()
@@ -452,7 +457,7 @@ impl Car {
                 * self.internal_state.handbrake_val;
         }
 
-        steer_angle *= self.controls.steer;
+        steer_angle *= self.internal_state.controls.steer;
         self.bullet_vehicle.wheels[0].steer_angle = steer_angle;
         self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
@@ -551,10 +556,10 @@ impl Car {
 
                 let mut pitch_scale = 1.0;
                 if rel_dodge_torque.y != 0.0
-                    && self.controls.pitch != 0.0
-                    && rel_dodge_torque.y.signum() == self.controls.pitch.signum()
+                    && self.internal_state.controls.pitch != 0.0
+                    && rel_dodge_torque.y.signum() == self.internal_state.controls.pitch.signum()
                 {
-                    pitch_scale = 1.0 - self.controls.pitch.abs().min(1.0);
+                    pitch_scale = 1.0 - self.internal_state.controls.pitch.abs().min(1.0);
                     do_air_control = true;
                 }
 
@@ -575,9 +580,9 @@ impl Car {
         do_air_control &= update_air_control;
         if do_air_control {
             let mut pitch_torque_scale = 1.0;
-            let torque = if self.controls.pitch != 0.0
-                || self.controls.yaw != 0.0
-                || self.controls.roll != 0.0
+            let torque = if self.internal_state.controls.pitch != 0.0
+                || self.internal_state.controls.yaw != 0.0
+                || self.internal_state.controls.roll != 0.0
             {
                 if self.internal_state.is_flipping
                     || self.internal_state.has_flipped
@@ -590,12 +595,12 @@ impl Car {
                     pitch_torque_scale = 0.0;
                 }
 
-                self.controls.pitch
+                self.internal_state.controls.pitch
                     * dir_pitch
                     * pitch_torque_scale
                     * car_consts::air_control::TORQUE.x
-                    + self.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
-                    + self.controls.roll * dir_roll * car_consts::air_control::TORQUE.z
+                    + self.internal_state.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
+                    + self.internal_state.controls.roll * dir_roll * car_consts::air_control::TORQUE.z
             } else {
                 Vec3A::ZERO
             };
@@ -604,10 +609,10 @@ impl Car {
 
             let damp_pitch = dir_pitch.dot(ang_vel)
                 * car_consts::air_control::DAMPING.x
-                * (1.0 - (self.controls.pitch * pitch_torque_scale).abs());
+                * (1.0 - (self.internal_state.controls.pitch * pitch_torque_scale).abs());
             let damp_yaw = dir_yaw.dot(ang_vel)
                 * car_consts::air_control::DAMPING.y
-                * (1.0 - self.controls.yaw.abs());
+                * (1.0 - self.internal_state.controls.yaw.abs());
             let damp_roll = dir_roll.dot(ang_vel) * car_consts::air_control::DAMPING.z;
 
             let damping = dir_yaw * damp_yaw + dir_pitch * damp_pitch + dir_roll * damp_roll;
@@ -618,10 +623,10 @@ impl Car {
             rb.apply_torque(rb_torque);
         }
 
-        if self.controls.throttle != 0.0 {
+        if self.internal_state.controls.throttle != 0.0 {
             rb.apply_central_force(
                 self.get_forward_dir()
-                    * self.controls.throttle
+                    * self.internal_state.controls.throttle
                     * const { car_consts::drive::THROTTLE_AIR_ACCEL * UU_TO_BT * car_consts::MASS_BT },
             );
         }
@@ -651,7 +656,7 @@ impl Car {
         if self.internal_state.is_jumping {
             self.internal_state.is_jumping = self.internal_state.jump_time
                 < car_consts::jump::MIN_TIME
-                || (self.controls.jump
+                || (self.internal_state.controls.jump
                     && self.internal_state.jump_time < car_consts::jump::MAX_TIME);
         } else if self.internal_state.is_on_ground && jump_pressed {
             self.internal_state.is_jumping = true;
@@ -748,7 +753,7 @@ impl Car {
             && self.internal_state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY
         {
             let input_magnitude =
-                self.controls.yaw.abs() + self.controls.pitch.abs() + self.controls.roll.abs();
+                self.internal_state.controls.yaw.abs() + self.internal_state.controls.pitch.abs() + self.internal_state.controls.roll.abs();
             let is_flip_input = input_magnitude >= self.config.dodge_deadzone;
 
             let can_use = !self.internal_state.is_auto_flipping
@@ -768,8 +773,8 @@ impl Car {
 
                     let forward_speed_ratio = forward_speed_uu.abs() / car_consts::MAX_SPEED;
                     let mut dodge_dir = Vec3A::new(
-                        -self.controls.pitch,
-                        self.controls.yaw + self.controls.roll,
+                        -self.internal_state.controls.pitch,
+                        self.internal_state.controls.yaw + self.internal_state.controls.roll,
                         0.0,
                     );
 
@@ -883,7 +888,7 @@ impl Car {
 
     fn update_boost(&mut self, rb: &mut RigidBody, tick_time: f32, mutator_config: &MutatorConfig) {
         self.internal_state.is_boosting = if self.internal_state.boost > 0.0 {
-            self.controls.boost
+            self.internal_state.controls.boost
                 || (self.internal_state.is_boosting
                     && self.internal_state.boosting_time < car_consts::boost::MIN_TIME)
         } else {
@@ -951,7 +956,7 @@ impl Car {
                 return;
             }
 
-            self.controls = self.controls.clamp();
+            self.internal_state.controls = self.internal_state.controls.clamp();
 
             rb.get_forward_speed() * BT_TO_UU
         };
@@ -960,7 +965,7 @@ impl Car {
         self.bullet_vehicle
             .update_vehicle_first(collision_world, tick_time);
 
-        let jump_pressed = self.controls.jump && !self.internal_state.last_controls.jump;
+        let jump_pressed = self.internal_state.controls.jump && !self.internal_state.prev_controls.jump;
 
         let mut num_wheels_in_contact = 0u8;
         for (wheel, has_contact) in self
@@ -1000,7 +1005,7 @@ impl Car {
             forward_speed_uu,
         );
 
-        if self.controls.throttle != 0.0
+        if self.internal_state.controls.throttle != 0.0
             && ((0 < num_wheels_in_contact && num_wheels_in_contact < 4)
                 || self.internal_state.world_contact_normal.is_some())
         {
@@ -1052,7 +1057,7 @@ impl Car {
             self.internal_state.car_contact = None;
         }
 
-        self.internal_state.last_controls = self.controls;
+        self.internal_state.prev_controls = self.internal_state.controls;
     }
 
     pub(crate) fn finish_physics_tick(&mut self, rb: &mut RigidBody) {

@@ -22,13 +22,13 @@ fn main() {
         arena.set_car_state(id, state1);
 
         let car2 = arena.get_car_mut(id2).unwrap();
-        car2.controls.throttle = 1.0;
         let mut state2 = *car2.get_state();
         state2.phys.rot_mat = Mat3A::from_cols(Vec3A::NEG_Y, Vec3A::X, Vec3A::Z);
         state2.phys.pos.x = 500.0;
         state2.phys.pos.y = 74.0;
         state2.phys.pos.z = 17.0;
         state2.phys.vel.y = -1500.0;
+        state2.controls.throttle = 1.0;
         arena.set_car_state(id2, state2);
     };
 

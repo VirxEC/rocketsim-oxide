@@ -136,7 +136,7 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
                 .map(|h| h.tick_count_when_extra_impulse_applied)
                 .unwrap_or(0),
         },
-        last_controls: conv_to_old_car_controls(state.last_controls),
+        last_controls: conv_to_old_car_controls(state.prev_controls),
     }
 }
 
@@ -148,6 +148,8 @@ pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
             vel: vec3_to_new(old.vel),
             ang_vel: vec3_to_new(old.ang_vel),
         },
+        controls: CarControls::DEFAULT,
+        prev_controls: conv_to_new_car_controls(old.last_controls),
         is_on_ground: old.is_on_ground,
         wheels_with_contact: old.wheels_with_contact,
         has_jumped: old.has_jumped,
@@ -197,8 +199,7 @@ pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
             })
         } else {
             None
-        },
-        last_controls: conv_to_new_car_controls(old.last_controls),
+        }
     }
 }
 

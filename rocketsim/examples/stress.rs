@@ -174,7 +174,7 @@ fn main() {
                 }
 
                 if rand_chance(UPDATE_CHANCE) {
-                    car.controls = calc_bot_controls(car_state, &ball_state);
+                    car.set_controls(calc_bot_controls(car_state, &ball_state));
                 }
             }
 
