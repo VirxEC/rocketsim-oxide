@@ -33,13 +33,12 @@ impl CarControls {
         handbrake: false,
     };
 
-    pub fn clamp(&self) -> CarControls {
-        let mut result = self.clone();
-        result.throttle = result.throttle.clamp(-1.0, 1.0);
-        result.steer = result.steer.clamp(-1.0, 1.0);
-        result.pitch = result.pitch.clamp(-1.0, 1.0);
-        result.yaw = result.yaw.clamp(-1.0, 1.0);
-        result.roll = result.roll.clamp(-1.0, 1.0);
-        result
+    pub const fn clamp(mut self) -> Self {
+        self.throttle = self.throttle.clamp(-1.0, 1.0);
+        self.steer = self.steer.clamp(-1.0, 1.0);
+        self.pitch = self.pitch.clamp(-1.0, 1.0);
+        self.yaw = self.yaw.clamp(-1.0, 1.0);
+        self.roll = self.roll.clamp(-1.0, 1.0);
+        self
     }
 }
