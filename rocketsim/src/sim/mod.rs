@@ -5,8 +5,6 @@ mod boost_pad;
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) mod boost_pad_grid;
 mod car;
-mod car_config;
-mod car_controls;
 mod collision_masks;
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) mod collision_meshes;
@@ -24,8 +22,6 @@ pub use ball::*;
 pub use ball_hit_info::*;
 pub use boost_pad::*;
 pub use car::*;
-pub use car_config::*;
-pub use car_controls::*;
 pub use game_mode::*;
 pub use game_state::*;
 pub use mutator_config::*;
@@ -33,3 +29,5 @@ pub use phys_state::*;
 pub use team::*;
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) use user_info_types::*;
+#[allow(clippy::redundant_pub_crate)]
+pub(crate) use collision_masks::*;

@@ -3,9 +3,8 @@ use std::f32::consts::PI;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
-use super::{
-    BallHitInfo, CarConfig, CarControls, MutatorConfig, PhysState, collision_masks::CollisionMasks,
-};
+use crate::{BallHitInfo, CarConfig, CarControls, MutatorConfig, PhysState, CollisionMasks};
+
 // Shorthand using aliases for constants
 use crate::consts::{
     BT_TO_UU, UU_TO_BT, bullet_vehicle as vehicle_consts, car as car_consts,
