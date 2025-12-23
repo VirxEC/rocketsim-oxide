@@ -1,5 +1,3 @@
-#![cfg(feature = "rlviser")]
-
 use std::{
     thread::sleep,
     time::{Duration, Instant},

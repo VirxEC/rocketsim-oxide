@@ -21,11 +21,19 @@ rocketsim = { path = ".", features = ["serde"] } # Self-dependency required for 
 rocketsim_rs = "0.36.0" # For comparing to original C++ RocketSim in tests
 
 [features]
-default = ["rlviser"]
+default = []
 rlviser = ["flatbuffer"]
 flatbuffer = ["dep:rocketsim_flat"]
 serde = ["dep:serde", "glam/serde"]
 rkyv = ["dep:rkyv", "glam/rkyv"]
+
+[[example]]
+name = "rlviser"
+required-features = ["rlviser"]
+
+[[example]]
+name = "car_tri"
+required-features = ["rlviser"]
 
 [lints.clippy]
 all = "warn"
