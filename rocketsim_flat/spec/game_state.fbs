@@ -178,5 +178,3 @@ table GameState {
     pads: [BoostPadInfo];
     tiles: DropshotTilesByTeam;
 }
-
-root_type GameState;
