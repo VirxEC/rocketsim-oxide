@@ -1,4 +1,5 @@
 mod comparison_test;
+
 use crate::comparison_test::*;
 
 fn init_for_test() {
@@ -10,7 +11,7 @@ fn init_for_test() {
 fn test_comparisons() {
     init_for_test();
 
-    const FAIL_ERROR_THRESH: f32 = 1.5; // Adjust as needed
+    const FAIL_ERROR_THRESH: f32 = 1.0; // Adjust as needed
     let ball_test_cases = all_test_cases::make_ball_cases();
     let car_test_cases = all_test_cases::make_car_cases();
     for test_case in ball_test_cases.iter().chain(car_test_cases.iter()) {
