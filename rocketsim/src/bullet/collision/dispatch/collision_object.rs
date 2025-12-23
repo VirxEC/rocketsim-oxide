@@ -45,7 +45,6 @@ pub struct CollisionObject {
     pub internal_type: CollisionObjectTypes,
     pub user_pointer: u64,
     pub user_index: UserInfoTypes,
-    pub hit_fraction: f32,
 }
 
 impl Default for CollisionObject {
@@ -69,7 +68,6 @@ impl Default for CollisionObject {
             internal_type: CollisionObjectTypes::CollisionObject,
             user_pointer: 0,
             user_index: UserInfoTypes::default(),
-            hit_fraction: 1.0,
         }
     }
 }

@@ -154,7 +154,6 @@ impl DiscreteDynamicsWorld {
     fn integrate_transforms_internal(&mut self, time_step: f32) {
         for &body in &self.non_static_rigid_bodies {
             let body = &mut self.dynamics_world.collision_world.collision_objects[body];
-            body.collision_object.hit_fraction = 1.0;
 
             debug_assert!(!body.collision_object.is_static_object());
             if !body.collision_object.is_active() {

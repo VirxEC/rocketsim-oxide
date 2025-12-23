@@ -766,6 +766,12 @@ impl Car {
                         0.0,
                     );
 
+                    if dodge_dir.x.abs() < 0.1 && dodge_dir.y.abs() < 0.1 {
+                        dodge_dir = Vec3A::ZERO;
+                    } else {
+                        dodge_dir = dodge_dir.normalize();
+                    }
+
                     self.internal_state.flip_rel_torque =
                         Vec3A::new(-dodge_dir.y, dodge_dir.x, 0.0) / tick_time_scale;
 
@@ -803,8 +809,8 @@ impl Car {
 
                         let forward_dir_2d = self.get_forward_dir().with_z(0.0).normalize();
                         let right_dir_2d = Vec3A::new(-forward_dir_2d.y, forward_dir_2d.x, 0.0);
-                        let final_delta_vel =
-                            initial_dodge_vel * forward_dir_2d + initial_dodge_vel.y * right_dir_2d;
+                        let final_delta_vel = initial_dodge_vel.x * forward_dir_2d
+                            + initial_dodge_vel.y * right_dir_2d;
 
                         rb.apply_central_impulse(
                             final_delta_vel * const { UU_TO_BT * car_consts::MASS_BT },
