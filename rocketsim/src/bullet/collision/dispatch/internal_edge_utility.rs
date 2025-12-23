@@ -29,22 +29,12 @@ struct ConnectivityProcessor<'a> {
 }
 
 impl TriangleCallback for ConnectivityProcessor<'_> {
-    fn process_triangle(
-        &mut self,
-        tri: &TriangleShape,
-        _tri_aabb: &Aabb,
-        triangle_index: usize,
-    ) -> bool {
-        if self.index == triangle_index {
-            return true;
-        }
-
-        if tri.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD {
-            return true;
-        }
-
-        if self.shape.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD {
-            return true;
+    fn process_triangle(&mut self, tri: &TriangleShape, _tri_aabb: &Aabb, triangle_index: usize) {
+        if self.index == triangle_index
+            || tri.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD
+            || self.shape.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD
+        {
+            return;
         }
 
         let mut num_shared = 0;
@@ -161,8 +151,6 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 _ => unreachable!(),
             }
         }
-
-        true
     }
 }
 

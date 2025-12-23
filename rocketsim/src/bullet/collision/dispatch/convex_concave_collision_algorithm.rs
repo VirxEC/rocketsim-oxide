@@ -48,13 +48,13 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         triangle: &TriangleShape,
         _tri_aabb: &Aabb,
         triangle_index: usize,
-    ) -> bool {
+    ) {
         let Some(contact_info) = triangle.intersect_sphere(
             self.sphere_center,
             self.sphere_radius,
             self.manifold.contact_breaking_threshold,
         ) else {
-            return true;
+            return;
         };
 
         let normal_on_b = self
@@ -76,8 +76,6 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             triangle_index as i32,
             self.contact_added_callback,
         );
-
-        true
     }
 }
 

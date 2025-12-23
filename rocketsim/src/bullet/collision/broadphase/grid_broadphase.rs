@@ -8,10 +8,7 @@ use crate::bullet::{
         broadphase::broadphase_proxy::BroadphaseAabbCallback,
         dispatch::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject},
         narrowphase::persistent_manifold::ContactAddedCallback,
-        shapes::{
-            collision_shape::CollisionShapes, triangle_callback::TriangleCallback,
-            triangle_shape::TriangleShape,
-        },
+        shapes::collision_shape::CollisionShapes,
     },
     dynamics::rigid_body::RigidBody,
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
@@ -63,24 +60,6 @@ impl GridCell {
         {
             self.dyn_handles.remove(pos);
         }
-    }
-}
-
-#[derive(Default)]
-struct BoolHitTriangleCallback {
-    hit: bool,
-}
-
-impl TriangleCallback for BoolHitTriangleCallback {
-    fn process_triangle(
-        &mut self,
-        _triangle: &TriangleShape,
-        _tri_aabb: &Aabb,
-        _triangle_index: usize,
-    ) -> bool {
-        self.hit = true;
-
-        false
     }
 }
 
@@ -136,7 +115,6 @@ impl CellGrid {
             _ => None,
         };
 
-        let mut callback_inst = BoolHitTriangleCallback::default();
         let mut cells = Vec::with_capacity(27);
 
         for i in min.x..=max.x {
@@ -148,10 +126,7 @@ impl CellGrid {
                         let cell_aabb =
                             Aabb::new(cell_min, cell_min + Vec3A::splat(self.cell_size));
 
-                        callback_inst.hit = false;
-                        mesh_interface.process_all_triangles(&mut callback_inst, &cell_aabb);
-
-                        if !callback_inst.hit {
+                        if !mesh_interface.check_overlap_with(&cell_aabb) {
                             continue;
                         }
                     }

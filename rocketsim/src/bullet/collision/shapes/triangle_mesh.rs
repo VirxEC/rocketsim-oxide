@@ -36,10 +36,7 @@ impl TriangleMesh {
         let (tris, aabbs) = self.get_tris_aabbs();
 
         for (i, (triangle, aabb)) in tris.iter().zip(aabbs).enumerate() {
-            let continue_processing = callback.process_triangle(triangle, aabb, i);
-            if !continue_processing {
-                return;
-            }
+            callback.process_triangle(triangle, aabb, i)
         }
     }
 
