@@ -186,7 +186,7 @@ fn main() {
     let tps = (TOTAL_TICKS as f32) / elapsed;
     println!(
         "Elapsed: {elapsed}\
-        \nTPS: {tps}\
+        \nTPS: {tps:.0}\
         \nBall hits: {total_ball_touches}"
     );
 }
