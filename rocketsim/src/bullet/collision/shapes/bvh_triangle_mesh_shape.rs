@@ -69,6 +69,10 @@ impl BvhTriangleMeshShape {
             .report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 
+    pub fn check_overlap_with(&self, aabb: &Aabb) -> bool {
+        self.bvh.check_overlap_with(aabb)
+    }
+
     pub fn perform_raycast<T: TriangleRayCallback>(
         &self,
         callback: &mut T,

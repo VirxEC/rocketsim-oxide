@@ -162,9 +162,9 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         triangle: &TriangleShape,
         tri_aabb: &Aabb,
         triangle_index: usize,
-    ) -> bool {
+    ) {
         if !test_aabb_against_aabb(tri_aabb, self.local_convex_aabb) {
-            return true;
+            return;
         }
 
         // transform the triangle into OBB space
@@ -188,14 +188,14 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         let back_dist =
             self.get_triangle_separation(&local_triangle.points, -local_triangle.normal);
         if back_dist > self.manifold.contact_breaking_threshold {
-            return true;
+            return;
         }
 
         // now check the other side
         let front_dist =
             self.get_triangle_separation(&local_triangle.points, local_triangle.normal);
         if front_dist > self.manifold.contact_breaking_threshold {
-            return true;
+            return;
         }
 
         let tri_normal_neg_axis = back_dist < front_dist;
@@ -205,7 +205,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             front_dist
         };
         if tri_normal_depth > 0.0 {
-            return true;
+            return;
         }
 
         let obb = Obb::new(
@@ -220,7 +220,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             -tri_normal_depth,
             tri_normal_neg_axis,
         ) else {
-            return true;
+            return;
         };
 
         // transform hit.normal back into world space from obb space
@@ -286,8 +286,6 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             triangle_index as i32,
             self.contact_added_callback,
         );
-
-        true
     }
 }
 
