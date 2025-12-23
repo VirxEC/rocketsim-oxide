@@ -92,9 +92,7 @@ impl TestCase {
         (new_arena, old_arena_ptr)
     }
 
-    /// continuous_state_set: Will set the new arena's state to the old arena after every step.
-    ///     This will better capture the moments of failure instead of the resulting divergence.
-    pub fn run(&self, continuous_state_set: bool) -> TestResult {
+    pub fn run(&self) -> TestResult {
         info!(
             "Running test case \"{}\" for \"{}\" ticks...",
             self.name, self.duration_ticks
@@ -144,9 +142,7 @@ impl TestCase {
                 let new_car_state = *new_arena.get_car(car_id_new).unwrap().get_state();
                 let old_car_state = old_arena_ptr.pin_mut().get_car(car_id_old);
                 let old_car_state_conv = state_convert::conv_to_new_car_state(&old_car_state);
-                if continuous_state_set {
-                    new_arena.set_car_state(car_id_new, old_car_state_conv);
-                }
+                new_arena.set_car_state(car_id_new, old_car_state_conv);
                 car_state_pairs.push((new_car_state, old_car_state_conv));
             }
 
@@ -154,9 +150,7 @@ impl TestCase {
                 let new_ball_state = *new_arena.get_ball();
                 let old_ball_state = old_arena_ptr.pin_mut().get_ball();
                 let old_ball_state_conv = state_convert::conv_to_new_ball_state(&old_ball_state);
-                if continuous_state_set {
-                    new_arena.set_ball(old_ball_state_conv);
-                }
+                new_arena.set_ball(old_ball_state_conv);
                 Some((new_ball_state, old_ball_state_conv))
             } else {
                 None
