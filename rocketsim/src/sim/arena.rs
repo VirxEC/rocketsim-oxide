@@ -27,7 +27,8 @@ use crate::{ARENA_COLLISION_SHAPES, GameMode, bullet::{
     collision_masks::CollisionMasks,
 }, ArenaConfig, ArenaMemWeightMode};
 
-struct ArenaData {
+/// The arena's inner data, separated to prevent circular reference issues
+struct ArenaInner {
     ball: Ball,
     cars: AHashMap<u64, Car>,
     tick_count: u64,
@@ -36,7 +37,7 @@ struct ArenaData {
     boost_pads: Vec<BoostPad>,
 }
 
-impl ArenaData {
+impl ArenaInner {
     fn on_car_ball_collision(
         &mut self,
         car_id: u64,
@@ -180,7 +181,7 @@ impl ArenaData {
     }
 }
 
-impl ContactAddedCallback for ArenaData {
+impl ContactAddedCallback for ArenaInner {
     fn callback<'a>(
         &mut self,
         contact_point: &mut ManifoldPoint,
@@ -244,7 +245,7 @@ pub struct Arena {
     last_car_id: u64,
     _config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
-    data: ArenaData,
+    data: ArenaInner,
 }
 
 impl Arena {
@@ -327,7 +328,7 @@ impl Arena {
             bullet_world,
             last_car_id: 0,
             tick_time: 1. / f32::from(tick_rate),
-            data: ArenaData {
+            data: ArenaInner {
                 ball,
                 game_mode,
                 boost_pads,
