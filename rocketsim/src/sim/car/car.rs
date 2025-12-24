@@ -1,4 +1,5 @@
 use std::f32::consts::PI;
+
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
@@ -7,25 +8,27 @@ use crate::consts::{
     BT_TO_UU, UU_TO_BT, bullet_vehicle as vehicle_consts, car as car_consts,
     car::drive as drive_consts, curves,
 };
-use crate::{CarConfig, CarControls, CollisionMasks, GameMode, MutatorConfig, PhysState, Team, bullet::{
-    collision::{
-        broadphase::CollisionFilterGroups,
-        dispatch::collision_object::{ActivationState, CollisionFlags},
-        shapes::{
-            box_shape::BoxShape, collision_shape::CollisionShapes,
-            compound_shape::CompoundShape,
+use crate::{
+    CarConfig, CarControls, CarState, CollisionMasks, GameMode, MutatorConfig, PhysState, Team,
+    bullet::{
+        collision::{
+            broadphase::CollisionFilterGroups,
+            dispatch::collision_object::{ActivationState, CollisionFlags},
+            shapes::{
+                box_shape::BoxShape, collision_shape::CollisionShapes,
+                compound_shape::CompoundShape,
+            },
         },
-    },
-    dynamics::{
-        discrete_dynamics_world::DiscreteDynamicsWorld,
-        rigid_body::{RigidBody, RigidBodyConstructionInfo},
-        vehicle::{
-            raycaster::VehicleRaycaster,
-            vehicle_rl::{VehicleRL, VehicleTuning},
+        dynamics::{
+            discrete_dynamics_world::DiscreteDynamicsWorld,
+            rigid_body::{RigidBody, RigidBodyConstructionInfo},
+            vehicle::{raycaster::VehicleRaycaster, vehicle_rl::VehicleRL},
         },
+        linear_math::Mat3AExt,
     },
-    linear_math::Mat3AExt,
-}, consts, sim::UserInfoTypes, CarState};
+    consts,
+    sim::UserInfoTypes,
+};
 
 pub struct Car {
     pub id: u64,

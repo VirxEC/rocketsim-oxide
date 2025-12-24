@@ -1,7 +1,8 @@
 use std::ops::{Deref, DerefMut};
+
 use glam::{Mat3A, Vec3A};
-use crate::consts::heatseeker;
-use crate::{consts, PhysState};
+
+use crate::{PhysState, consts, consts::heatseeker};
 
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

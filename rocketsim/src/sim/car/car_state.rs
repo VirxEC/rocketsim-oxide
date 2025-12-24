@@ -1,5 +1,7 @@
 use std::ops::{Deref, DerefMut};
+
 use glam::{Mat3A, Vec3A};
+
 use crate::{BallHitInfo, CarControls, PhysState};
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -131,8 +133,8 @@ impl CarState {
     pub const fn has_flip_or_jump(&self) -> bool {
         self.is_on_ground
             || (!self.has_flipped
-            && !self.has_double_jumped
-            && self.air_time_since_jump < crate::sim::consts::car::jump::DOUBLEJUMP_MAX_DELAY)
+                && !self.has_double_jumped
+                && self.air_time_since_jump < crate::sim::consts::car::jump::DOUBLEJUMP_MAX_DELAY)
     }
 
     #[must_use]

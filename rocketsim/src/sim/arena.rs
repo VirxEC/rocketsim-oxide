@@ -638,7 +638,8 @@ impl Arena {
         let id = self.last_car_id;
 
         let mut car = Car::new(
-            id, team,
+            id,
+            team,
             &mut self.bullet_world,
             &self.data.mutator_config,
             config,

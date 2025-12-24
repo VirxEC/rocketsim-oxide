@@ -1,8 +1,7 @@
 use glam::{Affine3A, Vec3A};
 
-use crate::{MutatorConfig, sim::collision_masks::CollisionMasks, BallState};
 use crate::{
-    GameMode,
+    BallState, GameMode, MutatorConfig,
     bullet::{
         collision::{
             broadphase::{BroadphaseNativeTypes, CollisionFilterGroups},
@@ -16,6 +15,7 @@ use crate::{
     },
     sim::{
         BallHitInfo, Car, Team, UserInfoTypes,
+        collision_masks::CollisionMasks,
         consts::{self, dropshot, heatseeker},
     },
 };
