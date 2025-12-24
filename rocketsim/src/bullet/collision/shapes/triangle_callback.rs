@@ -9,7 +9,7 @@ pub trait TriangleCallback {
         triangle: &TriangleShape,
         tri_aabb: &Aabb,
         triangle_index: usize,
-    ) -> bool;
+    );
 }
 
 pub trait TriangleRayCallback {

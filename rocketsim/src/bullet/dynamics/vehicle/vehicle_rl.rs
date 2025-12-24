@@ -18,6 +18,7 @@ use crate::{
         },
         linear_math::{Mat3AExt, QuatExt},
     },
+    consts::{UU_TO_BT, bullet_vehicle},
     sim::consts::bullet_vehicle::SUSPENSION_SUBTRACTION,
 };
 
@@ -82,7 +83,7 @@ impl WheelInfoRL {
     fn prepare_for_raycast(&mut self, chassis: &RigidBody) -> (Vec3A, Vec3A, f32) {
         self.update_wheel_transform_ws(chassis.collision_object.get_world_transform());
 
-        let suspension_travel = self.wheel_info.max_suspension_travel_cm / 100.0;
+        let suspension_travel = bullet_vehicle::MAX_SUSPENSION_TRAVEL * UU_TO_BT;
         let real_ray_length = self.wheel_info.suspension_rest_length_1
             + suspension_travel
             + self.wheel_info.wheels_radius
@@ -181,24 +182,6 @@ impl WheelInfoRL {
         }
     }
 
-    // fn ray_cast(
-    //     &mut self,
-    //     chassis: &RigidBody,
-    //     raycaster: &VehicleRaycaster,
-    //     collision_world: &DiscreteDynamicsWorld,
-    // ) {
-    //     let (source, target, suspension_travel) = self.prepare_for_raycast(chassis);
-
-    //     let Some(ray_results) =
-    //         raycaster.cast_ray(collision_world, source, target, &chassis.collision_object)
-    //     else {
-    //         self.reset_wheel_suspension(suspension_travel);
-    //         return;
-    //     };
-
-    //     self.apply_ray_cast(chassis, collision_world, suspension_travel, ray_results);
-    // }
-
     fn calc_friction_impulses(
         &mut self,
         chassis: &RigidBody,
@@ -270,12 +253,12 @@ impl WheelInfoRL {
 
         let force = (self.wheel_info.suspension_rest_length_1
             - self.wheel_info.raycast_info.suspension_length)
-            * self.wheel_info.suspension_stiffness
+            * bullet_vehicle::SUSPENSION_STIFFNESS
             * self.wheel_info.clipped_inv_contact_dot_suspension;
         let damping_vel_scale = if self.wheel_info.suspension_relative_velcity < 0.0 {
-            self.wheel_info.wheels_damping_compression
+            bullet_vehicle::WHEELS_DAMPING_COMPRESSION
         } else {
-            self.wheel_info.wheels_damping_relaxation
+            bullet_vehicle::WHEELS_DAMPING_RELAXATION
         };
 
         self.wheel_info.wheels_suspension_force =
@@ -306,28 +289,6 @@ impl WheelInfoRL {
         let contact_up_dot = trans.matrix3.z_axis.dot(wheel_contact_offset);
         let wheel_rel_pos = wheel_contact_offset - trans.matrix3.z_axis * contact_up_dot;
         cb.apply_impulse(self.impulse * time_step, wheel_rel_pos);
-    }
-}
-
-pub struct VehicleTuning {
-    pub suspension_stiffness: f32,
-    pub suspension_compression: f32,
-    pub suspension_damping: f32,
-    pub max_suspension_travel_cm: f32,
-    // pub friction_slip: f32,
-    // pub max_suspension_force: f32,
-}
-
-impl Default for VehicleTuning {
-    fn default() -> Self {
-        Self {
-            suspension_stiffness: 5.88,
-            suspension_compression: 0.83,
-            suspension_damping: 0.88,
-            max_suspension_travel_cm: 500.0,
-            // friction_slip: 10.5,
-            // max_suspension_force: 6000.0,
-        }
     }
 }
 
@@ -382,8 +343,6 @@ impl VehicleRL {
         wheel_axle_cs: Vec3A,
         suspension_rest_length: f32,
         wheel_radius: f32,
-        tuning: &VehicleTuning,
-        // is_front_wheel: bool,
     ) {
         let ci = WheelInfoConstructionInfo {
             chassis_connection_cs: connection_point_cs,
@@ -391,13 +350,6 @@ impl VehicleRL {
             wheel_axle_cs,
             suspension_rest_length,
             wheel_radius,
-            suspension_stiffness: tuning.suspension_stiffness,
-            wheels_damping_compression: tuning.suspension_compression,
-            wheels_damping_relaxation: tuning.suspension_damping,
-            // friction_slip: tuning.friction_slip,
-            // is_front_wheel,
-            max_suspension_travel_cm: tuning.max_suspension_travel_cm,
-            // max_suspension_force: tuning.max_suspension_force,
         };
 
         let mut wheel = WheelInfoRL::new(ci);

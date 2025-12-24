@@ -9,7 +9,7 @@ use crate::bullet::{
         triangle_shape::TriangleShape,
     },
     linear_math::{
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
         ray_packet::RayInfo,
     },
 };
@@ -78,7 +78,7 @@ pub struct Bvh {
 }
 
 impl Bvh {
-    const SAH_BINS: usize = 12;
+    const SAH_BINS: usize = 4;
 
     fn calc_sah_split(leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) -> usize {
         let count = end_index - start_index;
@@ -89,35 +89,30 @@ impl Bvh {
         }
 
         // Compute centroid bounds
-        let mut cmin = Vec3A::splat(f32::INFINITY);
-        let mut cmax = Vec3A::splat(f32::NEG_INFINITY);
-        for leaf in &leaf_nodes[start_index..end_index] {
-            let c = leaf.aabb.center();
-            cmin = cmin.min(c);
-            cmax = cmax.max(c);
-        }
+        let (cmin, cmax) = leaf_nodes[start_index..end_index]
+            .iter()
+            .map(|leaf| leaf.aabb.center())
+            .fold(
+                (Vec3A::splat(f32::INFINITY), Vec3A::splat(f32::NEG_INFINITY)),
+                |(min_acc, max_acc), c| (min_acc.min(c), max_acc.max(c)),
+            );
 
-        let extent = cmax - cmin;
+        let extents = (cmax - cmin).to_array();
 
         let mut best_axis = None;
         let mut best_cost = f32::INFINITY;
         let mut best_bin = 0;
 
-        // Temporary storage per axis
-        let mut bin_counts = [0usize; Self::SAH_BINS];
-        let mut bin_bounds = [Aabb::ZERO; Self::SAH_BINS];
-
-        for axis in 0..3 {
-            if extent[axis] <= f32::EPSILON {
+        for (axis, extent) in extents.into_iter().enumerate() {
+            if extent <= f32::EPSILON {
                 continue;
             }
 
-            // reset bins
-            bin_counts.fill(0);
-            bin_bounds.fill(Aabb::ZERO);
+            let mut bin_counts = [0usize; Self::SAH_BINS];
+            let mut bin_bounds = [Aabb::ZERO; Self::SAH_BINS];
 
             // Fill bins
-            let scale = (Self::SAH_BINS as f32 - 1.0) / extent[axis];
+            let scale = (Self::SAH_BINS - 1) as f32 / extent;
             for leaf in &leaf_nodes[start_index..end_index] {
                 let c = leaf.aabb.center();
                 let idx = ((c[axis] - cmin[axis]) * scale).clamp(0.0, (Self::SAH_BINS - 1) as f32)
@@ -140,6 +135,7 @@ impl Bvh {
                     running_aabb += bin_bounds[i];
                     running_count += bin_counts[i];
                 }
+
                 prefix_area[i] = running_aabb.area();
                 prefix_count[i] = running_count;
             }
@@ -160,9 +156,11 @@ impl Bvh {
             }
 
             // Evaluate splits between bins
-            for i in 0..Self::SAH_BINS - 1 {
-                let nl = prefix_count[i];
-                let nr = suffix_count[i + 1];
+            for (i, (nl, nr)) in prefix_count
+                .into_iter()
+                .zip(suffix_count.into_iter().skip(1))
+                .enumerate()
+            {
                 if nl == 0 || nr == 0 {
                     continue;
                 }
@@ -180,7 +178,7 @@ impl Bvh {
 
         // Partition by chosen axis/bin
         let split_value =
-            cmin[axis] + extent[axis] * ((best_bin + 1) as f32) / (Self::SAH_BINS as f32);
+            cmin[axis] + extents[axis] * ((best_bin + 1) as f32) / (Self::SAH_BINS as f32);
         let mut mid = start_index;
         for i in start_index..end_index {
             let c = leaf_nodes[i].aabb.center();
@@ -236,6 +234,39 @@ impl Bvh {
         self.nodes[internal_node_index].node_type = NodeType::Branch { escape_index };
     }
 
+    fn walk_stackless_tree_find_overlap(
+        &self,
+        aabb: &Aabb,
+        start_node_index: usize,
+        end_node_index: usize,
+    ) -> bool {
+        let mut cur_index = start_node_index;
+        while cur_index < end_node_index {
+            let root_node = &self.nodes[cur_index];
+            let aabb_overlap = aabb.intersects(&root_node.aabb);
+
+            match root_node.node_type {
+                NodeType::Leaf { triangle_index: _ } => {
+                    if aabb_overlap {
+                        return true;
+                    }
+
+                    cur_index += 1;
+                }
+                NodeType::Branch { escape_index } => {
+                    cur_index += if aabb_overlap { 1 } else { escape_index };
+                }
+            }
+        }
+
+        false
+    }
+
+    pub fn check_overlap_with(&self, aabb: &Aabb) -> bool {
+        aabb.intersects(&self.aabb)
+            && self.walk_stackless_tree_find_overlap(aabb, 0, self.cur_node_index)
+    }
+
     fn walk_stackless_tree<T: NodeOverlapCallback>(
         &self,
         node_callback: &mut T,
@@ -246,7 +277,7 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let aabb_overlap = test_aabb_against_aabb(aabb, &root_node.aabb);
+            let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
@@ -268,7 +299,7 @@ impl Bvh {
         node_callback: &mut T,
         aabb: &Aabb,
     ) {
-        if test_aabb_against_aabb(aabb, &self.aabb) {
+        if aabb.intersects(&self.aabb) {
             self.walk_stackless_tree(node_callback, aabb, 0, self.cur_node_index);
         }
     }
@@ -285,7 +316,7 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let overlap = test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb);
+            let overlap = ray_info.aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
@@ -319,7 +350,7 @@ impl Bvh {
         node_callback: &mut T,
         ray_info: &mut RayInfo,
     ) {
-        if !test_aabb_against_aabb(&ray_info.aabb, &self.aabb) {
+        if !ray_info.aabb.intersects(&self.aabb) {
             return;
         }
 

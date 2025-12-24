@@ -1,5 +1,6 @@
 use std::{
     f32::consts::TAU,
+    iter::repeat_n,
     ops::{Deref, DerefMut},
 };
 
@@ -42,7 +43,7 @@ impl TriangleInfoMap {
     pub const MAX_EDGE_ANGLE_THRESHOLD: f32 = TAU;
 
     pub fn new(map_size: usize) -> Self {
-        Self((0..map_size).map(|_| TriangleInfo::default()).collect())
+        Self(repeat_n(TriangleInfo::default(), map_size).collect())
     }
 }
 

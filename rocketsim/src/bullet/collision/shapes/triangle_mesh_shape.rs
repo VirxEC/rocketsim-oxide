@@ -84,7 +84,7 @@ impl TriangleCallback for SupportVertexCallback {
         triangle: &TriangleShape,
         _tri_aabb: &Aabb,
         _triangle_index: usize,
-    ) -> bool {
+    ) {
         for vert in triangle.points {
             let dot = self.support_vec_local.dot(vert);
             if dot > self.max_dot {
@@ -92,8 +92,6 @@ impl TriangleCallback for SupportVertexCallback {
                 self.support_vertex_local = vert;
             }
         }
-
-        true
     }
 }
 

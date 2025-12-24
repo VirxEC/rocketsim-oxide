@@ -5,7 +5,7 @@ use super::{
 use crate::bullet::{
     collision::{
         broadphase::{
-            BroadphaseNativeTypes, CollisionAlgorithm, GridBroadphase, GridBroadpraseProxy,
+            BroadphaseNativeTypes, CollisionAlgorithm, GridBroadphase, GridBroadphaseProxy,
         },
         dispatch::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
@@ -119,8 +119,8 @@ impl CollisionDispatcher {
         col_obj_1: &'a CollisionObject,
         contact_added_callback: &'a mut T,
     ) -> Algorithms<'a, T> {
-        let shape0 = col_obj_0.get_collision_shape().unwrap().get_shape_type();
-        let shape1 = col_obj_1.get_collision_shape().unwrap().get_shape_type();
+        let shape0 = col_obj_0.get_collision_shape().get_shape_type();
+        let shape1 = col_obj_1.get_collision_shape().get_shape_type();
 
         match shape0 {
             BroadphaseNativeTypes::StaticPlaneProxytype => match shape1 {
@@ -213,14 +213,12 @@ impl CollisionDispatcher {
     pub fn near_callback<T: ContactAddedCallback>(
         &mut self,
         collision_objects: &[RigidBody],
-        proxy0: &GridBroadpraseProxy,
-        proxy1: &GridBroadpraseProxy,
+        proxy0: &GridBroadphaseProxy,
+        proxy1: &GridBroadphaseProxy,
         contact_added_callback: &mut T,
     ) {
-        let rb0_idx = proxy0.broadphase_proxy.client_object_idx.unwrap();
-        let rb1_idx = proxy1.broadphase_proxy.client_object_idx.unwrap();
-        let rb0 = &collision_objects[rb0_idx];
-        let rb1 = &collision_objects[rb1_idx];
+        let rb0 = &collision_objects[proxy0.client_object_idx];
+        let rb1 = &collision_objects[proxy1.client_object_idx];
 
         if !rb0.collision_object.is_active() && !rb1.collision_object.is_active()
             || !rb0.collision_object.has_contact_response()

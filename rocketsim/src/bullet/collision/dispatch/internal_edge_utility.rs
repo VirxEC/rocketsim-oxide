@@ -29,22 +29,12 @@ struct ConnectivityProcessor<'a> {
 }
 
 impl TriangleCallback for ConnectivityProcessor<'_> {
-    fn process_triangle(
-        &mut self,
-        tri: &TriangleShape,
-        _tri_aabb: &Aabb,
-        triangle_index: usize,
-    ) -> bool {
-        if self.index == triangle_index {
-            return true;
-        }
-
-        if tri.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD {
-            return true;
-        }
-
-        if self.shape.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD {
-            return true;
+    fn process_triangle(&mut self, tri: &TriangleShape, _tri_aabb: &Aabb, triangle_index: usize) {
+        if self.index == triangle_index
+            || tri.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD
+            || self.shape.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD
+        {
+            return;
         }
 
         let mut num_shared = 0;
@@ -161,8 +151,6 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
                 _ => unreachable!(),
             }
         }
-
-        true
     }
 }
 
@@ -209,7 +197,7 @@ fn clamp_normal(
         || (corrected_edge_angle >= 0.0 && cur_angle > corrected_edge_angle)
     {
         let diff_angle = corrected_edge_angle - cur_angle;
-        let rotation = Quat::from_axis_angle_simd(edge, diff_angle);
+        let rotation = Quat::from_axis_angle_simd(edge.normalize(), diff_angle);
         Some(rotation * local_contact_normal_on_b)
     } else {
         None
@@ -228,8 +216,7 @@ pub fn adjust_internal_edge_contacts(
     tri_mesh_col_obj: &CollisionObject,
     index: usize,
 ) {
-    let Some(CollisionShapes::TriangleMesh(tri_mesh)) = tri_mesh_col_obj.get_collision_shape()
-    else {
+    let CollisionShapes::TriangleMesh(tri_mesh) = tri_mesh_col_obj.get_collision_shape() else {
         return;
     };
 
@@ -283,11 +270,11 @@ pub fn adjust_internal_edge_contacts(
 
             if info.edge_v0_v1_angle != 0.0 {
                 let is_edge_convex = (info.flags & TriInfoFlag::V0V1Convex as u8) != 0;
-                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+                let swap_factor = f32::from(is_edge_convex) * 2.0 - 1.0;
 
                 let edge = -tri.edges[0];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle_simd(edge, info.edge_v0_v1_angle);
+                let orn = Quat::from_axis_angle_simd(edge.normalize(), info.edge_v0_v1_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if (info.flags & TriInfoFlag::V0V1SwapNormalB as u8) != 0 {
                     computed_normal_b *= -1.0;
@@ -330,11 +317,11 @@ pub fn adjust_internal_edge_contacts(
 
             if info.edge_v1_v2_angle != 0.0 {
                 let is_edge_convex = (info.flags & TriInfoFlag::V1V2Convex as u8) != 0;
-                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+                let swap_factor = f32::from(is_edge_convex) * 2.0 - 1.0;
 
                 let edge = -tri.edges[1];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle_simd(edge, info.edge_v1_v2_angle);
+                let orn = Quat::from_axis_angle_simd(edge.normalize(), info.edge_v1_v2_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if (info.flags & TriInfoFlag::V1V2SwapNormalB as u8) != 0 {
                     computed_normal_b *= -1.0;
@@ -377,11 +364,11 @@ pub fn adjust_internal_edge_contacts(
 
             if info.edge_v2_v0_angle != 0.0 {
                 let is_edge_convex = (info.flags & TriInfoFlag::V2V0Convex as u8) != 0;
-                let swap_factor = if is_edge_convex { 1.0 } else { -1.0 };
+                let swap_factor = f32::from(is_edge_convex) * 2.0 - 1.0;
 
                 let edge = -tri.edges[2];
                 let n_a = swap_factor * tri.normal;
-                let orn = Quat::from_axis_angle_simd(edge, info.edge_v2_v0_angle);
+                let orn = Quat::from_axis_angle_simd(edge.normalize(), info.edge_v2_v0_angle);
                 let mut computed_normal_b = orn * tri.normal;
                 if (info.flags & TriInfoFlag::V2V0SwapNormalB as u8) != 0 {
                     computed_normal_b *= -1.0;

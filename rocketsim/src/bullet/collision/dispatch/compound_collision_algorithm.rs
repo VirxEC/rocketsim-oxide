@@ -13,11 +13,7 @@ use crate::bullet::{
             triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{
-        AffineExt,
-        aabb_util_2::{Aabb, test_aabb_against_aabb},
-        obb::Obb,
-    },
+    linear_math::{AffineExt, aabb_util_2::Aabb, obb::Obb},
 };
 
 struct Hit {
@@ -162,9 +158,9 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         triangle: &TriangleShape,
         tri_aabb: &Aabb,
         triangle_index: usize,
-    ) -> bool {
-        if !test_aabb_against_aabb(tri_aabb, self.local_convex_aabb) {
-            return true;
+    ) {
+        if !tri_aabb.intersects(self.local_convex_aabb) {
+            return;
         }
 
         // transform the triangle into OBB space
@@ -188,14 +184,14 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         let back_dist =
             self.get_triangle_separation(&local_triangle.points, -local_triangle.normal);
         if back_dist > self.manifold.contact_breaking_threshold {
-            return true;
+            return;
         }
 
         // now check the other side
         let front_dist =
             self.get_triangle_separation(&local_triangle.points, local_triangle.normal);
         if front_dist > self.manifold.contact_breaking_threshold {
-            return true;
+            return;
         }
 
         let tri_normal_neg_axis = back_dist < front_dist;
@@ -205,7 +201,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             front_dist
         };
         if tri_normal_depth > 0.0 {
-            return true;
+            return;
         }
 
         let obb = Obb::new(
@@ -220,7 +216,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             -tri_normal_depth,
             tri_normal_neg_axis,
         ) else {
-            return true;
+            return;
         };
 
         // transform hit.normal back into world space from obb space
@@ -286,8 +282,6 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
             triangle_index as i32,
             self.contact_added_callback,
         );
-
-        true
     }
 }
 
@@ -314,8 +308,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
     }
 
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Compound(compound_shape)) =
-            self.compound_obj.get_collision_shape()
+        let CollisionShapes::Compound(compound_shape) = self.compound_obj.get_collision_shape()
         else {
             unreachable!()
         };
@@ -329,10 +322,10 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let box_shape = &child.child_shape;
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
-        let other_col_shape = self.other_obj.get_collision_shape().unwrap();
+        let other_col_shape = self.other_obj.get_collision_shape();
         let aabb2 = other_col_shape.get_aabb(self.other_obj.get_world_transform());
 
-        if !test_aabb_against_aabb(&aabb1, &aabb2) {
+        if !aabb1.intersects(&aabb2) {
             return None;
         }
 

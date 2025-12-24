@@ -1,11 +1,11 @@
-#![cfg(feature = "rlviser")]
-
 use std::{
     thread::sleep,
     time::{Duration, Instant},
 };
 
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default, rlviser::RLViser};
+use rocketsim::{
+    Arena, CarConfig, CarControls, GameMode, Team, init_from_default, rlviser::RLViser,
+};
 
 fn main() {
     init_from_default(true).unwrap();
@@ -17,10 +17,6 @@ fn main() {
         arena.add_car(Team::Orange, CarConfig::OCTANE),
     ];
 
-    for id in ids {
-        arena.get_car_mut(id).unwrap().controls.throttle = 1.0;
-    }
-
     arena.reset_to_random_kickoff();
 
     let mut render_interval = Duration::from_secs_f32(1.0 / 120.);
@@ -28,6 +24,14 @@ fn main() {
 
     // run for 300 seconds
     for _ in 0..(120 * 3000) {
+        for id in ids {
+            arena.car_mut(id).set_controls(CarControls {
+                throttle: 1.0,
+                boost: true,
+                ..Default::default()
+            });
+        }
+
         // step the arena
         arena.step(1);
 

@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use glam::Vec3A;
-use rocketsim::{Arena, ArenaConfig, CarConfig, GameMode, Team, init_from_default};
+use rocketsim::{Arena, ArenaConfig, CarConfig, CarControls, GameMode, Team, init_from_default};
 
 fn hex_vec3a(v: Vec3A) -> String {
     format!("{:x?}", v.to_array().map(|f| f.to_bits()))
@@ -27,16 +27,18 @@ fn main() {
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
     arena.reset_to_random_kickoff();
 
-    let car = arena.get_car_mut(id).unwrap();
+    let car = arena.car_mut(id);
     println!("pos: {}", car.get_state().phys.pos);
-    car.controls.throttle = 1.0;
-    car.controls.boost = false;
+    let mut car_controls = CarControls::DEFAULT;
+    car_controls.throttle = 1.0;
+    car_controls.boost = false;
+    car.set_controls(car_controls);
 
     for i in 0..3 {
         println!("\nstep {i}");
         arena.step(1);
 
-        let state = arena.get_car(id).unwrap().get_state();
+        let state = arena.car(id).get_state();
         // println!("\npos: {}", state.physics.pos);
         // println!("vel: {}", state.physics.vel);
         // println!("ang_vel: {}", state.physics.ang_vel);

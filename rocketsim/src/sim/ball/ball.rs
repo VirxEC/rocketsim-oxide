@@ -1,8 +1,7 @@
-use glam::{Affine3A, Mat3A, Vec3A};
+use glam::{Affine3A, Vec3A};
 
-use super::{MutatorConfig, PhysState, collision_masks::CollisionMasks};
 use crate::{
-    GameMode,
+    BallState, GameMode, MutatorConfig,
     bullet::{
         collision::{
             broadphase::{BroadphaseNativeTypes, CollisionFilterGroups},
@@ -16,107 +15,10 @@ use crate::{
     },
     sim::{
         BallHitInfo, Car, Team, UserInfoTypes,
+        collision_masks::CollisionMasks,
         consts::{self, dropshot, heatseeker},
     },
 };
-
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
-)]
-pub struct HeatseekerInfo {
-    /// Which net the ball should seek towards;
-    /// When 0, no net
-    pub y_target_dir: f32,
-    pub cur_target_speed: f32,
-    pub time_since_hit: f32,
-}
-
-impl Default for HeatseekerInfo {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
-impl HeatseekerInfo {
-    pub const DEFAULT: Self = Self {
-        y_target_dir: 0.,
-        cur_target_speed: heatseeker::INITIAL_TARGET_SPEED,
-        time_since_hit: 0.,
-    };
-}
-
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
-)]
-pub struct DropshotInfo {
-    /// Charge level number, which controls the radius of damage when hitting tiles
-    /// 1 = damages r=1 -> 1 tile
-    /// 2 = damages r=2 -> 7 tiles
-    /// 3 = damages r=3 -> 19 tiles
-    pub charge_level: i32,
-    /// Resets when a tile is damaged
-    pub accumulated_hit_force: f32,
-    /// Which side of the field the ball can damage (0=none, -1=blue, 1=orange)
-    pub y_target_dir: f32,
-    pub has_damaged: bool,
-    /// Only valid if `has_damaged`
-    pub last_damage_tick: u64,
-}
-
-impl Default for DropshotInfo {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
-impl DropshotInfo {
-    pub const DEFAULT: Self = Self {
-        charge_level: 1,
-        accumulated_hit_force: 0.,
-        y_target_dir: 0.,
-        has_damaged: false,
-        last_damage_tick: 0,
-    };
-}
-
-#[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "rkyv",
-    derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
-)]
-pub struct BallState {
-    pub phys: PhysState,
-    pub ticks_since_update: u64,
-    pub hs_info: HeatseekerInfo,
-    pub ds_info: DropshotInfo,
-}
-
-impl Default for BallState {
-    fn default() -> Self {
-        Self::DEFAULT
-    }
-}
-
-impl BallState {
-    pub const DEFAULT: Self = Self {
-        phys: PhysState {
-            pos: Vec3A::new(0.0, 0.0, consts::ball::REST_Z),
-            rot_mat: Mat3A::IDENTITY,
-            vel: Vec3A::ZERO,
-            ang_vel: Vec3A::ZERO,
-        },
-        ticks_since_update: 0,
-        hs_info: HeatseekerInfo::DEFAULT,
-        ds_info: DropshotInfo::DEFAULT,
-    };
-}
 
 pub struct Ball {
     pub(crate) internal_state: BallState,
@@ -163,15 +65,13 @@ impl Ball {
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
-        let rigid_body_idx = bullet_world
-            .add_rigid_body(
-                body,
-                CollisionFilterGroups::Default as u8
-                    | CollisionMasks::HoopsNet as u8
-                    | CollisionMasks::DropshotTile as u8,
-                CollisionFilterGroups::All as u8,
-            )
-            .unwrap();
+        let rigid_body_idx = bullet_world.add_rigid_body(
+            body,
+            CollisionFilterGroups::Default as u8
+                | CollisionMasks::HoopsNet as u8
+                | CollisionMasks::DropshotTile as u8,
+            CollisionFilterGroups::All as u8,
+        );
 
         Self {
             internal_state: BallState::DEFAULT,
@@ -200,7 +100,6 @@ impl Ball {
         }
 
         self.internal_state = state;
-        self.internal_state.ticks_since_update = 0;
     }
 
     pub(crate) fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
@@ -242,8 +141,6 @@ impl Ball {
         let trans = *rb.collision_object.get_world_transform();
         self.internal_state.phys.pos = trans.translation * consts::BT_TO_UU;
         self.internal_state.phys.rot_mat = trans.matrix3;
-
-        self.internal_state.ticks_since_update += 1;
     }
 
     pub(crate) fn on_hit(

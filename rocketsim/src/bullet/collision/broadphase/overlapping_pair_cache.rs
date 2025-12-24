@@ -2,10 +2,10 @@ use std::mem;
 
 use ahash::AHashMap;
 
-use super::{broadphase_proxy::BroadphasePair, grid_broadphase::GridBroadpraseProxy};
+use super::{broadphase_proxy::BroadphasePair, grid_broadphase::GridBroadphaseProxy};
 use crate::bullet::{
     collision::{
-        dispatch::collision_dispatcher::CollisionDispatcher,
+        broadphase::BroadphaseProxy, dispatch::collision_dispatcher::CollisionDispatcher,
         narrowphase::persistent_manifold::ContactAddedCallback,
     },
     dynamics::rigid_body::RigidBody,
@@ -52,21 +52,16 @@ impl HashedOverlappingPairCache {
 
     pub fn add_overlapping_pair(
         &mut self,
-        proxy0: &GridBroadpraseProxy,
+        proxy0: &BroadphaseProxy,
         proxy0_idx: usize,
-        proxy1: &GridBroadpraseProxy,
+        proxy1: &BroadphaseProxy,
         proxy1_idx: usize,
     ) {
         if !Self::needs_broadphase_collision(proxy0, proxy1) {
             return;
         }
 
-        self.internal_add_pair(
-            proxy0.broadphase_proxy.unique_id,
-            proxy0_idx,
-            proxy1.broadphase_proxy.unique_id,
-            proxy1_idx,
-        );
+        self.internal_add_pair(proxy0.unique_id, proxy0_idx, proxy1.unique_id, proxy1_idx);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -75,36 +70,27 @@ impl HashedOverlappingPairCache {
 
     pub fn contains_pair<'a>(
         &self,
-        mut proxy0: &'a GridBroadpraseProxy,
-        mut proxy1: &'a GridBroadpraseProxy,
+        mut proxy0: &'a BroadphaseProxy,
+        mut proxy1: &'a BroadphaseProxy,
     ) -> bool {
-        if proxy0.broadphase_proxy.unique_id > proxy1.broadphase_proxy.unique_id {
+        if proxy0.unique_id > proxy1.unique_id {
             mem::swap(&mut proxy0, &mut proxy1);
         }
 
-        self.hash_table.contains_key(&(
-            proxy0.broadphase_proxy.unique_id,
-            proxy1.broadphase_proxy.unique_id,
-        ))
+        self.hash_table
+            .contains_key(&(proxy0.unique_id, proxy1.unique_id))
     }
 
-    pub const fn needs_broadphase_collision(
-        proxy0: &GridBroadpraseProxy,
-        proxy1: &GridBroadpraseProxy,
-    ) -> bool {
-        (proxy0.broadphase_proxy.collision_filter_group
-            & proxy1.broadphase_proxy.collision_filter_mask)
-            != 0
-            && (proxy1.broadphase_proxy.collision_filter_group
-                & proxy0.broadphase_proxy.collision_filter_mask)
-                != 0
+    pub fn needs_broadphase_collision(proxy0: &BroadphaseProxy, proxy1: &BroadphaseProxy) -> bool {
+        (proxy0.collision_filter_group & proxy1.collision_filter_mask) != 0
+            && (proxy1.collision_filter_group & proxy0.collision_filter_mask) != 0
     }
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
         &mut self,
         collision_objects: &[RigidBody],
         dispatcher: &mut CollisionDispatcher,
-        handles: &[GridBroadpraseProxy],
+        handles: &[GridBroadphaseProxy],
         contact_added_callback: &mut T,
     ) {
         for pair in &self.overlapping_pair_array {

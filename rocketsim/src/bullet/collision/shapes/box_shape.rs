@@ -11,7 +11,7 @@ use crate::bullet::{
 };
 
 pub struct BoxShape {
-    pub(crate) polyhedral_convex_shape: PolyhedralConvexShape,
+    polyhedral_convex_shape: PolyhedralConvexShape,
 }
 
 impl BoxShape {

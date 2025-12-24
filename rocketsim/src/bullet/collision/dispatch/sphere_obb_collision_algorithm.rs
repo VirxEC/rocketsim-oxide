@@ -9,7 +9,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{collision_shape::CollisionShapes, sphere_shape::SPHERE_RADIUS_MARGIN},
     },
-    linear_math::{AffineExt, aabb_util_2::test_aabb_against_aabb},
+    linear_math::AffineExt,
 };
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -37,13 +37,11 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Sphere(sphere_ref)) = self.sphere_obj.get_collision_shape()
-        else {
+        let CollisionShapes::Sphere(sphere_ref) = self.sphere_obj.get_collision_shape() else {
             unreachable!();
         };
 
-        let Some(CollisionShapes::Compound(compound_shape)) =
-            self.obb_obj.object.get_collision_shape()
+        let CollisionShapes::Compound(compound_shape) = self.obb_obj.object.get_collision_shape()
         else {
             unreachable!();
         };
@@ -54,7 +52,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let org_trans = self.obb_obj.object.get_world_transform();
         let aabb_2 = compound_shape.get_aabb(org_trans);
 
-        if !test_aabb_against_aabb(&aabb_1, &aabb_2) {
+        if !aabb_1.intersects(&aabb_2) {
             return None;
         }
 

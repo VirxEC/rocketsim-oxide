@@ -147,6 +147,7 @@ impl QuatExt for Quat {
     #[inline]
     /// An implementation of `Quat::from_axis_angle` that leverages simd
     fn from_axis_angle_simd(axis: Vec3A, angle: f32) -> Self {
+        debug_assert!(axis.is_normalized());
         let (s, c) = f32::sin_cos(angle * 0.5);
         let v = axis * s;
         Self::from_xyzw(v.x, v.y, v.z, c)

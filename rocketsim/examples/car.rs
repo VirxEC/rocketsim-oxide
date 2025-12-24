@@ -17,7 +17,7 @@ fn main() {
     arena.set_ball(ball_state);
 
     let state = {
-        let car = arena.get_car(id).unwrap();
+        let car = arena.car(id);
         let mut state = *car.get_state();
         state.phys.pos.z = 43.0;
         state.is_on_ground = false;

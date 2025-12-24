@@ -44,10 +44,7 @@ impl VehicleRaycaster {
             if ray_callback.has_hit(i)
                 && let Some(co_index) = ray_callback.base.collision_object_index[i]
             {
-                let rb = &collision_world
-                    .dynamics_world
-                    .collision_world
-                    .collision_objects[co_index];
+                let rb = &collision_world.bodies()[co_index];
                 if rb.collision_object.has_contact_response() {
                     *result = Some(VehicleRaycasterResult {
                         rigid_body: rb,

@@ -17,7 +17,7 @@ use crate::bullet::{
 };
 
 pub struct BvhTriangleMeshShape {
-    pub triangle_mesh_shape: TriangleMeshShape,
+    triangle_mesh_shape: TriangleMeshShape,
     bvh: Bvh,
     mesh_interface: TriangleMesh,
     triangle_info_map: TriangleInfoMap,
@@ -67,6 +67,10 @@ impl BvhTriangleMeshShape {
         let mut my_node_callback = BvhNodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
             .report_aabb_overlapping_node(&mut my_node_callback, aabb);
+    }
+
+    pub fn check_overlap_with(&self, aabb: &Aabb) -> bool {
+        self.bvh.check_overlap_with(aabb)
     }
 
     pub fn perform_raycast<T: TriangleRayCallback>(

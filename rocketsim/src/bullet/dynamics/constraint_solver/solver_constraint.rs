@@ -34,6 +34,65 @@ pub struct SolverConstraint {
 }
 
 impl SolverConstraint {
+    pub fn get_friction_constraint(
+        (solver_body_id_a, solver_body_id_b): (usize, usize),
+        (solver_body_a, solver_body_b): (&mut SolverBody, &mut SolverBody),
+        (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),
+        (rel_pos1, rel_pos2): (Vec3A, Vec3A),
+        cp: &ManifoldPoint,
+        friction_index: usize,
+    ) -> Self {
+        let mut constraint = Self {
+            friction_index,
+            solver_body_id_a,
+            solver_body_id_b,
+            lower_limit: -cp.combined_friction,
+            upper_limit: cp.combined_friction,
+            friction: cp.combined_friction,
+            ..Default::default()
+        };
+
+        constraint.setup_friction_constraint(
+            (solver_body_a, solver_body_b),
+            (rb0, rb1),
+            (rel_pos1, rel_pos2),
+            cp.lateral_friction_dir_1,
+        );
+
+        constraint
+    }
+
+    pub fn get_contact_constraint(
+        (solver_body_id_a, solver_body_id_b): (usize, usize),
+        (solver_body_a, solver_body_b): (&mut SolverBody, &mut SolverBody),
+        (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),
+        (rel_pos1, rel_pos2): (Vec3A, Vec3A),
+        cp: &ManifoldPoint,
+        friction_index: usize,
+        time_step: f32,
+    ) -> Self {
+        let mut constraint = Self {
+            solver_body_id_a,
+            solver_body_id_b,
+            friction_index,
+            friction: cp.combined_friction,
+            is_special: cp.is_special,
+            lower_limit: 0.0,
+            upper_limit: 1e10,
+            ..Default::default()
+        };
+
+        constraint.setup_contact_constraint(
+            (solver_body_a, solver_body_b),
+            (rb0, rb1),
+            (rel_pos1, rel_pos2),
+            cp,
+            time_step,
+        );
+
+        constraint
+    }
+
     pub fn restitution_curve(rel_vel: f32, restitution: f32) -> f32 {
         if rel_vel.abs() < ContactSolverInfo::RESTITUTION_VELOCITY_THRESHOLD {
             0.0
@@ -42,7 +101,7 @@ impl SolverConstraint {
         }
     }
 
-    pub fn setup_contact_constraint(
+    fn setup_contact_constraint(
         &mut self,
         (solver_body_a, solver_body_b): (&mut SolverBody, &mut SolverBody),
         (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),
@@ -132,7 +191,7 @@ impl SolverConstraint {
             };
     }
 
-    pub fn setup_friction_constraint(
+    fn setup_friction_constraint(
         &mut self,
         (solver_body_a, solver_body_b): (&SolverBody, &SolverBody),
         (rb0, rb1): (Option<&RigidBody>, Option<&RigidBody>),

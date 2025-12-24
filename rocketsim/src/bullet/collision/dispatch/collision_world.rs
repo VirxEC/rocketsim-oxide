@@ -1,9 +1,6 @@
 use glam::Vec3A;
 
-use super::{
-    collision_dispatcher::CollisionDispatcher,
-    collision_object::{CollisionObject, CollisionObjectTypes},
-};
+use super::{collision_dispatcher::CollisionDispatcher, collision_object::CollisionObject};
 use crate::bullet::{
     collision::{
         broadphase::GridBroadphase,
@@ -44,7 +41,7 @@ impl CollisionWorld {
             obj.world_array_index = self.collision_objects.len();
 
             let trans = obj.get_world_transform();
-            let aabb = obj.get_collision_shape().unwrap().get_aabb(trans);
+            let aabb = obj.get_collision_shape().get_aabb(trans);
 
             let proxy =
                 self.broadphase_pair_cache
@@ -96,20 +93,14 @@ impl CollisionWorld {
 
             let mut aabb = col_obj
                 .get_collision_shape()
-                .as_ref()
-                .unwrap()
                 .get_aabb(col_obj.get_world_transform());
 
             aabb.min -= CBT;
             aabb.max += CBT;
 
-            if col_obj.internal_type == CollisionObjectTypes::RigidBody
-                && !col_obj.is_static_object()
-            {
+            if !col_obj.is_static_object() {
                 let mut aabb2 = col_obj
                     .get_collision_shape()
-                    .as_ref()
-                    .unwrap()
                     .get_aabb(&col_obj.interpolation_world_transform);
                 aabb2.min -= CBT;
                 aabb2.max += CBT;
@@ -177,7 +168,6 @@ impl CollisionWorld {
         ray_info.lambda_max = rcb.hit_fraction;
 
         co.get_collision_shape()
-            .unwrap()
             .perform_raycast(&mut rcb, &mut ray_info);
     }
 

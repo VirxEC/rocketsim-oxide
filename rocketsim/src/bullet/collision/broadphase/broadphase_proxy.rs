@@ -32,10 +32,9 @@ pub enum CollisionFilterGroups {
     All = -1,
 }
 
-#[derive(Clone, Default)]
 pub struct BroadphaseProxy {
     /// The index of the client `CollisionObject` in `CollisionWorld`
-    pub client_object_idx: Option<usize>,
+    pub client_object_idx: usize,
     pub collision_filter_group: u8,
     pub collision_filter_mask: u8,
     pub unique_id: usize,

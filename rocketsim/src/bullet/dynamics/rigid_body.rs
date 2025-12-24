@@ -2,9 +2,7 @@ use glam::{Affine3A, Mat3A, Vec3A};
 
 use crate::bullet::{
     collision::{
-        dispatch::collision_object::{
-            ActivationState, CollisionFlags, CollisionObject, CollisionObjectTypes,
-        },
+        dispatch::collision_object::{ActivationState, CollisionObject},
         shapes::collision_shape::CollisionShapes,
     },
     linear_math::transform_util::{integrate_transform, integrate_transform_no_rot},
@@ -61,29 +59,23 @@ pub struct RigidBody {
     pub angular_damping: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    pub rigidbody_flags: u8,
     pub inv_mass: Vec3A,
+    flags: u8,
 }
 
 impl RigidBody {
     #[must_use]
     pub fn new(info: RigidBodyConstructionInfo) -> Self {
-        let mut collision_object = CollisionObject::default();
-        collision_object.internal_type = CollisionObjectTypes::RigidBody;
-        collision_object.set_world_transform(info.start_world_transform);
-
-        collision_object.interpolation_world_transform = *collision_object.get_world_transform();
-        collision_object.friction = info.friction;
-        collision_object.restitution = info.restitution;
-        collision_object.set_collision_shape(info.collision_shape);
-
         let inverse_mass = if info.mass == 0.0 {
-            collision_object.collision_flags |= CollisionFlags::StaticObject as u8;
             0.0
         } else {
-            collision_object.collision_flags &= !(CollisionFlags::StaticObject as u8);
             1.0 / info.mass
         };
+
+        let linear_damping = info.linear_damping.clamp(0.0, 1.0);
+        let angular_damping = info.angular_damping.clamp(0.0, 1.0);
+        let linear_sleeping_threshold = info.linear_sleeping_threshold;
+        let angular_sleeping_threshold = info.angular_sleeping_threshold;
 
         let inv_inertia_local = Vec3A::select(
             info.local_inertia.cmpeq(Vec3A::ZERO),
@@ -91,6 +83,7 @@ impl RigidBody {
             1.0 / info.local_inertia,
         );
 
+        let collision_object = CollisionObject::from(info);
         let inv_inertia_tensor_world = Self::get_inertia_tensor(
             collision_object.get_world_transform().matrix3,
             inv_inertia_local,
@@ -108,18 +101,18 @@ impl RigidBody {
             inv_inertia_local,
             total_force: Vec3A::ZERO,
             total_torque: Vec3A::ZERO,
-            linear_damping: info.linear_damping.clamp(0.0, 1.0),
-            angular_damping: info.angular_damping.clamp(0.0, 1.0),
-            linear_sleeping_threshold: info.linear_sleeping_threshold,
-            angular_sleeping_threshold: info.angular_sleeping_threshold,
-            rigidbody_flags: 0,
+            linear_damping,
+            angular_damping,
+            linear_sleeping_threshold,
+            angular_sleeping_threshold,
             inv_mass: Vec3A::splat(inverse_mass),
+            flags: 0,
         }
     }
 
     #[must_use]
     pub const fn get_flags(&self) -> u8 {
-        self.rigidbody_flags
+        self.flags
     }
 
     pub fn set_gravity(&mut self, acceleration: Vec3A) {

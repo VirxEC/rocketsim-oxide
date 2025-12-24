@@ -310,7 +310,6 @@ impl From<&flat::CarState> for crate::CarState {
     fn from(value: &flat::CarState) -> Self {
         Self {
             phys: value.physics.into(),
-            tick_count_since_update: value.tick_count_since_update,
             is_on_ground: value.is_on_ground,
             wheels_with_contact: value.wheels_with_contact.into(),
             has_jumped: value.has_jumped,
@@ -338,7 +337,8 @@ impl From<&flat::CarState> for crate::CarState {
             is_demoed: value.is_demoed,
             demo_respawn_timer: value.demo_respawn_timer,
             ball_hit_info: value.ball_hit_info.as_deref().map(Into::into),
-            last_controls: value.last_controls.into(),
+            controls: value.last_controls.into(),
+            prev_controls: value.last_controls.into(),
         }
     }
 }
@@ -347,7 +347,6 @@ impl From<crate::CarState> for Box<flat::CarState> {
     fn from(value: crate::CarState) -> Self {
         let mut new = Self::default();
         new.physics = value.phys.into();
-        new.tick_count_since_update = value.tick_count_since_update;
         new.is_on_ground = value.is_on_ground;
         new.wheels_with_contact = value.wheels_with_contact.into();
         new.has_jumped = value.has_jumped;
@@ -375,7 +374,7 @@ impl From<crate::CarState> for Box<flat::CarState> {
         new.is_demoed = value.is_demoed;
         new.demo_respawn_timer = value.demo_respawn_timer;
         new.ball_hit_info = value.ball_hit_info.map(Into::into);
-        new.last_controls = value.last_controls.into();
+        new.last_controls = value.prev_controls.into();
 
         new
     }
@@ -427,7 +426,6 @@ impl From<flat::BallState> for crate::BallState {
     fn from(value: flat::BallState) -> Self {
         Self {
             phys: value.physics.into(),
-            ticks_since_update: value.tick_count_since_update,
             hs_info: value.hs_info.into(),
             ds_info: value.ds_info.into(),
         }
@@ -438,7 +436,6 @@ impl From<crate::BallState> for flat::BallState {
     fn from(value: crate::BallState) -> Self {
         Self {
             physics: value.phys.into(),
-            tick_count_since_update: value.ticks_since_update,
             hs_info: value.hs_info.into(),
             ds_info: value.ds_info.into(),
         }
