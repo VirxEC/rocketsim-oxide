@@ -1,5 +1,8 @@
-use std::f32::consts::PI;
-use std::ops::{Deref, DerefMut};
+use std::{
+    f32::consts::PI,
+    ops::{Deref, DerefMut},
+};
+
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 

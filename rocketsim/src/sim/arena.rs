@@ -3,29 +3,36 @@ use std::{f32::consts::PI, mem};
 use ahash::AHashMap;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
+
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
-use crate::{ARENA_COLLISION_SHAPES, GameMode, bullet::{
-    collision::{
-        broadphase::{GridBroadphase, HashedOverlappingPairCache},
-        dispatch::{
-            collision_dispatcher::CollisionDispatcher,
-            collision_object::{ActivationState, CollisionObject},
-            internal_edge_utility::adjust_internal_edge_contacts,
+use crate::{
+    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, GameMode,
+    bullet::{
+        collision::{
+            broadphase::{GridBroadphase, HashedOverlappingPairCache},
+            dispatch::{
+                collision_dispatcher::CollisionDispatcher,
+                collision_object::{ActivationState, CollisionObject},
+                internal_edge_utility::adjust_internal_edge_contacts,
+            },
+            narrowphase::{
+                manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
+            },
+            shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
         },
-        narrowphase::{
-            manifold_point::ManifoldPoint, persistent_manifold::ContactAddedCallback,
+        dynamics::{
+            constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
+            discrete_dynamics_world::DiscreteDynamicsWorld,
+            rigid_body::{RigidBody, RigidBodyConstructionInfo},
         },
-        shapes::{collision_shape::CollisionShapes, static_plane_shape::StaticPlaneShape},
     },
-    dynamics::{
-        constraint_solver::sequential_impulse_constraint_solver::SequentialImpulseConstraintSolver,
-        discrete_dynamics_world::DiscreteDynamicsWorld,
-        rigid_body::{RigidBody, RigidBodyConstructionInfo},
+    consts,
+    consts::{BT_TO_UU, UU_TO_BT},
+    sim::{
+        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState, UserInfoTypes,
+        collision_masks::CollisionMasks,
     },
-}, consts, consts::{BT_TO_UU, UU_TO_BT}, sim::{
-    BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState, UserInfoTypes,
-    collision_masks::CollisionMasks,
-}, ArenaConfig, ArenaMemWeightMode};
+};
 
 /// The arena's inner data, separated to prevent circular reference issues
 struct ArenaInner {
@@ -339,7 +346,7 @@ impl Arena {
         }
     }
 
-    pub fn get_config(&self) -> &ArenaConfig {
+    pub const fn get_config(&self) -> &ArenaConfig {
         &self.config
     }
 

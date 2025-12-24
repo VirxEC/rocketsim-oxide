@@ -40,7 +40,10 @@ impl TestCase {
             for car_setup in &self.car_setups {
                 {
                     let new_car_id = new_arena.add_car(car_setup.team, CarConfig::OCTANE);
-                    new_arena.get_car_mut(new_car_id).unwrap().set_controls(car_setup.controls);
+                    new_arena
+                        .get_car_mut(new_car_id)
+                        .unwrap()
+                        .set_controls(car_setup.controls);
                 }
                 {
                     let old_car_id = old_arena_ptr.pin_mut().add_car(

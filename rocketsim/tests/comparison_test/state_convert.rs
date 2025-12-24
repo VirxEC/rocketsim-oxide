@@ -199,7 +199,7 @@ pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
             })
         } else {
             None
-        }
+        },
     }
 }
 

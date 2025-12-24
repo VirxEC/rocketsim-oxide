@@ -217,10 +217,8 @@ impl CollisionDispatcher {
         proxy1: &GridBroadpraseProxy,
         contact_added_callback: &mut T,
     ) {
-        let rb0_idx = proxy0.broadphase_proxy.client_object_idx.unwrap();
-        let rb1_idx = proxy1.broadphase_proxy.client_object_idx.unwrap();
-        let rb0 = &collision_objects[rb0_idx];
-        let rb1 = &collision_objects[rb1_idx];
+        let rb0 = &collision_objects[proxy0.client_object_idx];
+        let rb1 = &collision_objects[proxy1.client_object_idx];
 
         if !rb0.collision_object.is_active() && !rb1.collision_object.is_active()
             || !rb0.collision_object.has_contact_response()

@@ -1,4 +1,5 @@
 use glam::Vec3A;
+
 use super::BoostPadConfig;
 
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq)]

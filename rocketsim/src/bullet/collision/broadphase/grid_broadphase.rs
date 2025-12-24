@@ -1,4 +1,4 @@
-use std::iter::repeat_n;
+use std::{iter::repeat_n, ops::Deref};
 
 use glam::{USizeVec3, Vec3A};
 
@@ -16,12 +16,19 @@ use crate::bullet::{
     linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
 };
 
-#[derive(Clone, Default)]
 pub struct GridBroadpraseProxy {
-    pub(crate) broadphase_proxy: BroadphaseProxy,
-    pub(crate) is_static: bool,
-    pub(crate) cell_idx: usize,
-    pub(crate) indices: USizeVec3,
+    broadphase_proxy: BroadphaseProxy,
+    is_static: bool,
+    cell_idx: usize,
+    indices: USizeVec3,
+}
+
+impl Deref for GridBroadpraseProxy {
+    type Target = BroadphaseProxy;
+
+    fn deref(&self) -> &Self::Target {
+        &self.broadphase_proxy
+    }
 }
 
 #[derive(Clone)]
@@ -288,7 +295,7 @@ impl GridBroadphase {
         let new_handle = GridBroadpraseProxy {
             broadphase_proxy: BroadphaseProxy {
                 aabb,
-                client_object_idx: Some(world_index),
+                client_object_idx: world_index,
                 collision_filter_group,
                 collision_filter_mask,
                 unique_id: new_handle_idx + 2,
@@ -396,9 +403,7 @@ impl GridBroadphase {
 
         for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
             let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;
-            if other_proxy.client_object_idx.is_some() {
-                ray_callback.process(other_proxy);
-            }
+            ray_callback.process(other_proxy);
         }
     }
 }

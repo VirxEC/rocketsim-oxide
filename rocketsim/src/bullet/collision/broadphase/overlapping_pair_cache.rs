@@ -61,12 +61,7 @@ impl HashedOverlappingPairCache {
             return;
         }
 
-        self.internal_add_pair(
-            proxy0.broadphase_proxy.unique_id,
-            proxy0_idx,
-            proxy1.broadphase_proxy.unique_id,
-            proxy1_idx,
-        );
+        self.internal_add_pair(proxy0.unique_id, proxy0_idx, proxy1.unique_id, proxy1_idx);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -78,26 +73,20 @@ impl HashedOverlappingPairCache {
         mut proxy0: &'a GridBroadpraseProxy,
         mut proxy1: &'a GridBroadpraseProxy,
     ) -> bool {
-        if proxy0.broadphase_proxy.unique_id > proxy1.broadphase_proxy.unique_id {
+        if proxy0.unique_id > proxy1.unique_id {
             mem::swap(&mut proxy0, &mut proxy1);
         }
 
-        self.hash_table.contains_key(&(
-            proxy0.broadphase_proxy.unique_id,
-            proxy1.broadphase_proxy.unique_id,
-        ))
+        self.hash_table
+            .contains_key(&(proxy0.unique_id, proxy1.unique_id))
     }
 
-    pub const fn needs_broadphase_collision(
+    pub fn needs_broadphase_collision(
         proxy0: &GridBroadpraseProxy,
         proxy1: &GridBroadpraseProxy,
     ) -> bool {
-        (proxy0.broadphase_proxy.collision_filter_group
-            & proxy1.broadphase_proxy.collision_filter_mask)
-            != 0
-            && (proxy1.broadphase_proxy.collision_filter_group
-                & proxy0.broadphase_proxy.collision_filter_mask)
-                != 0
+        (proxy0.collision_filter_group & proxy1.collision_filter_mask) != 0
+            && (proxy1.collision_filter_group & proxy0.collision_filter_mask) != 0
     }
 
     pub fn process_all_overlapping_pairs<T: ContactAddedCallback>(
