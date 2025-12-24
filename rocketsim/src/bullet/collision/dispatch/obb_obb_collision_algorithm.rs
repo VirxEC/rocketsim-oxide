@@ -32,13 +32,13 @@ impl<'a, T: ContactAddedCallback> ObbObbCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Compound(compound_0_ref)) =
+        let CollisionShapes::Compound(compound_0_ref) =
             self.compound_0_obj.object.get_collision_shape()
         else {
             unreachable!();
         };
 
-        let Some(CollisionShapes::Compound(compound_1_ref)) =
+        let CollisionShapes::Compound(compound_1_ref) =
             self.compound_1_obj.object.get_collision_shape()
         else {
             unreachable!();

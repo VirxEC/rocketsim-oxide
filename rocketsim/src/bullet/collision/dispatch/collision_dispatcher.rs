@@ -119,8 +119,8 @@ impl CollisionDispatcher {
         col_obj_1: &'a CollisionObject,
         contact_added_callback: &'a mut T,
     ) -> Algorithms<'a, T> {
-        let shape0 = col_obj_0.get_collision_shape().unwrap().get_shape_type();
-        let shape1 = col_obj_1.get_collision_shape().unwrap().get_shape_type();
+        let shape0 = col_obj_0.get_collision_shape().get_shape_type();
+        let shape1 = col_obj_1.get_collision_shape().get_shape_type();
 
         match shape0 {
             BroadphaseNativeTypes::StaticPlaneProxytype => match shape1 {

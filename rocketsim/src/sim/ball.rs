@@ -161,15 +161,13 @@ impl Ball {
         body.collision_object.no_rot =
             no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
 
-        let rigid_body_idx = bullet_world
-            .add_rigid_body(
-                body,
-                CollisionFilterGroups::Default as u8
-                    | CollisionMasks::HoopsNet as u8
-                    | CollisionMasks::DropshotTile as u8,
-                CollisionFilterGroups::All as u8,
-            )
-            .unwrap();
+        let rigid_body_idx = bullet_world.add_rigid_body(
+            body,
+            CollisionFilterGroups::Default as u8
+                | CollisionMasks::HoopsNet as u8
+                | CollisionMasks::DropshotTile as u8,
+            CollisionFilterGroups::All as u8,
+        );
 
         Self {
             internal_state: BallState::DEFAULT,

@@ -36,9 +36,8 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorithm<'_, T> {
     fn process_collision(self) -> Option<PersistentManifold> {
-        let col_shape = self.convex_obj.object.get_collision_shape().unwrap();
-        let Some(CollisionShapes::StaticPlane(plane_shape)) = self.plane_obj.get_collision_shape()
-        else {
+        let col_shape = self.convex_obj.object.get_collision_shape();
+        let CollisionShapes::StaticPlane(plane_shape) = self.plane_obj.get_collision_shape() else {
             unreachable!()
         };
 

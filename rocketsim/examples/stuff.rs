@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use glam::Vec3A;
-use rocketsim::{Arena, ArenaConfig, CarConfig, GameMode, Team, init_from_default, CarControls};
+use rocketsim::{Arena, ArenaConfig, CarConfig, CarControls, GameMode, Team, init_from_default};
 
 fn hex_vec3a(v: Vec3A) -> String {
     format!("{:x?}", v.to_array().map(|f| f.to_bits()))

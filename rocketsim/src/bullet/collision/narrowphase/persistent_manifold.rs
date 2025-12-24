@@ -5,7 +5,7 @@ use glam::{Vec3A, Vec4};
 
 use super::manifold_point::ManifoldPoint;
 use crate::bullet::{
-    collision::dispatch::collision_object::CollisionObject,
+    collision::dispatch::collision_object::{CollisionFlags, CollisionObject},
     linear_math::{AffineExt, plane_space_2},
 };
 
@@ -36,11 +36,9 @@ impl PersistentManifold {
 
         let body0_cbt = body0
             .get_collision_shape()
-            .unwrap()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let body1_cbt = body1
             .get_collision_shape()
-            .unwrap()
             .get_contact_breaking_threshold(CONTACT_BREAKING_THRESHOLD);
         let contact_breaking_threshold = body0_cbt.min(body1_cbt);
         let contact_processing_threshold = body0
@@ -224,7 +222,11 @@ impl PersistentManifold {
             mem::swap(&mut body0, &mut body1);
         }
 
-        contact_added_callback.callback(&mut self.point_cache[insert_index], body0, body1);
+        if body0.collision_flags & CollisionFlags::CustomMaterialCallback as u8 != 0
+            || body1.collision_flags & CollisionFlags::CustomMaterialCallback as u8 != 0
+        {
+            contact_added_callback.callback(&mut self.point_cache[insert_index], body0, body1);
+        }
     }
 
     pub fn refresh_contact_points(&mut self, body0: &CollisionObject, body1: &CollisionObject) {

@@ -37,13 +37,11 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Sphere(sphere_ref)) = self.sphere_obj.get_collision_shape()
-        else {
+        let CollisionShapes::Sphere(sphere_ref) = self.sphere_obj.get_collision_shape() else {
             unreachable!();
         };
 
-        let Some(CollisionShapes::Compound(compound_shape)) =
-            self.obb_obj.object.get_collision_shape()
+        let CollisionShapes::Compound(compound_shape) = self.obb_obj.object.get_collision_shape()
         else {
             unreachable!();
         };

@@ -1,3 +1,5 @@
+use std::iter::repeat_n;
+
 use glam::{USizeVec3, Vec3A};
 
 use super::{
@@ -70,7 +72,7 @@ struct CellGrid {
     cell_size_sq: f32,
     num_cells: USizeVec3,
     num_dyn_proxies: u32,
-    cells: Vec<GridCell>,
+    cells: Box<[GridCell]>,
 }
 
 impl CellGrid {
@@ -111,7 +113,7 @@ impl CellGrid {
         let max = self.get_cell_indices(aabb_max);
 
         let tri_mesh_shape = match col_obj.get_collision_shape() {
-            Some(CollisionShapes::TriangleMesh(mesh)) => Some(mesh),
+            CollisionShapes::TriangleMesh(mesh) => Some(mesh.as_ref()),
             _ => None,
         };
 
@@ -218,7 +220,7 @@ impl GridBroadphase {
             .as_usizevec3()
             .max(USizeVec3::ONE);
         let total_cells = num_cells.element_product();
-        let cells = vec![GridCell::default(); total_cells];
+        let cells = repeat_n(GridCell::default(), total_cells).collect();
 
         Self {
             min_dyn_handle_index: 0,
