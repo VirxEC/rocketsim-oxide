@@ -164,7 +164,7 @@ fn main() {
             let ball_state = *arena.get_ball();
             for id in ids.iter() {
                 let tick_count = arena.tick_count();
-                let car = arena.get_car_mut(*id).unwrap();
+                let car = arena.car_mut(*id);
                 let car_state = car.get_state();
 
                 if let Some(ball_hit_info) = car_state.ball_hit_info

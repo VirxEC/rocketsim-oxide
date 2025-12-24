@@ -801,6 +801,16 @@ impl Arena {
     }
 
     #[must_use]
+    pub fn car(&self, car_id: u64) -> &Car {
+        self.data.cars.get(&car_id).unwrap()
+    }
+
+    #[must_use]
+    pub fn car_mut(&mut self, car_id: u64) -> &mut Car {
+        self.data.cars.get_mut(&car_id).unwrap()
+    }
+
+    #[must_use]
     pub fn get_car(&self, car_id: u64) -> Option<&Car> {
         self.data.cars.get(&car_id)
     }

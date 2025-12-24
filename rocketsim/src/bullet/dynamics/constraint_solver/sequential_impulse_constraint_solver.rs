@@ -169,50 +169,32 @@ impl SequentialImpulseConstraintSolver {
 
                 let rb0 = solver_body_a.original_body.map(|_| &*body0);
                 let rb1 = solver_body_b.original_body.map(|_| &*body1);
+                let friction_index = self.tmp_solver_contact_friction_constraint_pool.len();
 
-                let mut constraint = SolverConstraint {
-                    solver_body_id_a,
-                    solver_body_id_b,
-                    friction_index: self.tmp_solver_contact_friction_constraint_pool.len(),
-                    friction: cp.combined_friction,
-                    is_special: cp.is_special,
-                    lower_limit: 0.0,
-                    upper_limit: 1e10,
-                    ..Default::default()
-                };
-
-                constraint.setup_contact_constraint(
-                    (solver_body_a, solver_body_b),
-                    (rb0, rb1),
-                    (rel_pos1, rel_pos2),
-                    cp,
-                    time_step,
+                self.tmp_solver_contact_constraint_pool.push(
+                    SolverConstraint::get_contact_constraint(
+                        (solver_body_id_a, solver_body_id_b),
+                        (solver_body_a, solver_body_b),
+                        (rb0, rb1),
+                        (rel_pos1, rel_pos2),
+                        cp,
+                        friction_index,
+                        time_step,
+                    ),
                 );
-
-                let friction_index = self.tmp_solver_contact_constraint_pool.len();
-                self.tmp_solver_contact_constraint_pool.push(constraint);
 
                 cp.calc_lat_friction_dir(solver_body_a, solver_body_b, rel_pos1, rel_pos2);
 
-                let mut constraint = SolverConstraint {
-                    friction_index,
-                    solver_body_id_a,
-                    solver_body_id_b,
-                    lower_limit: -cp.combined_friction,
-                    upper_limit: cp.combined_friction,
-                    friction: cp.combined_friction,
-                    ..Default::default()
-                };
-
-                constraint.setup_friction_constraint(
-                    (solver_body_a, solver_body_b),
-                    (rb0, rb1),
-                    (rel_pos1, rel_pos2),
-                    cp.lateral_friction_dir_1,
+                self.tmp_solver_contact_friction_constraint_pool.push(
+                    SolverConstraint::get_friction_constraint(
+                        (solver_body_id_a, solver_body_id_b),
+                        (solver_body_a, solver_body_b),
+                        (rb0, rb1),
+                        (rel_pos1, rel_pos2),
+                        cp,
+                        friction_index,
+                    ),
                 );
-
-                self.tmp_solver_contact_friction_constraint_pool
-                    .push(constraint);
             }
         }
 
@@ -235,7 +217,8 @@ impl SequentialImpulseConstraintSolver {
         self.fixed_body_id = None;
 
         self.tmp_solver_body_pool.clear();
-        self.tmp_solver_body_pool.reserve(manifolds.len() * 2);
+        self.tmp_solver_body_pool
+            .reserve(non_static_bodies.len() + 1);
 
         for manifold in manifolds.iter() {
             collision_objects[manifold.body0_idx]

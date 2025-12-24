@@ -27,7 +27,7 @@ fn main() {
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
     arena.reset_to_random_kickoff();
 
-    let car = arena.get_car_mut(id).unwrap();
+    let car = arena.car_mut(id);
     println!("pos: {}", car.get_state().phys.pos);
     let mut car_controls = CarControls::DEFAULT;
     car_controls.throttle = 1.0;
@@ -38,7 +38,7 @@ fn main() {
         println!("\nstep {i}");
         arena.step(1);
 
-        let state = arena.get_car(id).unwrap().get_state();
+        let state = arena.car(id).get_state();
         // println!("\npos: {}", state.physics.pos);
         // println!("vel: {}", state.physics.vel);
         // println!("ang_vel: {}", state.physics.ang_vel);

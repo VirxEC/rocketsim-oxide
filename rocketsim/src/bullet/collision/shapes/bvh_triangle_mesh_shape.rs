@@ -17,7 +17,7 @@ use crate::bullet::{
 };
 
 pub struct BvhTriangleMeshShape {
-    pub triangle_mesh_shape: TriangleMeshShape,
+    triangle_mesh_shape: TriangleMeshShape,
     bvh: Bvh,
     mesh_interface: TriangleMesh,
     triangle_info_map: TriangleInfoMap,

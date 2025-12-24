@@ -337,7 +337,8 @@ impl From<&flat::CarState> for crate::CarState {
             is_demoed: value.is_demoed,
             demo_respawn_timer: value.demo_respawn_timer,
             ball_hit_info: value.ball_hit_info.as_deref().map(Into::into),
-            last_controls: value.last_controls.into(),
+            controls: value.last_controls.into(),
+            prev_controls: value.last_controls.into(),
         }
     }
 }
@@ -373,7 +374,7 @@ impl From<crate::CarState> for Box<flat::CarState> {
         new.is_demoed = value.is_demoed;
         new.demo_respawn_timer = value.demo_respawn_timer;
         new.ball_hit_info = value.ball_hit_info.map(Into::into);
-        new.last_controls = value.last_controls.into();
+        new.last_controls = value.prev_controls.into();
 
         new
     }

@@ -195,7 +195,6 @@ impl DerefMut for CarState {
 
 pub struct Car {
     pub team: Team,
-    /// The controls to simulate the car with
     config: CarConfig,
     pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,

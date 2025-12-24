@@ -9,7 +9,7 @@ fn main() {
 
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
 
-    let car = arena.get_car_mut(id).unwrap();
+    let car = arena.car_mut(id);
     let mut state = *car.get_state();
     let f = Vec3A::new(0., -1., 0.5).normalize();
     let up = Vec3A::NEG_Z;
@@ -25,7 +25,7 @@ fn main() {
 
     arena.step(1);
 
-    let state = arena.get_car_mut(id).unwrap().get_state();
+    let state = arena.car_mut(id).get_state();
     println!("\npos: {}", state.phys.pos);
     println!("vel: {}", state.phys.vel);
     println!("ang_vel: {}", state.phys.ang_vel);

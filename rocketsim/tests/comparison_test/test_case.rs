@@ -41,8 +41,7 @@ impl TestCase {
                 {
                     let new_car_id = new_arena.add_car(car_setup.team, CarConfig::OCTANE);
                     new_arena
-                        .get_car_mut(new_car_id)
-                        .unwrap()
+                        .car_mut(new_car_id)
                         .set_controls(car_setup.controls);
                 }
                 {
@@ -113,7 +112,7 @@ impl TestCase {
                 for i in 0..self.car_setups.len() {
                     let new_car_id = (i + 1) as u64;
                     let old_car_id = (i + 1) as u32;
-                    let new_car_state = new_arena.get_car(new_car_id).unwrap().get_state();
+                    let new_car_state = new_arena.car(new_car_id).get_state();
                     let old_car_state = &old_arena_ptr.pin_mut().get_car(old_car_id);
                     let old_car_state_conv = &state_convert::conv_to_new_car_state(old_car_state);
                     let err_set = state_compare::map_car_err(new_car_state, old_car_state_conv);
@@ -142,7 +141,7 @@ impl TestCase {
             for i in 0..self.car_setups.len() {
                 let car_id_new = (i + 1) as u64;
                 let car_id_old = (i + 1) as u32;
-                let new_car_state = *new_arena.get_car(car_id_new).unwrap().get_state();
+                let new_car_state = *new_arena.car(car_id_new).get_state();
                 let old_car_state = old_arena_ptr.pin_mut().get_car(car_id_old);
                 let old_car_state_conv = state_convert::conv_to_new_car_state(&old_car_state);
                 new_arena.set_car_state(car_id_new, old_car_state_conv);
