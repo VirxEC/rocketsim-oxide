@@ -1,5 +1,6 @@
-use std::{iter::repeat_n, ops::Deref};
+use std::ops::Deref;
 
+use arrayvec::ArrayVec;
 use glam::{USizeVec3, Vec3A};
 
 use super::{
@@ -31,7 +32,6 @@ impl Deref for GridBroadphaseProxy {
     }
 }
 
-#[derive(Clone)]
 struct GridCell {
     dyn_handles: Vec<usize>,
     static_handles: Vec<usize>,
@@ -40,15 +40,13 @@ struct GridCell {
 impl Default for GridCell {
     fn default() -> Self {
         Self {
-            dyn_handles: Vec::with_capacity(Self::RESERVED_SIZE),
-            static_handles: Vec::with_capacity(Self::RESERVED_SIZE),
+            dyn_handles: Vec::with_capacity(8),
+            static_handles: Vec::with_capacity(4),
         }
     }
 }
 
 impl GridCell {
-    const RESERVED_SIZE: usize = 4;
-
     fn remove_static(&mut self, proxy_idx: usize) {
         if let Some(pos) = self
             .static_handles
@@ -124,7 +122,7 @@ impl CellGrid {
             _ => None,
         };
 
-        let mut cells = Vec::with_capacity(27);
+        let mut cells = ArrayVec::<usize, 27>::new();
 
         for i in min.x..=max.x {
             for j in min.y..=max.y {
@@ -227,7 +225,7 @@ impl GridBroadphase {
             .as_usizevec3()
             .max(USizeVec3::ONE);
         let total_cells = num_cells.element_product();
-        let cells = repeat_n(GridCell::default(), total_cells).collect();
+        let cells = (0..total_cells).map(|_| GridCell::default()).collect();
 
         Self {
             min_dyn_handle_index: 0,

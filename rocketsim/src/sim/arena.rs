@@ -1,6 +1,7 @@
 use std::{f32::consts::PI, mem};
 
 use ahash::AHashMap;
+use arrayvec::ArrayVec;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
@@ -531,24 +532,25 @@ impl Arena {
         let kickoff_locs = consts::car::spawn::get_kickoff_spawn_locations(game_mode);
         let respawn_locs = consts::car::spawn::get_respawn_locations(game_mode);
 
-        let mut kickoff_order_perm: Vec<usize> = (0..kickoff_locs.len()).collect();
+        let mut kickoff_order_perm = ArrayVec::<usize, 5>::new();
+        kickoff_order_perm.extend(0..kickoff_locs.len());
         self.rng.shuffle(&mut kickoff_order_perm);
 
-        let mut blue_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
-        let mut orange_cars = Vec::with_capacity(self.data.cars.len().div_ceil(2));
+        let mut num_blue_cars = 0;
+        let mut num_orange_cars = 0;
 
         for (_, car) in &mut self.data.cars {
             if car.team == Team::Blue {
-                &mut blue_cars
+                num_blue_cars += 1;
             } else {
-                &mut orange_cars
+                num_orange_cars += 1;
             }
-            .push(car);
         }
 
-        let mut num_cars_at_respawn_pos: Vec<usize> = vec![0; respawn_locs.len()];
+        let mut num_cars_at_respawn_pos = ArrayVec::<usize, 4>::new();
+        num_cars_at_respawn_pos.fill(0);
 
-        let kickoff_position_amount = blue_cars.len().max(orange_cars.len());
+        let kickoff_position_amount = num_blue_cars.max(num_orange_cars);
         for i in 0..kickoff_position_amount {
             let spawn_pos = if i < kickoff_locs.len() {
                 kickoff_locs[kickoff_order_perm[i]]
@@ -576,13 +578,15 @@ impl Arena {
             };
 
             for is_blue in [true, false] {
-                let team_cars = if is_blue {
-                    blue_cars.as_mut_slice()
-                } else {
-                    orange_cars.as_mut_slice()
-                };
+                let team_cars = self.data.cars.values_mut().filter(|car| {
+                    if is_blue {
+                        car.team == Team::Blue
+                    } else {
+                        car.team == Team::Orange
+                    }
+                });
 
-                let Some(car) = team_cars.get_mut(i) else {
+                let Some(car) = team_cars.into_iter().nth(i) else {
                     continue;
                 };
 
