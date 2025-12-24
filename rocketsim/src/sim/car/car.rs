@@ -28,6 +28,7 @@ use crate::{CarConfig, CarControls, CollisionMasks, GameMode, MutatorConfig, Phy
 }, consts, sim::UserInfoTypes, CarState};
 
 pub struct Car {
+    pub id: u64,
     pub team: Team,
     config: CarConfig,
     pub(crate) bullet_vehicle: VehicleRL,
@@ -38,9 +39,10 @@ pub struct Car {
 
 impl Car {
     pub(crate) fn new(
+        id: u64,
+        team: Team,
         bullet_world: &mut DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
-        team: Team,
         config: CarConfig,
     ) -> Self {
         let child_hitbox_shape = BoxShape::new(config.hitbox_size * UU_TO_BT * 0.5);
@@ -113,6 +115,7 @@ impl Car {
         }
 
         Self {
+            id,
             team,
             config,
             rigid_body_idx,

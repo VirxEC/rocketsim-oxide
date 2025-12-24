@@ -634,10 +634,13 @@ impl Arena {
     /// returning the id of the car.
     /// The id is used as the key for the car in `Arena.cars`
     pub fn add_car(&mut self, team: Team, config: CarConfig) -> u64 {
+        self.last_car_id += 1;
+        let id = self.last_car_id;
+
         let mut car = Car::new(
+            id, team,
             &mut self.bullet_world,
             &self.data.mutator_config,
-            team,
             config,
         );
         car.respawn(
@@ -647,7 +650,6 @@ impl Arena {
             self.data.mutator_config.car_spawn_boost_amount,
         );
 
-        self.last_car_id += 1;
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
             .collision_object
             .user_pointer = self.last_car_id;
