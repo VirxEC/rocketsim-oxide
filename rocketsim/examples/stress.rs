@@ -126,7 +126,6 @@ fn main() {
         GameMode::Soccar,
         ArenaConfig {
             rng_seed: Some(0),
-            mem_weight_mode: ArenaMemWeightMode::Light,
             ..Default::default()
         },
         120,
