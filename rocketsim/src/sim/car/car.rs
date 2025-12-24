@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-
+use std::ops::{Deref, DerefMut};
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
@@ -176,6 +176,19 @@ impl CarState {
     #[must_use]
     pub const fn got_flip_reset(&self) -> bool {
         !self.is_on_ground && !self.has_jumped
+    }
+}
+
+impl Deref for CarState {
+    type Target = PhysState;
+    fn deref(&self) -> &Self::Target {
+        &self.phys
+    }
+}
+
+impl DerefMut for CarState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.phys
     }
 }
 

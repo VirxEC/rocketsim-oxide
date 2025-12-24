@@ -1,3 +1,4 @@
+use std::ops::{Deref, DerefMut};
 use glam::{Affine3A, Mat3A, Vec3A};
 
 use super::{MutatorConfig, PhysState, collision_masks::CollisionMasks};
@@ -114,6 +115,19 @@ impl BallState {
         hs_info: HeatseekerInfo::DEFAULT,
         ds_info: DropshotInfo::DEFAULT,
     };
+}
+
+impl Deref for BallState {
+    type Target = PhysState;
+    fn deref(&self) -> &Self::Target {
+        &self.phys
+    }
+}
+
+impl DerefMut for BallState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.phys
+    }
 }
 
 pub struct Ball {
