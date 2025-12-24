@@ -1,14 +1,11 @@
 use glam::Affine3A;
 
 use super::collision_object::CollisionObject;
-use crate::bullet::{
-    collision::{
-        broadphase::CollisionAlgorithm,
-        dispatch::collision_object_wrapper::CollisionObjectWrapper,
-        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::collision_shape::CollisionShapes,
-    },
-    linear_math::aabb_util_2::test_aabb_against_aabb,
+use crate::bullet::collision::{
+    broadphase::CollisionAlgorithm,
+    dispatch::collision_object_wrapper::CollisionObjectWrapper,
+    narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
+    shapes::collision_shape::CollisionShapes,
 };
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -47,7 +44,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
             .collision_shape
             .aabb_cache
             .unwrap();
-        if !test_aabb_against_aabb(&convex_aabb, &plane_aabb) {
+        if !convex_aabb.intersects(&plane_aabb) {
             return None;
         }
 

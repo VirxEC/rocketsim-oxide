@@ -13,11 +13,7 @@ use crate::bullet::{
             triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{
-        AffineExt,
-        aabb_util_2::{Aabb, test_aabb_against_aabb},
-        obb::Obb,
-    },
+    linear_math::{AffineExt, aabb_util_2::Aabb, obb::Obb},
 };
 
 struct Hit {
@@ -163,7 +159,7 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
         tri_aabb: &Aabb,
         triangle_index: usize,
     ) {
-        if !test_aabb_against_aabb(tri_aabb, self.local_convex_aabb) {
+        if !tri_aabb.intersects(self.local_convex_aabb) {
             return;
         }
 
@@ -329,7 +325,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let other_col_shape = self.other_obj.get_collision_shape();
         let aabb2 = other_col_shape.get_aabb(self.other_obj.get_world_transform());
 
-        if !test_aabb_against_aabb(&aabb1, &aabb2) {
+        if !aabb1.intersects(&aabb2) {
             return None;
         }
 

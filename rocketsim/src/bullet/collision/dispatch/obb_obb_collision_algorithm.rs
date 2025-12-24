@@ -1,13 +1,10 @@
-use crate::bullet::{
-    collision::{
-        broadphase::CollisionAlgorithm,
-        dispatch::{
-            box_box_detector::BoxBoxDetector, collision_object_wrapper::CollisionObjectWrapper,
-        },
-        narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::collision_shape::CollisionShapes,
+use crate::bullet::collision::{
+    broadphase::CollisionAlgorithm,
+    dispatch::{
+        box_box_detector::BoxBoxDetector, collision_object_wrapper::CollisionObjectWrapper,
     },
-    linear_math::aabb_util_2::test_aabb_against_aabb,
+    narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
+    shapes::collision_shape::CollisionShapes,
 };
 
 pub struct ObbObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
@@ -48,7 +45,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
         let aabb_0 = compound_0_ref.get_aabb(org_0_trans);
         let org_1_trans = self.compound_1_obj.object.get_world_transform();
         let aabb_1 = compound_1_ref.get_aabb(org_1_trans);
-        if !test_aabb_against_aabb(&aabb_0, &aabb_1) {
+        if !aabb_0.intersects(&aabb_1) {
             return None;
         }
 

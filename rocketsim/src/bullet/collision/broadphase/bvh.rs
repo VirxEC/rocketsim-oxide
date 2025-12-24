@@ -9,7 +9,7 @@ use crate::bullet::{
         triangle_shape::TriangleShape,
     },
     linear_math::{
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
         ray_packet::RayInfo,
     },
 };
@@ -243,7 +243,7 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let aabb_overlap = test_aabb_against_aabb(aabb, &root_node.aabb);
+            let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index: _ } => {
@@ -263,7 +263,7 @@ impl Bvh {
     }
 
     pub fn check_overlap_with(&self, aabb: &Aabb) -> bool {
-        test_aabb_against_aabb(aabb, &self.aabb)
+        aabb.intersects(&self.aabb)
             && self.walk_stackless_tree_find_overlap(aabb, 0, self.cur_node_index)
     }
 
@@ -277,7 +277,7 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let aabb_overlap = test_aabb_against_aabb(aabb, &root_node.aabb);
+            let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
@@ -299,7 +299,7 @@ impl Bvh {
         node_callback: &mut T,
         aabb: &Aabb,
     ) {
-        if test_aabb_against_aabb(aabb, &self.aabb) {
+        if aabb.intersects(&self.aabb) {
             self.walk_stackless_tree(node_callback, aabb, 0, self.cur_node_index);
         }
     }
@@ -316,7 +316,7 @@ impl Bvh {
         let mut cur_index = start_node_index;
         while cur_index < end_node_index {
             let root_node = &self.nodes[cur_index];
-            let overlap = test_aabb_against_aabb(&ray_info.aabb, &root_node.aabb);
+            let overlap = ray_info.aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
                 NodeType::Leaf { triangle_index } => {
@@ -350,7 +350,7 @@ impl Bvh {
         node_callback: &mut T,
         ray_info: &mut RayInfo,
     ) {
-        if !test_aabb_against_aabb(&ray_info.aabb, &self.aabb) {
+        if !ray_info.aabb.intersects(&self.aabb) {
             return;
         }
 

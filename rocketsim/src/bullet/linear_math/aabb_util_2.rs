@@ -28,6 +28,11 @@ impl Aabb {
         let extents = self.max - self.min;
         2.0 * (extents.x * extents.y + extents.x * extents.z + extents.y * extents.z)
     }
+
+    #[inline]
+    pub fn intersects(&self, rhs: &Self) -> bool {
+        self.min.cmple(rhs.max).all() && self.max.cmpge(rhs.min).all()
+    }
 }
 
 impl Add for Aabb {
@@ -45,11 +50,6 @@ impl AddAssign for Aabb {
         self.min = self.min.min(rhs.min);
         self.max = self.max.max(rhs.max);
     }
-}
-
-#[inline]
-pub fn test_aabb_against_aabb(aabb_1: &Aabb, aabb_2: &Aabb) -> bool {
-    aabb_1.min.cmple(aabb_2.max).all() && aabb_1.max.cmpge(aabb_2.min).all()
 }
 
 pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> Aabb {

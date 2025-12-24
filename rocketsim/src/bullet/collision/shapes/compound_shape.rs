@@ -9,7 +9,7 @@ use crate::bullet::{
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     },
     linear_math::{
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
         ray_packet::RayInfo,
     },
 };
@@ -88,7 +88,7 @@ impl CompoundShape {
         ray_info: &RayInfo,
     ) {
         let box_aabb = self.get_ident_aabb();
-        if !test_aabb_against_aabb(&ray_info.aabb, &box_aabb) {
+        if !ray_info.aabb.intersects(&box_aabb) {
             return;
         }
 

@@ -9,7 +9,7 @@ use crate::bullet::{
     },
     linear_math::{
         LARGE_FLOAT,
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet, test_aabb_against_aabb},
+        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
         ray_packet::RayInfo,
     },
 };
@@ -102,7 +102,7 @@ impl StaticPlaneShape {
         ray_info: &RayInfo,
     ) {
         let plane = self.concave_shape.collision_shape.aabb_cache.unwrap();
-        if !test_aabb_against_aabb(&ray_info.aabb, &plane) {
+        if !ray_info.aabb.intersects(&plane) {
             return;
         }
 

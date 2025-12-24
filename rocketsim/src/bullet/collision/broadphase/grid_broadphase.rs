@@ -13,17 +13,17 @@ use crate::bullet::{
         shapes::collision_shape::CollisionShapes,
     },
     dynamics::rigid_body::RigidBody,
-    linear_math::aabb_util_2::{Aabb, test_aabb_against_aabb},
+    linear_math::aabb_util_2::Aabb,
 };
 
-pub struct GridBroadpraseProxy {
+pub struct GridBroadphaseProxy {
     broadphase_proxy: BroadphaseProxy,
     is_static: bool,
     cell_idx: usize,
     indices: USizeVec3,
 }
 
-impl Deref for GridBroadpraseProxy {
+impl Deref for GridBroadphaseProxy {
     type Target = BroadphaseProxy;
 
     fn deref(&self) -> &Self::Target {
@@ -109,14 +109,14 @@ impl CellGrid {
 
     fn update_cells_static<const ADD: bool>(
         &mut self,
-        proxy: &GridBroadpraseProxy,
+        proxy: &GridBroadphaseProxy,
         col_obj: &CollisionObject,
         proxy_idx: usize,
     ) {
         // TODO: "Fix dumb massive value aabb bug"
-        let aabb_max = proxy.broadphase_proxy.aabb.max.min(self.max_pos);
+        let aabb_max = proxy.aabb.max.min(self.max_pos);
 
-        let min = self.get_cell_indices(proxy.broadphase_proxy.aabb.min);
+        let min = self.get_cell_indices(proxy.aabb.min);
         let max = self.get_cell_indices(aabb_max);
 
         let tri_mesh_shape = match col_obj.get_collision_shape() {
@@ -207,7 +207,7 @@ impl CellGrid {
 pub struct GridBroadphase {
     cell_grid: CellGrid,
     min_dyn_handle_index: usize,
-    pub handles: Vec<GridBroadpraseProxy>,
+    pub handles: Vec<GridBroadphaseProxy>,
     pair_cache: HashedOverlappingPairCache,
 }
 
@@ -248,7 +248,7 @@ impl GridBroadphase {
     pub fn set_aabb(&mut self, col_obj: &CollisionObject, proxy_idx: usize, aabb: Aabb) {
         let sbp = &mut self.handles[proxy_idx];
 
-        if sbp.broadphase_proxy.aabb.min != aabb.min || sbp.broadphase_proxy.aabb.max != aabb.max {
+        if sbp.aabb.min != aabb.min || sbp.aabb.max != aabb.max {
             if sbp.is_static {
                 self.cell_grid
                     .update_cells_static::<false>(sbp, col_obj, proxy_idx);
@@ -292,7 +292,7 @@ impl GridBroadphase {
         let indices = self.cell_grid.get_cell_indices(aabb.min);
         let cell_idx = self.cell_grid.cell_indices_to_index(indices);
 
-        let new_handle = GridBroadpraseProxy {
+        let new_handle = GridBroadphaseProxy {
             broadphase_proxy: BroadphaseProxy {
                 aabb,
                 client_object_idx: world_index,
@@ -341,10 +341,8 @@ impl GridBroadphase {
             for &other_proxy_idx in &cell.static_handles {
                 let other_proxy = &self.handles[other_proxy_idx];
 
-                if test_aabb_against_aabb(
-                    &proxy.broadphase_proxy.aabb,
-                    &other_proxy.broadphase_proxy.aabb,
-                ) && !self.pair_cache.contains_pair(proxy, other_proxy)
+                if proxy.aabb.intersects(&other_proxy.aabb)
+                    && !self.pair_cache.contains_pair(proxy, other_proxy)
                 {
                     self.pair_cache
                         .add_overlapping_pair(proxy, i, other_proxy, other_proxy_idx);
@@ -358,10 +356,8 @@ impl GridBroadphase {
                     }
 
                     let other_proxy = &self.handles[other_proxy_idx];
-                    if test_aabb_against_aabb(
-                        &proxy.broadphase_proxy.aabb,
-                        &other_proxy.broadphase_proxy.aabb,
-                    ) && !self.pair_cache.contains_pair(proxy, other_proxy)
+                    if proxy.aabb.intersects(&other_proxy.aabb)
+                        && !self.pair_cache.contains_pair(proxy, other_proxy)
                     {
                         self.pair_cache.add_overlapping_pair(
                             proxy,
@@ -402,7 +398,7 @@ impl GridBroadphase {
         let cell = &self.cell_grid.cells[self.cell_grid.get_cell_index(ray_from[0])];
 
         for &other_proxy_idx in cell.static_handles.iter().chain(&cell.dyn_handles) {
-            let other_proxy = &self.handles[other_proxy_idx].broadphase_proxy;
+            let other_proxy = &self.handles[other_proxy_idx];
             ray_callback.process(other_proxy);
         }
     }
