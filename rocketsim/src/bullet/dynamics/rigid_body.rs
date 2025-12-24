@@ -59,8 +59,8 @@ pub struct RigidBody {
     pub angular_damping: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
-    pub rigidbody_flags: u8,
     pub inv_mass: Vec3A,
+    flags: u8,
 }
 
 impl RigidBody {
@@ -105,14 +105,14 @@ impl RigidBody {
             angular_damping,
             linear_sleeping_threshold,
             angular_sleeping_threshold,
-            rigidbody_flags: 0,
             inv_mass: Vec3A::splat(inverse_mass),
+            flags: 0,
         }
     }
 
     #[must_use]
     pub const fn get_flags(&self) -> u8 {
-        self.rigidbody_flags
+        self.flags
     }
 
     pub fn set_gravity(&mut self, acceleration: Vec3A) {

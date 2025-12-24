@@ -25,10 +25,7 @@ use crate::{
         dynamics::{
             discrete_dynamics_world::DiscreteDynamicsWorld,
             rigid_body::{RigidBody, RigidBodyConstructionInfo},
-            vehicle::{
-                raycaster::VehicleRaycaster,
-                vehicle_rl::{VehicleRL, VehicleTuning},
-            },
+            vehicle::{raycaster::VehicleRaycaster, vehicle_rl::VehicleRL},
         },
         linear_math::Mat3AExt,
     },
@@ -237,13 +234,6 @@ impl Car {
         );
 
         let rb = &bullet_world.bodies()[rigid_body_idx];
-        let tuning = VehicleTuning {
-            suspension_stiffness: vehicle_consts::SUSPENSION_STIFFNESS,
-            suspension_compression: vehicle_consts::WHEELS_DAMPING_COMPRESSION,
-            suspension_damping: vehicle_consts::WHEELS_DAMPING_RELAXATION,
-            max_suspension_travel_cm: vehicle_consts::MAX_SUSPENSION_TRAVEL * UU_TO_BT * 100.0,
-            // max_suspension_force: f32::MAX,
-        };
         let raycaster = const { VehicleRaycaster::new(CollisionMasks::DropshotFloor as u8) };
         let mut bullet_vehicle = VehicleRL::new(rigid_body_idx, raycaster);
 
@@ -276,8 +266,6 @@ impl Car {
                 wheel_axle_cs,
                 suspension_rest_length * UU_TO_BT,
                 radius * UU_TO_BT,
-                &tuning,
-                // front,
             );
 
             bullet_vehicle.wheels[i].suspsension_force_scale = if front {
