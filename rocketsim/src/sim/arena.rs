@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, mem};
+use std::{f32::consts::PI, iter::repeat_n, mem};
 
 use ahash::AHashMap;
 use arrayvec::ArrayVec;
@@ -274,15 +274,16 @@ impl Arena {
         let constraint_solver = SequentialImpulseConstraintSolver::default();
         let overlapping_pair_cache = HashedOverlappingPairCache::default();
 
-        let cell_size_multiplier = match config.mem_weight_mode {
-            ArenaMemWeightMode::Light => 3.0,
-            ArenaMemWeightMode::Heavy => 1.0,
+        let (cell_size_multiplier, initial_handle_size) = match config.mem_weight_mode {
+            ArenaMemWeightMode::Light => (3.0, 1),
+            ArenaMemWeightMode::Heavy => (1.0, 8),
         };
 
         let broadphase = GridBroadphase::new(
             config.min_pos * UU_TO_BT,
             config.max_pos * UU_TO_BT,
             config.max_aabb_len * UU_TO_BT * cell_size_multiplier,
+            initial_handle_size,
             overlapping_pair_cache,
         );
 
@@ -548,7 +549,7 @@ impl Arena {
         }
 
         let mut num_cars_at_respawn_pos = ArrayVec::<usize, 4>::new();
-        num_cars_at_respawn_pos.fill(0);
+        num_cars_at_respawn_pos.extend(repeat_n(0, 4));
 
         let kickoff_position_amount = num_blue_cars.max(num_orange_cars);
         for i in 0..kickoff_position_amount {

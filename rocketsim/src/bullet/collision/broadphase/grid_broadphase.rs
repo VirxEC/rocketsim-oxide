@@ -37,11 +37,11 @@ struct GridCell {
     static_handles: Vec<usize>,
 }
 
-impl Default for GridCell {
-    fn default() -> Self {
+impl GridCell {
+    fn new(initial_size: usize) -> Self {
         Self {
-            dyn_handles: Vec::with_capacity(8),
-            static_handles: Vec::with_capacity(4),
+            dyn_handles: Vec::with_capacity(initial_size),
+            static_handles: Vec::new(),
         }
     }
 }
@@ -215,6 +215,7 @@ impl GridBroadphase {
         min_pos: Vec3A,
         max_pos: Vec3A,
         cell_size: f32,
+        initial_handles_size: usize,
         pair_cache: HashedOverlappingPairCache,
     ) -> Self {
         debug_assert!(min_pos.cmple(max_pos).all(), "Invalid min/max pos");
@@ -225,7 +226,9 @@ impl GridBroadphase {
             .as_usizevec3()
             .max(USizeVec3::ONE);
         let total_cells = num_cells.element_product();
-        let cells = (0..total_cells).map(|_| GridCell::default()).collect();
+        let cells = (0..total_cells)
+            .map(|_| GridCell::new(initial_handles_size))
+            .collect();
 
         Self {
             min_dyn_handle_index: 0,
