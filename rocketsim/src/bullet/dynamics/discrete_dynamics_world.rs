@@ -62,64 +62,56 @@ impl DiscreteDynamicsWorld {
             .remove_collision_object(world_index);
     }
 
-    pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> Option<usize> {
+    pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> usize {
         if !body.collision_object.is_static_object()
             && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }
 
-        if body.collision_object.get_collision_shape().is_some() {
-            let (group, mask) = if body.collision_object.is_static_object() {
-                (
-                    CollisionFilterGroups::Static as u8,
-                    CollisionFilterGroups::All as u8 ^ CollisionFilterGroups::Static as u8,
-                )
-            } else {
-                (
-                    CollisionFilterGroups::Default as u8,
-                    CollisionFilterGroups::All as u8,
-                )
-            };
-
-            let rb_index = self.add_collision_object(body, group, mask);
-
-            let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
-            if rb.collision_object.is_static_object() {
-                rb.collision_object
-                    .set_activation_state(ActivationState::Sleeping);
-            } else {
-                self.non_static_rigid_bodies.push(rb_index);
-            }
-
-            Some(rb_index)
+        let (group, mask) = if body.collision_object.is_static_object() {
+            (
+                CollisionFilterGroups::Static as u8,
+                CollisionFilterGroups::All as u8 ^ CollisionFilterGroups::Static as u8,
+            )
         } else {
-            None
+            (
+                CollisionFilterGroups::Default as u8,
+                CollisionFilterGroups::All as u8,
+            )
+        };
+
+        let rb_index = self.add_collision_object(body, group, mask);
+
+        let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
+        if rb.collision_object.is_static_object() {
+            rb.collision_object
+                .set_activation_state(ActivationState::Sleeping);
+        } else {
+            self.non_static_rigid_bodies.push(rb_index);
         }
+
+        rb_index
     }
 
-    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: u8, mask: u8) -> Option<usize> {
+    pub fn add_rigid_body(&mut self, mut body: RigidBody, group: u8, mask: u8) -> usize {
         if !body.collision_object.is_static_object()
             && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0
         {
             body.set_gravity(self.gravity);
         }
 
-        if body.collision_object.get_collision_shape().is_some() {
-            let rb_index = self.add_collision_object(body, group, mask);
+        let rb_index = self.add_collision_object(body, group, mask);
 
-            let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
-            if rb.collision_object.is_static_object() {
-                rb.collision_object
-                    .set_activation_state(ActivationState::Sleeping);
-            } else {
-                self.non_static_rigid_bodies.push(rb_index);
-            }
-
-            Some(rb_index)
+        let rb = &mut self.dynamics_world.collision_world.collision_objects[rb_index];
+        if rb.collision_object.is_static_object() {
+            rb.collision_object
+                .set_activation_state(ActivationState::Sleeping);
         } else {
-            None
+            self.non_static_rigid_bodies.push(rb_index);
         }
+
+        rb_index
     }
 
     fn apply_gravity(&mut self) {

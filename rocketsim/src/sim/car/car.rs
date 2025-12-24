@@ -3,15 +3,13 @@ use std::ops::{Deref, DerefMut};
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
-use crate::{BallHitInfo, CarConfig, CarControls, MutatorConfig, PhysState, CollisionMasks};
-
 // Shorthand using aliases for constants
 use crate::consts::{
     BT_TO_UU, UU_TO_BT, bullet_vehicle as vehicle_consts, car as car_consts,
     car::drive as drive_consts, curves,
 };
 use crate::{
-    GameMode, Team,
+    BallHitInfo, CarConfig, CarControls, CollisionMasks, GameMode, MutatorConfig, PhysState, Team,
     bullet::{
         collision::{
             broadphase::CollisionFilterGroups,
@@ -230,13 +228,11 @@ impl Car {
         body.collision_object.user_index = UserInfoTypes::Car;
         body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
 
-        let rigid_body_idx = bullet_world
-            .add_rigid_body(
-                body,
-                CollisionFilterGroups::Default as u8 | CollisionMasks::DropshotFloor as u8,
-                CollisionFilterGroups::All as u8,
-            )
-            .unwrap();
+        let rigid_body_idx = bullet_world.add_rigid_body(
+            body,
+            CollisionFilterGroups::Default as u8 | CollisionMasks::DropshotFloor as u8,
+            CollisionFilterGroups::All as u8,
+        );
 
         let rb = &bullet_world.bodies()[rigid_body_idx];
         let tuning = VehicleTuning {
@@ -407,13 +403,15 @@ impl Car {
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
     ) {
-        self.internal_state.handbrake_val += (f32::from(self.internal_state.controls.handbrake) * 2.0 - 1.0)
-            * drive_consts::POWERSLIDE_FALL_RATE
-            * tick_time;
+        self.internal_state.handbrake_val +=
+            (f32::from(self.internal_state.controls.handbrake) * 2.0 - 1.0)
+                * drive_consts::POWERSLIDE_FALL_RATE
+                * tick_time;
         self.internal_state.handbrake_val = self.internal_state.handbrake_val.clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
-        let real_throttle = if self.internal_state.controls.boost && self.internal_state.boost > 0.0 {
+        let real_throttle = if self.internal_state.controls.boost && self.internal_state.boost > 0.0
+        {
             1.0
         } else {
             self.internal_state.controls.throttle
@@ -612,7 +610,9 @@ impl Car {
                     * pitch_torque_scale
                     * car_consts::air_control::TORQUE.x
                     + self.internal_state.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
-                    + self.internal_state.controls.roll * dir_roll * car_consts::air_control::TORQUE.z
+                    + self.internal_state.controls.roll
+                        * dir_roll
+                        * car_consts::air_control::TORQUE.z
             } else {
                 Vec3A::ZERO
             };
@@ -764,8 +764,9 @@ impl Car {
         if jump_pressed
             && self.internal_state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY
         {
-            let input_magnitude =
-                self.internal_state.controls.yaw.abs() + self.internal_state.controls.pitch.abs() + self.internal_state.controls.roll.abs();
+            let input_magnitude = self.internal_state.controls.yaw.abs()
+                + self.internal_state.controls.pitch.abs()
+                + self.internal_state.controls.roll.abs();
             let is_flip_input = input_magnitude >= self.config.dodge_deadzone;
 
             let can_use = !self.internal_state.is_auto_flipping
@@ -977,7 +978,8 @@ impl Car {
         self.bullet_vehicle
             .update_vehicle_first(collision_world, tick_time);
 
-        let jump_pressed = self.internal_state.controls.jump && !self.internal_state.prev_controls.jump;
+        let jump_pressed =
+            self.internal_state.controls.jump && !self.internal_state.prev_controls.jump;
 
         let mut num_wheels_in_contact = 0u8;
         for (wheel, has_contact) in self

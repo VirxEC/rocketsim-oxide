@@ -1,6 +1,12 @@
 use glam::{Affine3A, Vec3A};
 
-use crate::{bullet::collision::shapes::collision_shape::CollisionShapes, sim::UserInfoTypes};
+use crate::{
+    bullet::{
+        collision::shapes::collision_shape::CollisionShapes,
+        dynamics::rigid_body::RigidBodyConstructionInfo,
+    },
+    sim::UserInfoTypes,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActivationState {
@@ -19,12 +25,6 @@ pub enum CollisionFlags {
     CustomMaterialCallback = (1 << 3),
 }
 
-#[derive(PartialEq, Eq)]
-pub enum CollisionObjectTypes {
-    CollisionObject = 1,
-    RigidBody = 2,
-}
-
 pub struct CollisionObject {
     world_transform: Affine3A,
     pub interpolation_world_transform: Affine3A,
@@ -32,7 +32,7 @@ pub struct CollisionObject {
     pub interpolation_angular_velocity: Vec3A,
     pub contact_processing_threshold: f32,
     broadphase_handle: Option<usize>,
-    collision_shape: Option<CollisionShapes>,
+    collision_shape: CollisionShapes,
     pub collision_flags: u8,
     pub companion_id: Option<usize>,
     /// The index of this object in `CollisionWorld`
@@ -42,30 +42,32 @@ pub struct CollisionObject {
     pub friction: f32,
     pub restitution: f32,
     pub no_rot: bool,
-    pub internal_type: CollisionObjectTypes,
     pub user_pointer: u64,
     pub user_index: UserInfoTypes,
 }
 
-impl Default for CollisionObject {
-    fn default() -> Self {
+impl From<RigidBodyConstructionInfo> for CollisionObject {
+    fn from(value: RigidBodyConstructionInfo) -> Self {
         Self {
-            world_transform: Affine3A::IDENTITY,
-            interpolation_world_transform: Affine3A::IDENTITY,
+            world_transform: value.start_world_transform,
+            interpolation_world_transform: value.start_world_transform,
             interpolation_linear_velocity: Vec3A::ZERO,
             interpolation_angular_velocity: Vec3A::ZERO,
             contact_processing_threshold: f32::MAX,
             broadphase_handle: None,
-            collision_shape: None,
-            collision_flags: 0,
+            collision_shape: value.collision_shape,
+            collision_flags: if value.mass == 0.0 {
+                CollisionFlags::StaticObject as u8
+            } else {
+                0
+            },
             companion_id: None,
             world_array_index: 0,
             activation_state: ActivationState::Active,
             deactivation_time: 0.0,
-            friction: 0.5,
-            restitution: 0.0,
+            friction: value.friction,
+            restitution: value.restitution,
             no_rot: false,
-            internal_type: CollisionObjectTypes::CollisionObject,
             user_pointer: 0,
             user_index: UserInfoTypes::default(),
         }
@@ -82,13 +84,9 @@ impl CollisionObject {
         &self.world_transform
     }
 
-    pub fn set_collision_shape(&mut self, collision_shape: CollisionShapes) {
-        self.collision_shape = Some(collision_shape);
-    }
-
     #[must_use]
-    pub const fn get_collision_shape(&self) -> Option<&CollisionShapes> {
-        self.collision_shape.as_ref()
+    pub const fn get_collision_shape(&self) -> &CollisionShapes {
+        &self.collision_shape
     }
 
     #[must_use]

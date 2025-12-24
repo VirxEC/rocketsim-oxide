@@ -104,13 +104,11 @@ impl<'a, T: ContactAddedCallback> ConvexConcaveCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexConcaveCollisionAlgorithm<'_, T> {
     fn process_collision(self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Sphere(sphere_shape)) = self.convex_obj.get_collision_shape()
-        else {
+        let CollisionShapes::Sphere(sphere_shape) = self.convex_obj.get_collision_shape() else {
             unreachable!()
         };
 
-        let Some(CollisionShapes::TriangleMesh(tri_mesh)) = self.concave_obj.get_collision_shape()
-        else {
+        let CollisionShapes::TriangleMesh(tri_mesh) = self.concave_obj.get_collision_shape() else {
             unreachable!()
         };
 

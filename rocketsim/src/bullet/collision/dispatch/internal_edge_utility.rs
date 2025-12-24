@@ -216,8 +216,7 @@ pub fn adjust_internal_edge_contacts(
     tri_mesh_col_obj: &CollisionObject,
     index: usize,
 ) {
-    let Some(CollisionShapes::TriangleMesh(tri_mesh)) = tri_mesh_col_obj.get_collision_shape()
-    else {
+    let CollisionShapes::TriangleMesh(tri_mesh) = tri_mesh_col_obj.get_collision_shape() else {
         return;
     };
 

@@ -312,8 +312,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
     }
 
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
-        let Some(CollisionShapes::Compound(compound_shape)) =
-            self.compound_obj.get_collision_shape()
+        let CollisionShapes::Compound(compound_shape) = self.compound_obj.get_collision_shape()
         else {
             unreachable!()
         };
@@ -327,7 +326,7 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
         let box_shape = &child.child_shape;
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
-        let other_col_shape = self.other_obj.get_collision_shape().unwrap();
+        let other_col_shape = self.other_obj.get_collision_shape();
         let aabb2 = other_col_shape.get_aabb(self.other_obj.get_world_transform());
 
         if !test_aabb_against_aabb(&aabb1, &aabb2) {
