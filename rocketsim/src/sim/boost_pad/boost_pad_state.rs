@@ -5,9 +5,10 @@
     derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
 )]
 pub struct BoostPadState {
+    // TODO: Implement car-locking to improve accuracy under certain conditions
+
     pub cooldown: f32,
-    pub cur_locked_car: u64,
-    pub prev_locked_car_id: u64,
+    pub gave_car_boost: bool,
 }
 
 impl Default for BoostPadState {
@@ -19,8 +20,7 @@ impl Default for BoostPadState {
 impl BoostPadState {
     pub const DEFAULT: Self = Self {
         cooldown: 0.0,
-        cur_locked_car: 0,
-        prev_locked_car_id: 0,
+        gave_car_boost: false,
     };
 
     pub fn is_active(&self) -> bool {

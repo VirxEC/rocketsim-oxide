@@ -2,36 +2,30 @@ use glam::Vec3A;
 use crate::{BoostPadConfig, BoostPadState};
 use crate::sim::consts;
 
-#[allow(unused)]
+#[derive(Debug, Copy, Clone)]
 pub struct BoostPad {
     config: BoostPadConfig,
-    pos_bt: Vec3A,
-    box_min_bt: Vec3A,
-    box_max_bt: Vec3A,
+    radius: f32,
+    aabb: (Vec3A, Vec3A),
     internal_state: BoostPadState,
 }
 
 impl BoostPad {
     #[must_use]
     pub fn new(config: BoostPadConfig) -> Self {
-        let pos_bt = config.pos * consts::UU_TO_BT;
-
-        let box_rad = if config.is_big {
+        let radius = if config.is_big {
             consts::boost_pads::BOX_RAD_BIG
         } else {
             consts::boost_pads::BOX_RAD_SMALL
-        } * consts::UU_TO_BT;
+        };
+
+        let aabb = (
+            config.pos - Vec3A::new(radius, radius, 0.0),
+            config.pos + Vec3A::new(radius, radius, consts::boost_pads::BOX_HEIGHT),
+        );
 
         Self {
-            config,
-            pos_bt,
-            box_min_bt: pos_bt - Vec3A::new(box_rad, box_rad, 0.0),
-            box_max_bt: pos_bt
-                + Vec3A::new(
-                    box_rad,
-                    box_rad,
-                    consts::boost_pads::BOX_HEIGHT * consts::UU_TO_BT,
-                ),
+            config, radius, aabb,
             internal_state: BoostPadState::DEFAULT,
         }
     }
@@ -49,4 +43,6 @@ impl BoostPad {
     pub const fn get_config(&self) -> &BoostPadConfig {
         &self.config
     }
+
+    pub const fn get_radius(&self) -> f32 { self.radius }
 }
