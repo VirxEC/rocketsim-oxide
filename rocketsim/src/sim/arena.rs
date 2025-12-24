@@ -274,7 +274,7 @@ impl Arena {
         let overlapping_pair_cache = HashedOverlappingPairCache::default();
 
         let cell_size_multiplier = match config.mem_weight_mode {
-            ArenaMemWeightMode::Light => 2.0,
+            ArenaMemWeightMode::Light => 3.0,
             ArenaMemWeightMode::Heavy => 1.0,
         };
 
