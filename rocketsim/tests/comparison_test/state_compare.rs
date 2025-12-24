@@ -92,7 +92,7 @@ pub fn map_car_err(a: &CarState, b: &CarState) -> StateErrSet {
     ));
     err_set.push((
         "has_flipped".to_string(),
-        calc_bool_err(a.is_flipping, b.has_flipped),
+        calc_bool_err(a.has_flipped, b.has_flipped),
     ));
     err_set.push((
         "has_double_jumped".to_string(),

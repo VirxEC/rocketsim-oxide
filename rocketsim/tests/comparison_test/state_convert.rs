@@ -140,7 +140,7 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
     }
 }
 
-pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
+pub fn conv_to_new_car_state(old: &OldCarState, controls: CarControls) -> CarState {
     CarState {
         phys: PhysState {
             pos: vec3_to_new(old.pos),
@@ -148,7 +148,7 @@ pub fn conv_to_new_car_state(old: &OldCarState) -> CarState {
             vel: vec3_to_new(old.vel),
             ang_vel: vec3_to_new(old.ang_vel),
         },
-        controls: CarControls::DEFAULT,
+        controls,
         prev_controls: conv_to_new_car_controls(old.last_controls),
         is_on_ground: old.is_on_ground,
         wheels_with_contact: old.wheels_with_contact,

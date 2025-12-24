@@ -34,6 +34,8 @@ impl Display for TestResultState {
             let csn = car_state_new;
             let cso = car_state_old;
 
+            f.write_fmt(format_args!("\n\t\tNew controls: {:?}", csn.controls))?;
+            f.write_str("\n")?;
             show_diff(f, "\n\t\tpos", csn.phys.pos, cso.phys.pos)?;
             show_diff(
                 f,
@@ -50,9 +52,11 @@ impl Display for TestResultState {
             show_diff(f, "\n\t\tvel", csn.phys.vel, cso.phys.vel)?;
             show_diff(f, "\n\t\tang_vel", csn.phys.ang_vel, cso.phys.ang_vel)?;
             f.write_str("\n")?;
+            show_diff(f, "\n\t\tboost", csn.boost, cso.boost)?;
             show_diff(f, "\n\t\tis_on_ground", csn.is_on_ground, cso.is_on_ground)?;
             show_diff(f, "\n\t\thas_jumped", csn.has_jumped, cso.has_jumped)?;
             show_diff(f, "\n\t\thas_flipped", csn.has_flipped, cso.has_flipped)?;
+            show_diff(f, "\n\t\tflip_time", csn.flip_time, cso.flip_time)?;
             show_diff(
                 f,
                 "\n\t\twheels_in_contact",
