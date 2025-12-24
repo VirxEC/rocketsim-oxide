@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use glam::Vec3A;
 use rocketsim::{
-    Arena, ArenaConfig, ArenaMemWeightMode, BallState, CarConfig, CarControls, CarState, GameMode,
-    Team, consts, init_from_default,
+    Arena, ArenaConfig, BallState, CarConfig, CarControls, CarState, GameMode, Team, consts,
+    init_from_default,
 };
 
 const NUM_CARS: u8 = 6;
