@@ -243,7 +243,7 @@ pub struct Arena {
     rng: Rng,
     tick_time: f32,
     last_car_id: u64,
-    _config: ArenaConfig,
+    config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
     data: ArenaInner,
 }
@@ -324,7 +324,7 @@ impl Arena {
 
         Self {
             rng,
-            _config: config,
+            config,
             bullet_world,
             last_car_id: 0,
             tick_time: 1. / f32::from(tick_rate),
@@ -337,6 +337,10 @@ impl Arena {
                 cars: AHashMap::new(),
             },
         }
+    }
+
+    pub fn get_config(&self) -> &ArenaConfig {
+        &self.config
     }
 
     fn add_static_collision_shape(
