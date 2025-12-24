@@ -1,7 +1,6 @@
 mod arena;
 mod arena_config;
 mod ball;
-mod ball_hit_info;
 mod boost_pad;
 #[allow(clippy::redundant_pub_crate)]
 pub(crate) mod boost_pad_grid;
@@ -21,7 +20,6 @@ mod user_info_types;
 pub use arena::*;
 pub use arena_config::*;
 pub use ball::*;
-pub use ball_hit_info::*;
 pub use boost_pad::*;
 pub use car::*;
 #[allow(clippy::redundant_pub_crate)]
