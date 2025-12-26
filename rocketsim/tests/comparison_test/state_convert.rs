@@ -104,11 +104,8 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
             contact_normal: vec3_to_old(state.world_contact_normal.unwrap_or_default()),
         },
         car_contact: OldCarContact {
-            other_car_id: state
-                .car_contact
-                .map(|c| c.other_car_id as u32)
-                .unwrap_or(0),
-            cooldown_timer: state.car_contact.map(|c| c.cooldown_timer).unwrap_or(0.0),
+            other_car_id: state.car_contact.map_or(0, |c| c.other_car_id as u32),
+            cooldown_timer: state.car_contact.map_or(0.0, |c| c.cooldown_timer),
         },
         is_demoed: state.is_demoed,
         demo_respawn_timer: state.demo_respawn_timer,
@@ -127,14 +124,10 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
                     .map(|h| h.extra_hit_vel)
                     .unwrap_or_default(),
             ),
-            tick_count_when_hit: state
-                .ball_hit_info
-                .map(|h| h.tick_count_when_hit)
-                .unwrap_or(0),
+            tick_count_when_hit: state.ball_hit_info.map_or(0, |h| h.tick_count_when_hit),
             tick_count_when_extra_impulse_applied: state
                 .ball_hit_info
-                .map(|h| h.tick_count_when_extra_impulse_applied)
-                .unwrap_or(0),
+                .map_or(0, |h| h.tick_count_when_extra_impulse_applied),
         },
         last_controls: conv_to_old_car_controls(state.prev_controls),
     }
@@ -242,7 +235,7 @@ pub fn conv_to_old_game_mode(game_mode: GameMode) -> OldGameMode {
         // TODO: Not supported yet
         GameMode::Dropshot => todo!(),
         GameMode::Heatseeker => todo!(),
-        _ => unimplemented!(),
+        GameMode::TheVoid => unimplemented!(),
     }
 }
 

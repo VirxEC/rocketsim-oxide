@@ -293,7 +293,7 @@ pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
     contact_added_callback: &'a mut T,
 }
 
-impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
+impl<T: ContactAddedCallback> CompoundCollisionAlgorithm<'_, T> {
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
         let org_trans = *self.compound_obj.get_world_transform();
 

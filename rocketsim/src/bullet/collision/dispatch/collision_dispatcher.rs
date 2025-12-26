@@ -193,7 +193,7 @@ impl CollisionDispatcher {
                     false,
                     contact_added_callback,
                 ),
-                _ => unimplemented!(),
+                CollisionShapes::Sphere(_) => unimplemented!(),
             },
             CollisionShapes::TriangleMesh(mesh) => match col_obj_1.get_collision_shape() {
                 CollisionShapes::Sphere(sphere) => Algorithms::new_convex_concave(

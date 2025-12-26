@@ -143,27 +143,26 @@ fn main() {
     let start = Instant::now();
     for _ in 0..NUM_EPISODE {
         {
+            const VEL_ADD_MAG: f32 = 1000.0;
+
             // Set up new episode
             // Reset to kickoff
             arena.reset_to_random_kickoff();
 
             // Accelerate the ball randomly
             let mut ball_state = *arena.get_ball();
-            const VEL_ADD_MAG: f32 = 1000.0;
-            ball_state.phys.vel += Vec3A::new(
-                rand_axis_val() * VEL_ADD_MAG,
-                rand_axis_val() * VEL_ADD_MAG,
-                rand_axis_val() * VEL_ADD_MAG,
-            );
+            ball_state.phys.vel +=
+                Vec3A::new(rand_axis_val(), rand_axis_val(), rand_axis_val()) * VEL_ADD_MAG;
             arena.set_ball(ball_state);
         }
 
-        const UPDATE_CHANCE: f32 = 0.05; // (120 * 0.05) = Avg of 6 per sec
         for _ in 0..NUM_EPISODE_TICKS {
             let ball_state = *arena.get_ball();
-            for id in ids.iter() {
+            for &id in &ids {
+                const UPDATE_CHANCE: f32 = 0.05; // (120 * 0.05) = Avg of 6 per sec
+
                 let tick_count = arena.tick_count();
-                let car = arena.car_mut(*id);
+                let car = arena.car_mut(id);
                 let car_state = car.get_state();
 
                 if let Some(ball_hit_info) = car_state.ball_hit_info

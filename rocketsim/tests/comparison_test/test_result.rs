@@ -49,9 +49,7 @@ impl TestResult {
                 .flatten()
                 .chain(ball_err.iter());
             for (name, err) in all_errs_iter {
-                let entry = val_err_stats
-                    .entry(name.clone())
-                    .or_insert(ValueErrorStat::default());
+                let entry = val_err_stats.entry(name.clone()).or_default();
                 entry.num_samples += 1;
                 entry.max = f32::max(entry.max, *err);
                 entry.total += err;

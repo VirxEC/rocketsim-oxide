@@ -1,5 +1,3 @@
-use std::f32::consts::{FRAC_1_SQRT_2, PI};
-
 use glam::Vec3A;
 
 use crate::{GameMode, sim::linear_piece_curve::LinearPieceCurve};
@@ -15,6 +13,7 @@ pub struct CarSpawnPos {
     pub y: f32,
     pub yaw_ang: f32,
 }
+
 impl CarSpawnPos {
     #[inline]
     #[must_use]
@@ -34,7 +33,7 @@ pub(crate) const UU_TO_BT: f32 = 1.0 / 50.0;
 pub const GRAVITY_Z: f32 = -650.0;
 
 pub mod arena {
-    use super::*;
+    use super::PhysicsCoefs;
 
     pub const EXTENT_X: f32 = 4096.0;
     /// Does not include inner-goal
@@ -52,7 +51,8 @@ pub mod arena {
 }
 
 pub mod car {
-    use super::*;
+    use super::PhysicsCoefs;
+
     pub const MASS_BT: f32 = 180.0;
 
     pub const BASE_COEFS: PhysicsCoefs = PhysicsCoefs {
@@ -149,7 +149,9 @@ pub mod car {
     }
 
     pub mod air_control {
-        use super::*;
+        use std::f32::consts::PI;
+
+        use glam::Vec3A;
 
         pub const TORQUE: Vec3A = Vec3A::new(130., 95., 400.);
         pub const DAMPING: Vec3A = Vec3A::new(30., 20., 50.);
@@ -157,7 +159,7 @@ pub mod car {
     }
 
     pub mod autoflip {
-        use super::*;
+        use std::f32::consts::FRAC_1_SQRT_2;
 
         pub const IMPULSE: f32 = 200.0;
         pub const TORQUE: f32 = 50.0;
@@ -179,11 +181,12 @@ pub mod car {
     pub mod spawn {
         use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
-        use super::*;
+        use crate::{GameMode, consts::CarSpawnPos};
 
         pub const REST_Z: f32 = 17.0;
         pub const SPAWN_Z: f32 = 36.0;
 
+        #[must_use]
         pub const fn get_kickoff_spawn_locations(game_mode: GameMode) -> &'static [CarSpawnPos] {
             pub const LOCATIONS_SOCCAR: [CarSpawnPos; 5] = [
                 CarSpawnPos::new(-2048., -2560., FRAC_PI_4 * 1.),
@@ -254,8 +257,10 @@ pub mod car {
 }
 
 pub mod ball {
-    use super::*;
+    use super::PhysicsCoefs;
+    use crate::GameMode;
 
+    #[must_use]
     pub const fn get_radius(game_mode: GameMode) -> f32 {
         pub const RADIUS_SOCCAR: f32 = 91.25;
         pub const RADIUS_HOOPS: f32 = 96.3831;
@@ -314,7 +319,7 @@ pub mod bullet_vehicle {
 }
 
 pub mod curves {
-    use super::*;
+    use super::LinearPieceCurve;
 
     pub const STEER_ANGLE_FROM_SPEED: LinearPieceCurve<6> = LinearPieceCurve::new([
         (0., 0.53356),
@@ -399,7 +404,7 @@ pub mod snowday {
 }
 
 pub mod dropshot {
-    use super::*;
+    use super::{BT_TO_UU, Vec3A};
 
     pub const BALL_LAUNCH_Z_VEL: f32 = 985.0;
     pub const BALL_LAUNCH_DELAY: f32 = 0.26;
@@ -436,7 +441,7 @@ pub mod dropshot {
 }
 
 pub mod boost_pads {
-    use super::*;
+    use super::{GameMode, Vec3A};
 
     // TODO: Do something about repetitive small/big pairs
     pub const CYL_HEIGHT: f32 = 95.0;

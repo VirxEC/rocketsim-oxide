@@ -13,8 +13,8 @@ fn calc_rot_err(a: Mat3A, b: Mat3A) -> f32 {
         + calc_vec3_err(a.z_axis, b.z_axis)
 }
 
-const fn calc_bool_err(a: bool, b: bool) -> f32 {
-    if a != b { 1.0 } else { 0.0 }
+fn calc_bool_err(a: bool, b: bool) -> f32 {
+    f32::from(a != b)
 }
 
 /// Every tick gives 0.5 error
@@ -48,7 +48,7 @@ pub fn map_ball_err(a: &BallState, b: &BallState, include_rot: bool) -> StateErr
 
     // TODO: Add error for heatseeker and dropshot vars
 
-    for (name, _) in err_set.iter_mut() {
+    for (name, _) in &mut err_set {
         *name = format!("ball_{name}");
     }
     err_set
@@ -190,26 +190,17 @@ pub fn map_car_err(a: &CarState, b: &CarState) -> StateErrSet {
         (a.auto_flip_torque_scale - b.auto_flip_torque_scale).abs(),
     ));
 
-    for (name, _) in err_set.iter_mut() {
+    for (name, _) in &mut err_set {
         *name = format!("car_{name}");
     }
 
     err_set
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StateComparison {
     pub car_errs: Vec<StateErrSet>,
     pub ball_err: Option<StateErrSet>,
-}
-
-impl Default for StateComparison {
-    fn default() -> Self {
-        StateComparison {
-            car_errs: Vec::new(),
-            ball_err: None,
-        }
-    }
 }
 
 impl StateComparison {

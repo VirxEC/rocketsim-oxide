@@ -22,6 +22,7 @@ impl BoostPadState {
         gave_car_boost: false,
     };
 
+    #[must_use]
     pub fn is_active(&self) -> bool {
         self.cooldown == 0.0
     }

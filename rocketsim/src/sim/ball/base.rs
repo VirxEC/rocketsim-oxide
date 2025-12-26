@@ -21,10 +21,10 @@ use crate::{
 };
 
 pub struct Ball {
-    pub(crate) internal_state: BallState,
-    pub(crate) rigid_body_idx: usize,
-    pub(crate) ground_stick_applied: bool,
-    pub(crate) velocity_impulse_cache: Vec3A,
+    pub internal_state: BallState,
+    pub rigid_body_idx: usize,
+    pub ground_stick_applied: bool,
+    pub velocity_impulse_cache: Vec3A,
 }
 
 impl Ball {
@@ -42,7 +42,7 @@ impl Ball {
         }
     }
 
-    pub(crate) fn new(
+    pub fn new(
         game_mode: GameMode,
         bullet_world: &mut DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
@@ -83,7 +83,7 @@ impl Ball {
         }
     }
 
-    pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: BallState) {
+    pub fn set_state(&mut self, rb: &mut RigidBody, state: BallState) {
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
         debug_assert_eq!(rb.collision_object.user_index, UserInfoTypes::Ball);
 
@@ -104,7 +104,7 @@ impl Ball {
         self.internal_state = state;
     }
 
-    pub(crate) fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
+    pub fn pre_tick_update(&mut self, game_mode: GameMode, _tick_time: f32) {
         match game_mode {
             GameMode::Heatseeker => todo!(),
             GameMode::Snowday => self.ground_stick_applied = false,
@@ -116,11 +116,7 @@ impl Ball {
         }
     }
 
-    pub(crate) fn finish_physics_tick(
-        &mut self,
-        rb: &mut RigidBody,
-        mutator_config: &MutatorConfig,
-    ) {
+    pub fn finish_physics_tick(&mut self, rb: &mut RigidBody, mutator_config: &MutatorConfig) {
         if self.velocity_impulse_cache.length_squared() != 0.0 {
             rb.linear_velocity += self.velocity_impulse_cache;
             self.velocity_impulse_cache = Vec3A::ZERO;
@@ -145,7 +141,7 @@ impl Ball {
         self.internal_state.phys.rot_mat = trans.matrix3;
     }
 
-    pub(crate) fn on_hit(
+    pub fn on_hit(
         &mut self,
         car: &mut Car,
         rel_pos: Vec3A,

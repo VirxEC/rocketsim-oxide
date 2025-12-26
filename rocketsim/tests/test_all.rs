@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 mod comparison_test;
 
 use crate::comparison_test::*;
@@ -9,9 +11,10 @@ fn init_for_test() {
 
 #[test]
 fn test_comparisons() {
+    const FAIL_ERROR_THRESH: f32 = 1.0; // Adjust as needed
+
     init_for_test();
 
-    const FAIL_ERROR_THRESH: f32 = 1.0; // Adjust as needed
     let ball_test_cases = all_test_cases::make_ball_cases();
     let car_test_cases = all_test_cases::make_car_cases();
     for test_case in ball_test_cases.iter().chain(car_test_cases.iter()) {
@@ -19,7 +22,7 @@ fn test_comparisons() {
 
         for (tick_idx, state) in test_result.ticks.iter().enumerate() {
             let comparison = &state.comparison;
-            for (value_name, value_err) in comparison.combine_all_err_sets().iter() {
+            for (value_name, value_err) in &comparison.combine_all_err_sets() {
                 if *value_err >= FAIL_ERROR_THRESH {
                     let value_err_stat = test_result.val_err_stats.get(value_name).unwrap();
                     let case_name = test_case.name;

@@ -2,22 +2,14 @@ use glam::{USizeVec2, Vec2, Vec3A};
 
 use crate::{BoostPad, BoostPadConfig, CarState, MutatorConfig, consts::boost_pads};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct GridCell {
     pub pad_indices: Vec<usize>,
 }
 
-impl Default for GridCell {
-    fn default() -> Self {
-        Self {
-            pad_indices: Vec::new(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct BoostPadGrid {
-    cells: [GridCell; BoostPadGrid::CELL_AMOUNT],
+    cells: [GridCell; Self::CELL_AMOUNT],
     all_pads: Vec<BoostPad>,
     max_pad_z: f32,
 }
@@ -32,18 +24,19 @@ impl BoostPadGrid {
         Self::GRID_SIZE.y / Self::CELL_COUNTS.y as f32,
     );
 
+    #[must_use]
     pub fn new(pad_configs: &Vec<BoostPadConfig>) -> Self {
         let mut cells: [GridCell; Self::CELL_AMOUNT] = std::array::from_fn(|_| GridCell::default());
         let mut all_pads: Vec<BoostPad> = Vec::new();
         for pad_config in pad_configs {
+            const BOOST_PAD_MAX_RAD: f32 = boost_pads::BOX_RAD_BIG.max(boost_pads::BOX_RAD_SMALL);
+
             let pad_pos = pad_config.pos;
             let boost_pad = BoostPad::new(*pad_config);
             let pad_idx = all_pads.len();
             all_pads.push(boost_pad);
 
             // TODO: Inefficient, scaling is O(num_cell*num_pads) :(
-            const BOOST_PAD_MAX_RAD: f32 =
-                f32::max(boost_pads::BOX_RAD_BIG, boost_pads::BOX_RAD_SMALL);
             let (pad_aabb_min, pad_aabb_max) = (
                 pad_pos.truncate() - BOOST_PAD_MAX_RAD,
                 pad_pos.truncate() + BOOST_PAD_MAX_RAD,
@@ -59,9 +52,10 @@ impl BoostPadGrid {
                 }
             }
 
-            if !overlapped_any {
-                panic!("Boost pad at location {pad_pos} is completely outside of the grid space");
-            }
+            assert!(
+                overlapped_any,
+                "Boost pad at location {pad_pos} is completely outside of the grid space"
+            );
         }
 
         let mut max_pad_z = -f32::MAX;
@@ -100,21 +94,18 @@ impl BoostPadGrid {
         (start_pos_2d, start_pos_2d + Self::CELL_SIZE)
     }
 
+    #[must_use]
     pub fn pads(&self) -> &[BoostPad] {
         &self.all_pads
     }
 
     fn get_cell_at_pos(&self, pos: Vec3A) -> Option<&GridCell> {
-        if let Some(cell_idx) = Self::calc_cell_idx(pos) {
-            Some(&self.cells[cell_idx])
-        } else {
-            None
-        }
+        Self::calc_cell_idx(pos).map(|cell_idx| &self.cells[cell_idx])
     }
 
     /// Returns true if boost was given
     pub(crate) fn maybe_give_car_boost(
-        &mut self,
+        &self,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
     ) -> bool {
@@ -134,8 +125,9 @@ impl BoostPadGrid {
                     // Check if car origin is inside the cylinder hitbox
                     let pad_pos = pad.get_config().pos;
                     let cyl_radius = pad.get_radius();
-                    let dist_sq_2d =
-                        Vec2::distance_squared(pad_pos.truncate(), car_state.pos.truncate());
+                    let dist_sq_2d = pad_pos
+                        .truncate()
+                        .distance_squared(car_state.pos.truncate());
                     let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
                         && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
                     if overlapping {
@@ -167,7 +159,7 @@ impl BoostPadGrid {
     }
 
     pub(crate) fn post_tick_update(&mut self, tick_time: f32) {
-        for pad in self.all_pads.iter_mut() {
+        for pad in &mut self.all_pads {
             let mut pad_state = *pad.get_state();
             pad_state.cooldown = (pad_state.cooldown - tick_time).max(0.0);
             pad_state.gave_car_boost = false;

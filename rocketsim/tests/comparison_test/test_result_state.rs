@@ -12,16 +12,16 @@ pub struct TestResultState {
     pub comparison: StateComparison,
 }
 
-fn show_diff<T: Display + PartialEq>(
+fn show_diff<T: Display + PartialEq + Copy>(
     f: &mut std::fmt::Formatter,
     prefix: &str,
     new: T,
     old: T,
 ) -> std::fmt::Result {
-    if new != old {
-        f.write_fmt(format_args!("{prefix} [DIFF]: new={new} != old={old}"))
-    } else {
+    if new == old {
         f.write_fmt(format_args!("{prefix} [same]: {new}"))
+    } else {
+        f.write_fmt(format_args!("{prefix} [DIFF]: new={new} != old={old}"))
     }
 }
 

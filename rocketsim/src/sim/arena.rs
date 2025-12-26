@@ -306,7 +306,7 @@ impl Arena {
             let mut boost_pad_configs = Vec::new();
             if game_mode != GameMode::TheVoid && game_mode != GameMode::Dropshot {
                 if config.use_custom_boost_pads {
-                    boost_pad_configs = config.custom_boost_pads.clone();
+                    boost_pad_configs.extend_from_slice(&config.custom_boost_pads);
                 } else {
                     let small_pad_locs = consts::boost_pads::get_locations(game_mode, false);
                     let big_pad_locs = consts::boost_pads::get_locations(game_mode, true);
@@ -349,6 +349,7 @@ impl Arena {
         }
     }
 
+    #[must_use]
     pub const fn get_config(&self) -> &ArenaConfig {
         &self.config
     }
@@ -719,8 +720,6 @@ impl Arena {
         self.bullet_world
             .step_simulation(self.tick_time, &mut self.data);
 
-        // TODO: We have to clone this to prevent reference issues :(
-        let mutator_config = self.mutator_config().clone();
         for car in self.data.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
@@ -730,7 +729,7 @@ impl Arena {
             if self
                 .data
                 .boost_pad_grid
-                .maybe_give_car_boost(&mut car_state, &mutator_config)
+                .maybe_give_car_boost(&mut car_state, &self.data.mutator_config)
             {
                 car.set_state(rb, &car_state);
             }
@@ -781,7 +780,7 @@ impl Arena {
     #[inline]
     #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
-        &self.data.boost_pad_grid.pads()
+        self.data.boost_pad_grid.pads()
     }
 
     #[inline]
