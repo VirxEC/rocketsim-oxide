@@ -127,10 +127,8 @@ impl From<crate::BoostPadConfig> for flat::BoostPadConfig {
 impl From<flat::BoostPadState> for crate::BoostPadState {
     fn from(value: flat::BoostPadState) -> Self {
         Self {
-            is_active: value.is_active,
             cooldown: value.cooldown,
-            cur_locked_car: value.cur_locked_car,
-            prev_locked_car_id: value.prev_locked_car_id,
+            gave_car_boost: false,
         }
     }
 }
@@ -138,10 +136,10 @@ impl From<flat::BoostPadState> for crate::BoostPadState {
 impl From<crate::BoostPadState> for flat::BoostPadState {
     fn from(value: crate::BoostPadState) -> Self {
         Self {
-            is_active: value.is_active,
+            is_active: value.is_active(),
             cooldown: value.cooldown,
-            cur_locked_car: value.cur_locked_car,
-            prev_locked_car_id: value.prev_locked_car_id,
+            cur_locked_car: 0,
+            prev_locked_car_id: 0,
         }
     }
 }
