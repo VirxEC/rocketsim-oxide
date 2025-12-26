@@ -31,7 +31,7 @@ impl DiscreteDynamicsWorld {
             solver: constraint_solver,
             gravity: Vec3A::new(0.0, -10.0, 0.0),
             apply_speculative_contact_restitution: false,
-            non_static_rigid_bodies: Vec::new(),
+            non_static_rigid_bodies: Vec::with_capacity(8),
         }
     }
 

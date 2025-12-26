@@ -19,7 +19,6 @@ use crate::bullet::{
 
 pub struct GridBroadphaseProxy {
     broadphase_proxy: BroadphaseProxy,
-    is_static: bool,
     cell_idx: usize,
     indices: USizeVec3,
 }
@@ -299,9 +298,9 @@ impl GridBroadphase {
                 client_object_idx: world_index,
                 collision_filter_group,
                 collision_filter_mask,
-                unique_id: new_handle_idx + 2,
+                is_static,
+                unique_id: u32::try_from(new_handle_idx).unwrap() + 2,
             },
-            is_static,
             cell_idx,
             indices,
         };

@@ -75,12 +75,15 @@ impl CollisionMeshFile {
             "Invalid collision mesh file (bad triangle/vertex count: [{num_tris}/{num_vertices}])"
         );
 
-        let indices = (0..num_indices)
-            .map(|_| bytes.read_u32::<LittleEndian>().map(|x| x as usize))
-            .collect::<Result<Vec<_>, _>>()?;
-        let vertices = (0..num_vertices)
-            .map(|_| Vec3A::from_cursor(&mut bytes))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut indices = Vec::with_capacity(num_indices);
+        for _ in 0..num_indices {
+            indices.push(bytes.read_u32::<LittleEndian>()? as usize);
+        }
+
+        let mut vertices = Vec::with_capacity(num_vertices);
+        for _ in 0..num_vertices {
+            vertices.push(Vec3A::from_cursor(&mut bytes)?);
+        }
 
         #[cfg(debug_assertions)]
         {

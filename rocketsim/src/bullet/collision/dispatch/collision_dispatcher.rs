@@ -127,9 +127,16 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for Algorithms<'_, T> {
     }
 }
 
-#[derive(Default)]
 pub struct CollisionDispatcher {
     pub manifolds: Vec<PersistentManifold>,
+}
+
+impl Default for CollisionDispatcher {
+    fn default() -> Self {
+        Self {
+            manifolds: Vec::with_capacity(8),
+        }
+    }
 }
 
 impl CollisionDispatcher {

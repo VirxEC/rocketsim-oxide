@@ -13,12 +13,12 @@ use crate::bullet::{
 
 pub struct HashedOverlappingPairCache {
     overlapping_pair_array: Vec<BroadphasePair>,
-    hash_table: AHashMap<(usize, usize), usize>,
+    hash_table: AHashMap<(u32, u32), usize>,
 }
 
 impl Default for HashedOverlappingPairCache {
     fn default() -> Self {
-        let overlapping_pair_array = Vec::with_capacity(2);
+        let overlapping_pair_array = Vec::with_capacity(32);
         let new_capacity = overlapping_pair_array.capacity();
 
         Self {
@@ -31,9 +31,9 @@ impl Default for HashedOverlappingPairCache {
 impl HashedOverlappingPairCache {
     fn internal_add_pair(
         &mut self,
-        mut proxy0_id: usize,
+        mut proxy0_id: u32,
         mut proxy0_idx: usize,
-        mut proxy1_id: usize,
+        mut proxy1_id: u32,
         mut proxy1_idx: usize,
     ) {
         if proxy0_id > proxy1_id {

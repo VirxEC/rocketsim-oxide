@@ -49,6 +49,7 @@ pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Bvh {
             node_type: NodeType::Leaf { triangle_index },
         })
         .collect();
+
     let num_leaf_nodes = leaf_nodes.len();
 
     let mut bvh = Bvh {

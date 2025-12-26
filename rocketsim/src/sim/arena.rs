@@ -343,7 +343,7 @@ impl Arena {
                 boost_pads,
                 mutator_config,
                 tick_count: 0,
-                cars: AHashMap::new(),
+                cars: AHashMap::with_capacity(6),
             },
         }
     }

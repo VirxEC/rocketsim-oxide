@@ -11,7 +11,8 @@ pub struct BroadphaseProxy {
     pub client_object_idx: usize,
     pub collision_filter_group: u8,
     pub collision_filter_mask: u8,
-    pub unique_id: usize,
+    pub unique_id: u32,
+    pub is_static: bool,
     pub aabb: Aabb,
 }
 

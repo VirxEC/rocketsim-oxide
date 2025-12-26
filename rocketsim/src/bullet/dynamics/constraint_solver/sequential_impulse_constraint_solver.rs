@@ -216,9 +216,12 @@ impl SequentialImpulseConstraintSolver {
     ) {
         self.fixed_body_id = None;
 
-        self.tmp_solver_body_pool.clear();
         self.tmp_solver_body_pool
             .reserve(non_static_bodies.len() + 1);
+        self.tmp_solver_contact_constraint_pool
+            .reserve(non_static_bodies.len() * 2);
+        self.tmp_solver_contact_friction_constraint_pool
+            .reserve(non_static_bodies.len() * 2);
 
         for manifold in manifolds.iter() {
             collision_objects[manifold.body0_idx]

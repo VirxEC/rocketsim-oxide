@@ -121,7 +121,7 @@ fn calc_bot_controls(car_state: &CarState, ball_state: &BallState) -> CarControl
 }
 
 fn main() {
-    init_from_default(true).unwrap();
+    init_from_default(false).unwrap();
     let mut arena = Arena::new_with_config(
         GameMode::Soccar,
         ArenaConfig {
