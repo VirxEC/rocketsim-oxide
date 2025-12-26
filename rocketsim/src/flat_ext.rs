@@ -125,9 +125,9 @@ impl From<crate::BoostPadConfig> for flat::BoostPadConfig {
 }
 
 impl From<flat::BoostPadState> for crate::BoostPadState {
-    fn from(value: flat::BoostPadState) -> Self {
+    fn from(_value: flat::BoostPadState) -> Self {
         Self {
-            cooldown: value.cooldown,
+            gave_boost_tick_count: None
         }
     }
 }
@@ -135,8 +135,8 @@ impl From<flat::BoostPadState> for crate::BoostPadState {
 impl From<crate::BoostPadState> for flat::BoostPadState {
     fn from(value: crate::BoostPadState) -> Self {
         Self {
-            is_active: value.is_active(),
-            cooldown: value.cooldown,
+            is_active: value.gave_boost_tick_count.is_none(),
+            cooldown: 0.0,
             cur_locked_car: 0,
             prev_locked_car_id: 0,
         }
