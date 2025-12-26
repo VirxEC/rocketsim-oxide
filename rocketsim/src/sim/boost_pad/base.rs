@@ -4,7 +4,7 @@ use crate::{BoostPadConfig, BoostPadState, sim::consts};
 pub struct BoostPad {
     config: BoostPadConfig,
     radius: f32,
-    internal_state: BoostPadState,
+    pub(crate) internal_state: BoostPadState,
 }
 
 impl BoostPad {
@@ -30,6 +30,10 @@ impl BoostPad {
 
     pub const fn set_state(&mut self, state: BoostPadState) {
         self.internal_state = state;
+    }
+
+    pub const fn reset(&mut self) {
+        self.internal_state = BoostPadState::DEFAULT;
     }
 
     #[must_use]

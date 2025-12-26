@@ -247,13 +247,20 @@ impl ContactAddedCallback for ArenaInner {
     }
 }
 
-pub struct Arena {
+pub type GoalScoredCallback = fn(&mut Arena, Team);
+
+pub struct Arena<D = ()> {
     rng: Rng,
     tick_time: f32,
     last_car_id: u64,
     config: ArenaConfig,
     bullet_world: DiscreteDynamicsWorld,
     data: ArenaInner,
+    /// Callback that is called when a goal is scored.
+    ///
+    /// By default, this calls `Arena::reset_to_random_kickoff`.
+    pub goal_scored_callback: Option<GoalScoredCallback>,
+    pub user_data: Option<D>,
 }
 
 impl Arena {
@@ -346,6 +353,8 @@ impl Arena {
                 tick_count: 0,
                 cars: AHashMap::with_capacity(6),
             },
+            goal_scored_callback: None,
+            user_data: None,
         }
     }
 
@@ -627,8 +636,9 @@ impl Arena {
             ball_state,
         );
 
+        self.data.boost_pad_grid.reset();
+
         // TODO
-        // Reset boost pads
         // Reset tile states
     }
 
@@ -743,7 +753,18 @@ impl Arena {
             todo!("dropshot tile state sync")
         }
 
-        // todo: goalscorecallback
+        if let Some(callback) = self.goal_scored_callback
+            && self.is_ball_scored()
+        {
+            let ball = &self.bullet_world.bodies()[self.data.ball.rigid_body_idx];
+            let scoring_team = if ball.collision_object.get_world_transform().translation.y > 0.0 {
+                Team::Blue
+            } else {
+                Team::Orange
+            };
+
+            callback(self, scoring_team);
+        }
 
         self.data.tick_count += 1;
     }

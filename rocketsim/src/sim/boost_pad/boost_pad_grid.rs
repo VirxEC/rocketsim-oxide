@@ -99,9 +99,15 @@ impl BoostPadGrid {
         &self.all_pads
     }
 
+    pub fn reset(&mut self) {
+        for pad in &mut self.all_pads {
+            pad.reset();
+        }
+    }
+
     /// Returns true if boost was given
     pub(crate) fn maybe_give_car_boost(
-        &self,
+        &mut self,
         car_id: u64,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
@@ -122,8 +128,7 @@ impl BoostPadGrid {
         };
 
         for pad_idx_ref in &cell.pad_indices {
-            let mut pad = self.all_pads[*pad_idx_ref];
-            let mut pad_state = *pad.get_state();
+            let pad = &mut self.all_pads[*pad_idx_ref];
 
             let (cooldown, boost_give_amount) = if pad.get_config().is_big {
                 (
@@ -137,35 +142,28 @@ impl BoostPadGrid {
                 )
             };
 
-            let cooldown_ticks = (cooldown * tick_time).round() as u64;
-
-            let is_in_cooldown = if let Some(last_give_tick_count) = pad_state.gave_boost_tick_count
+            if let Some(last_give_tick_count) = pad.internal_state.gave_boost_tick_count
+                && (tick_count - last_give_tick_count) as f32 * tick_time < cooldown
             {
-                let ticks_since_gave_boost = tick_count - last_give_tick_count;
-                ticks_since_gave_boost < cooldown_ticks
-            } else {
-                false
-            };
+                continue;
+            }
 
-            if !is_in_cooldown {
-                // Check if car origin is inside the cylinder hitbox
-                let pad_pos = pad.get_config().pos;
-                let cyl_radius = pad.get_radius();
-                let dist_sq_2d = pad_pos
-                    .truncate()
-                    .distance_squared(car_state.pos.truncate());
-                let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
-                    && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
-                if overlapping {
-                    // Give boost
+            // Check if car origin is inside the cylinder hitbox
+            let pad_pos = pad.get_config().pos;
+            let cyl_radius = pad.get_radius();
+            let dist_sq_2d = pad_pos
+                .truncate()
+                .distance_squared(car_state.pos.truncate());
+            let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
+                && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
+            if overlapping {
+                // Give boost
 
-                    car_state.boost = (car_state.boost + boost_give_amount)
-                        .min(mutator_config.car_max_boost_amount);
-                    pad_state.gave_boost_tick_count = Some(car_id);
-                    pad.set_state(pad_state);
+                car_state.boost =
+                    (car_state.boost + boost_give_amount).min(mutator_config.car_max_boost_amount);
+                pad.internal_state.gave_boost_tick_count = Some(car_id);
 
-                    return;
-                }
+                return;
             }
         }
     }
