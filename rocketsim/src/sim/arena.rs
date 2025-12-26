@@ -905,6 +905,20 @@ impl Arena {
 
         self.set_ball(state.ball);
 
-        // todo: boost pads, tiles
+        if let Some(pads) = state.pads {
+            if pads.len() != self.boost_pads().len() {
+                panic!(
+                    "Boost pad count mismatch: expected {}, got {}",
+                    self.boost_pads().len(),
+                    pads.len()
+                );
+            }
+
+            for (new_pad, old_pad) in pads.into_iter().zip(&mut self.data.boost_pad_grid.all_pads) {
+                old_pad.set_state(new_pad.state);
+            }
+        }
+
+        // todo: tiles
     }
 }

@@ -10,7 +10,7 @@ struct GridCell {
 #[derive(Debug, Clone)]
 pub struct BoostPadGrid {
     cells: [GridCell; Self::CELL_AMOUNT],
-    all_pads: Vec<BoostPad>,
+    pub(crate) all_pads: Vec<BoostPad>,
     max_pad_z: f32,
 }
 
@@ -99,13 +99,9 @@ impl BoostPadGrid {
         &self.all_pads
     }
 
-    fn get_cell_at_pos(&self, pos: Vec3A) -> Option<&GridCell> {
-        Self::calc_cell_idx(pos).map(|cell_idx| &self.cells[cell_idx])
-    }
-
     /// Returns true if boost was given
     pub(crate) fn maybe_give_car_boost(
-        &self,
+        &mut self,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
     ) {
@@ -117,14 +113,15 @@ impl BoostPadGrid {
             return; // Can't possibly overlap with a boost pad
         }
 
-        let Some(cell) = self.get_cell_at_pos(car_state.pos) else {
+        let Some(cell) = Self::calc_cell_idx(car_state.pos).map(|cell_idx| &self.cells[cell_idx])
+        else {
             return;
         };
 
         for pad_idx_ref in &cell.pad_indices {
-            let mut pad = self.all_pads[*pad_idx_ref];
-            let mut pad_state = *pad.get_state();
-            if !pad_state.gave_car_boost && pad_state.cooldown == 0.0 {
+            let pad = &mut self.all_pads[*pad_idx_ref];
+            let pad_state = pad.get_state();
+            if pad_state.is_active() {
                 // Check if car origin is inside the cylinder hitbox
                 let pad_pos = pad.get_config().pos;
                 let cyl_radius = pad.get_radius();
@@ -150,6 +147,8 @@ impl BoostPadGrid {
 
                     car_state.boost = (car_state.boost + boost_give_amount)
                         .min(mutator_config.car_max_boost_amount);
+
+                    let mut pad_state = *pad_state;
                     pad_state.cooldown = max_cooldown;
                     pad.set_state(pad_state);
 
@@ -163,7 +162,6 @@ impl BoostPadGrid {
         for pad in &mut self.all_pads {
             let mut pad_state = *pad.get_state();
             pad_state.cooldown = (pad_state.cooldown - tick_time).max(0.0);
-            pad_state.gave_car_boost = false;
             pad.set_state(pad_state);
         }
     }

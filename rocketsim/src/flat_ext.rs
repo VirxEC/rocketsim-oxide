@@ -128,7 +128,6 @@ impl From<flat::BoostPadState> for crate::BoostPadState {
     fn from(value: flat::BoostPadState) -> Self {
         Self {
             cooldown: value.cooldown,
-            gave_car_boost: false,
         }
     }
 }

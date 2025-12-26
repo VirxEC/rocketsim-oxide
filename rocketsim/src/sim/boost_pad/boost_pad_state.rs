@@ -7,7 +7,6 @@
 pub struct BoostPadState {
     // TODO: Implement car-locking to improve accuracy under certain conditions
     pub cooldown: f32,
-    pub gave_car_boost: bool,
 }
 
 impl Default for BoostPadState {
@@ -19,7 +18,6 @@ impl Default for BoostPadState {
 impl BoostPadState {
     pub const DEFAULT: Self = Self {
         cooldown: 0.0,
-        gave_car_boost: false,
     };
 
     #[must_use]
