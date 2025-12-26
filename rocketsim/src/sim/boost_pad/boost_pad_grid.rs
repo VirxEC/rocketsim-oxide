@@ -108,7 +108,6 @@ impl BoostPadGrid {
     /// Returns true if boost was given
     pub(crate) fn maybe_give_car_boost(
         &mut self,
-        car_id: u64,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
         tick_count: u64,
@@ -154,14 +153,14 @@ impl BoostPadGrid {
             let dist_sq_2d = pad_pos
                 .truncate()
                 .distance_squared(car_state.pos.truncate());
-            let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
+            let overlapping = dist_sq_2d < cyl_radius * cyl_radius
                 && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
             if overlapping {
                 // Give boost
 
                 car_state.boost =
                     (car_state.boost + boost_give_amount).min(mutator_config.car_max_boost_amount);
-                pad.internal_state.gave_boost_tick_count = Some(car_id);
+                pad.internal_state.gave_boost_tick_count = Some(tick_count);
 
                 return;
             }
