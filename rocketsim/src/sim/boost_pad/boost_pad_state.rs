@@ -5,8 +5,10 @@
     derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
 )]
 pub struct BoostPadState {
+    /// The last tick when we gave a car boost
+    pub gave_boost_tick_count: Option<u64>
+
     // TODO: Implement car-locking to improve accuracy under certain conditions
-    pub cooldown: f32,
 }
 
 impl Default for BoostPadState {
@@ -17,11 +19,6 @@ impl Default for BoostPadState {
 
 impl BoostPadState {
     pub const DEFAULT: Self = Self {
-        cooldown: 0.0,
+        gave_boost_tick_count: None
     };
-
-    #[must_use]
-    pub fn is_active(&self) -> bool {
-        self.cooldown == 0.0
-    }
 }

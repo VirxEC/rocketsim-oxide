@@ -723,16 +723,16 @@ impl Arena {
         for car in self.data.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
-
-            self.data
-                .boost_pad_grid
-                .maybe_give_car_boost(&mut car.internal_state, &self.data.mutator_config);
-
             car.finish_physics_tick(rb);
-        }
 
-        if !self.data.cars.is_empty() {
-            self.data.boost_pad_grid.post_tick_update(self.tick_time);
+
+            self.data.boost_pad_grid.maybe_give_car_boost(
+                car.id,
+                &mut car.internal_state,
+                &self.data.mutator_config,
+                self.data.tick_count,
+                self.tick_time,
+            );
         }
 
         self.data.ball.finish_physics_tick(
