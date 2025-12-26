@@ -1,20 +1,20 @@
 use glam::Affine3A;
 
 use super::{
-    triangle_callback::TriangleCallback, triangle_info_map::TriangleInfoMap,
+    triangle_callback::ProcessTriangle, triangle_info_map::TriangleInfoMap,
     triangle_mesh::TriangleMesh, triangle_mesh_shape::TriangleMeshShape,
 };
 use crate::bullet::{
     collision::{
-        broadphase::{Bvh, BvhNodeOverlapCallback, BvhRayNodeOverlapCallback},
         dispatch::internal_edge_utility::generate_internal_edge_info,
-        shapes::{optimized_bvh::create_bvh, triangle_callback::TriangleRayCallback},
+        shapes::{optimized_bvh::create_bvh, triangle_callback::ProcessRayTriangle},
     },
     linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
+use crate::shared::bvh::{Tree, RayNodeOverlapCallback, NodeOverlapCallback};
 
 pub struct BvhTriangleMeshShape {
-    bvh: Bvh,
+    bvh: Tree,
     mesh_interface: TriangleMesh,
     triangle_info_map: TriangleInfoMap,
     pub aabb_ident_cache: Aabb,
@@ -49,8 +49,8 @@ impl BvhTriangleMeshShape {
         &self.mesh_interface
     }
 
-    pub fn process_all_triangles<T: TriangleCallback>(&self, callback: &mut T, aabb: &Aabb) {
-        let mut my_node_callback = BvhNodeOverlapCallback::new(self.get_mesh_interface(), callback);
+    pub fn process_all_triangles<T: ProcessTriangle>(&self, callback: &mut T, aabb: &Aabb) {
+        let mut my_node_callback = NodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
             .report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
@@ -59,13 +59,13 @@ impl BvhTriangleMeshShape {
         self.bvh.check_overlap_with(aabb)
     }
 
-    pub fn perform_raycast<T: TriangleRayCallback>(
+    pub fn perform_raycast<T: ProcessRayTriangle>(
         &self,
         callback: &mut T,
         ray_info: &mut RayInfo,
     ) {
         let mut my_node_callback =
-            BvhRayNodeOverlapCallback::new(self.get_mesh_interface(), callback);
+            RayNodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
             .report_ray_packet_overlapping_node(&mut my_node_callback, ray_info);
     }

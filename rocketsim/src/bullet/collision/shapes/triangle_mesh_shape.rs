@@ -1,7 +1,7 @@
 use glam::{Affine3A, Vec3A};
 
 use super::{
-    concave_shape::ConcaveShape, triangle_callback::TriangleCallback, triangle_mesh::TriangleMesh,
+    concave_shape::ConcaveShape, triangle_callback::ProcessTriangle, triangle_mesh::TriangleMesh,
     triangle_shape::TriangleShape,
 };
 use crate::bullet::linear_math::aabb_util_2::Aabb;
@@ -37,7 +37,7 @@ impl TriangleMeshShape {
         }
     }
 
-    pub fn process_all_triangles<T: TriangleCallback>(
+    pub fn process_all_triangles<T: ProcessTriangle>(
         mesh_interface: &TriangleMesh,
         callback: &mut T,
     ) {
@@ -78,7 +78,7 @@ struct SupportVertexCallback {
     support_vec_local: Vec3A,
 }
 
-impl TriangleCallback for SupportVertexCallback {
+impl ProcessTriangle for SupportVertexCallback {
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,

@@ -5,11 +5,10 @@ use glam::{Quat, Vec3, Vec3A};
 use super::collision_object::CollisionObject;
 use crate::bullet::{
     collision::{
-        broadphase::{Bvh, BvhNodeOverlapCallback},
         narrowphase::manifold_point::ManifoldPoint,
         shapes::{
             collision_shape::CollisionShapes,
-            triangle_callback::TriangleCallback,
+            triangle_callback::ProcessTriangle,
             triangle_info_map::{TriInfoFlag, TriangleInfoMap},
             triangle_mesh::TriangleMesh,
             triangle_shape::TriangleShape,
@@ -17,6 +16,8 @@ use crate::bullet::{
     },
     linear_math::{AffineExt, QuatExt, aabb_util_2::Aabb},
 };
+
+use crate::shared::bvh::{Tree, NodeOverlapCallback};
 
 fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {
     normal_b.dot(edge_a).atan2(normal_b.dot(normal_a))
@@ -28,7 +29,7 @@ struct ConnectivityProcessor<'a> {
     info_map: &'a mut TriangleInfoMap,
 }
 
-impl TriangleCallback for ConnectivityProcessor<'_> {
+impl ProcessTriangle for ConnectivityProcessor<'_> {
     fn process_triangle(&mut self, tri: &TriangleShape, _tri_aabb: &Aabb, triangle_index: usize) {
         if self.index == triangle_index
             || tri.normal_length < TriangleInfoMap::EQUAL_VERTEX_THRESHOLD
@@ -154,7 +155,7 @@ impl TriangleCallback for ConnectivityProcessor<'_> {
     }
 }
 
-pub fn generate_internal_edge_info(bvh: &Bvh, mesh_interface: &TriangleMesh) -> TriangleInfoMap {
+pub fn generate_internal_edge_info(bvh: &Tree, mesh_interface: &TriangleMesh) -> TriangleInfoMap {
     let mut triangle_info_map = TriangleInfoMap::new(mesh_interface.get_total_num_faces());
 
     let (tris, aabbs) = mesh_interface.get_tris_aabbs();
@@ -166,7 +167,7 @@ pub fn generate_internal_edge_info(bvh: &Bvh, mesh_interface: &TriangleMesh) -> 
         };
 
         let mut my_node_callback =
-            BvhNodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
+            NodeOverlapCallback::new(mesh_interface, &mut connectivity_processor);
         bvh.report_aabb_overlapping_node(&mut my_node_callback, aabb);
     }
 

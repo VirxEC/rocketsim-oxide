@@ -4,7 +4,7 @@ use crate::bullet::{
     collision::{
         broadphase::{BroadphaseAabbCallback, BroadphaseProxy, CollisionFilterGroups},
         dispatch::{collision_object::CollisionObject, collision_world::CollisionWorld},
-        shapes::{triangle_callback::TriangleRayCallback, triangle_shape::TriangleShape},
+        shapes::{triangle_callback::ProcessRayTriangle, triangle_shape::TriangleShape},
     },
     linear_math::interpolate_3,
 };
@@ -222,7 +222,7 @@ impl<T: RayResultCallback> BridgeTriangleRaycastPacketCallback<'_, T> {
     }
 }
 
-impl<T: RayResultCallback> TriangleRayCallback for BridgeTriangleRaycastPacketCallback<'_, T> {
+impl<T: RayResultCallback> ProcessRayTriangle for BridgeTriangleRaycastPacketCallback<'_, T> {
     fn process_node(&mut self, triangle: &TriangleShape, active_mask: u8, lambda_max: &mut Vec4) {
         for i in 0..4 {
             if (active_mask & (1 << i)) != 0 {

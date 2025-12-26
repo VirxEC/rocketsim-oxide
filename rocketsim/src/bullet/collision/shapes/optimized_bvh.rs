@@ -3,10 +3,8 @@ use std::iter::repeat_n;
 use glam::Vec3A;
 
 use super::triangle_mesh::TriangleMesh;
-use crate::bullet::{
-    collision::broadphase::{Bvh, BvhNode, NodeType},
-    linear_math::aabb_util_2::Aabb,
-};
+use crate::bullet::linear_math::aabb_util_2::Aabb;
+use crate::shared::bvh::{Tree, Node, BvhNodeType};
 
 fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {
     const MIN_AABB_DIMENSION: f32 = 0.002;
@@ -36,7 +34,7 @@ fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {
     aabb
 }
 
-pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Bvh {
+pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Tree {
     let mut leaf_nodes: Vec<_> = triangles
         .get_tris_aabbs()
         .1
@@ -44,18 +42,18 @@ pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Bvh {
         .copied()
         .map(update_triangle_aabb)
         .enumerate()
-        .map(|(triangle_index, aabb)| BvhNode {
+        .map(|(triangle_index, aabb)| Node {
             aabb,
-            node_type: NodeType::Leaf { triangle_index },
+            node_type: BvhNodeType::Leaf { triangle_index },
         })
         .collect();
 
     let num_leaf_nodes = leaf_nodes.len();
 
-    let mut bvh = Bvh {
+    let mut bvh = Tree {
         aabb,
         cur_node_index: 0,
-        nodes: repeat_n(BvhNode::DEFAULT, 2 * num_leaf_nodes).collect(),
+        nodes: repeat_n(Node::DEFAULT, 2 * num_leaf_nodes).collect(),
     };
 
     bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);

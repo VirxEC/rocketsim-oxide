@@ -7,7 +7,7 @@ use crate::bullet::{
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{
             bvh_triangle_mesh_shape::BvhTriangleMeshShape, sphere_shape::SphereShape,
-            triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
+            triangle_callback::ProcessTriangle, triangle_shape::TriangleShape,
         },
     },
     linear_math::{AffineExt, aabb_util_2::Aabb},
@@ -42,7 +42,7 @@ impl<'a, T: ContactAddedCallback> ConvexTriangleCallback<'a, T> {
     }
 }
 
-impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T> {
+impl<T: ContactAddedCallback> ProcessTriangle for ConvexTriangleCallback<'_, T> {
     fn process_triangle(
         &mut self,
         triangle: &TriangleShape,

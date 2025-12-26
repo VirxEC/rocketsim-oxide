@@ -11,6 +11,7 @@ mod sim;
 
 mod bullet;
 mod logging;
+pub mod shared;
 
 use std::{
     fs,

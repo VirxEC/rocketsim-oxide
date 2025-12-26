@@ -4,7 +4,7 @@ use glam::{Vec3A, Vec4};
 
 use crate::bullet::{
     collision::shapes::{
-        triangle_callback::{TriangleCallback, TriangleRayCallback},
+        triangle_callback::{ProcessTriangle, ProcessRayTriangle},
         triangle_mesh::TriangleMesh,
         triangle_shape::TriangleShape,
     },
@@ -14,17 +14,17 @@ use crate::bullet::{
     },
 };
 
-pub trait NodeOverlapCallback {
+pub trait ProcessNode {
     fn process_node(&mut self, triangle_index: usize);
 }
 
-pub struct BvhNodeOverlapCallback<'a, T: TriangleCallback> {
+pub struct NodeOverlapCallback<'a, T: ProcessTriangle> {
     tris: &'a [TriangleShape],
     aabbs: &'a [Aabb],
     callback: &'a mut T,
 }
 
-impl<'a, T: TriangleCallback> BvhNodeOverlapCallback<'a, T> {
+impl<'a, T: ProcessTriangle> NodeOverlapCallback<'a, T> {
     pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
         let (tris, aabbs) = mesh_interface.get_tris_aabbs();
 
@@ -36,7 +36,7 @@ impl<'a, T: TriangleCallback> BvhNodeOverlapCallback<'a, T> {
     }
 }
 
-impl<T: TriangleCallback> NodeOverlapCallback for BvhNodeOverlapCallback<'_, T> {
+impl<T: ProcessTriangle> ProcessNode for NodeOverlapCallback<'_, T> {
     fn process_node(&mut self, node_triangle_index: usize) {
         self.callback.process_triangle(
             &self.tris[node_triangle_index],
@@ -46,16 +46,16 @@ impl<T: TriangleCallback> NodeOverlapCallback for BvhNodeOverlapCallback<'_, T> 
     }
 }
 
-pub trait RayNodeOverlapCallback {
+pub trait ProcessRayNode {
     fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4);
 }
 
-pub struct BvhRayNodeOverlapCallback<'a, T: TriangleRayCallback> {
+pub struct RayNodeOverlapCallback<'a, T: ProcessRayTriangle> {
     tris: &'a [TriangleShape],
     callback: &'a mut T,
 }
 
-impl<'a, T: TriangleRayCallback> BvhRayNodeOverlapCallback<'a, T> {
+impl<'a, T: ProcessRayTriangle> RayNodeOverlapCallback<'a, T> {
     pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
         let (tris, _) = mesh_interface.get_tris_aabbs();
 
@@ -63,7 +63,7 @@ impl<'a, T: TriangleRayCallback> BvhRayNodeOverlapCallback<'a, T> {
     }
 }
 
-impl<T: TriangleRayCallback> RayNodeOverlapCallback for BvhRayNodeOverlapCallback<'_, T> {
+impl<T: ProcessRayTriangle> ProcessRayNode for RayNodeOverlapCallback<'_, T> {
     fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4) {
         self.callback
             .process_node(&self.tris[triangle_index], active_mask, lambda_max);
@@ -71,13 +71,13 @@ impl<T: TriangleRayCallback> RayNodeOverlapCallback for BvhRayNodeOverlapCallbac
 }
 
 #[derive(Default)]
-pub struct Bvh {
+pub struct Tree {
     pub aabb: Aabb,
     pub cur_node_index: usize,
-    pub nodes: Box<[BvhNode]>,
+    pub nodes: Box<[Node]>,
 }
 
-impl Bvh {
+impl Tree {
     const SAH_BINS: usize = 4;
 
     #[allow(
@@ -85,7 +85,7 @@ impl Bvh {
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss
     )]
-    fn calc_sah_split(leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) -> usize {
+    fn calc_sah_split(leaf_nodes: &mut [Node], start_index: usize, end_index: usize) -> usize {
         let count = end_index - start_index;
         debug_assert!(count >= 2);
 
@@ -198,13 +198,13 @@ impl Bvh {
         mid
     }
 
-    fn swap_leaf_nodes(leaf_nodes: &mut [BvhNode], i: usize, split_index: usize) {
+    fn swap_leaf_nodes(leaf_nodes: &mut [Node], i: usize, split_index: usize) {
         debug_assert_ne!(i, split_index);
         let [a, b] = unsafe { leaf_nodes.get_disjoint_unchecked_mut([split_index, i]) };
         mem::swap(a, b);
     }
 
-    pub fn build_tree(&mut self, leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) {
+    pub fn build_tree(&mut self, leaf_nodes: &mut [Node], start_index: usize, end_index: usize) {
         let num_indices = end_index - start_index;
         let cur_index = self.cur_node_index;
 
@@ -236,7 +236,7 @@ impl Bvh {
         self.build_tree(leaf_nodes, split_index, end_index);
 
         let escape_index = self.cur_node_index - cur_index;
-        self.nodes[internal_node_index].node_type = NodeType::Branch { escape_index };
+        self.nodes[internal_node_index].node_type = BvhNodeType::Branch { escape_index };
     }
 
     fn walk_stackless_tree_find_overlap(
@@ -251,14 +251,14 @@ impl Bvh {
             let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                NodeType::Leaf { triangle_index: _ } => {
+                BvhNodeType::Leaf { triangle_index: _ } => {
                     if aabb_overlap {
                         return true;
                     }
 
                     cur_index += 1;
                 }
-                NodeType::Branch { escape_index } => {
+                BvhNodeType::Branch { escape_index } => {
                     cur_index += if aabb_overlap { 1 } else { escape_index };
                 }
             }
@@ -272,7 +272,7 @@ impl Bvh {
             && self.walk_stackless_tree_find_overlap(aabb, 0, self.cur_node_index)
     }
 
-    fn walk_stackless_tree<T: NodeOverlapCallback>(
+    fn walk_stackless_tree<T: ProcessNode>(
         &self,
         node_callback: &mut T,
         aabb: &Aabb,
@@ -285,21 +285,21 @@ impl Bvh {
             let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                NodeType::Leaf { triangle_index } => {
+                BvhNodeType::Leaf { triangle_index } => {
                     if aabb_overlap {
                         node_callback.process_node(triangle_index);
                     }
 
                     cur_index += 1;
                 }
-                NodeType::Branch { escape_index } => {
+                BvhNodeType::Branch { escape_index } => {
                     cur_index += if aabb_overlap { 1 } else { escape_index };
                 }
             }
         }
     }
 
-    pub fn report_aabb_overlapping_node<T: NodeOverlapCallback>(
+    pub fn report_aabb_overlapping_node<T: ProcessNode>(
         &self,
         node_callback: &mut T,
         aabb: &Aabb,
@@ -309,7 +309,7 @@ impl Bvh {
         }
     }
 
-    fn walk_stackless_tree_against_ray_packet<T: RayNodeOverlapCallback>(
+    fn walk_stackless_tree_against_ray_packet<T: ProcessRayNode>(
         &self,
         node_callback: &mut T,
         ray_info: &mut RayInfo,
@@ -324,7 +324,7 @@ impl Bvh {
             let overlap = ray_info.aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                NodeType::Leaf { triangle_index } => {
+                BvhNodeType::Leaf { triangle_index } => {
                     if overlap {
                         let mask = intersect_ray_aabb_packet(
                             origins,
@@ -343,14 +343,14 @@ impl Bvh {
                     }
                     cur_index += 1;
                 }
-                NodeType::Branch { escape_index } => {
+                BvhNodeType::Branch { escape_index } => {
                     cur_index += if overlap { 1 } else { escape_index };
                 }
             }
         }
     }
 
-    pub fn report_ray_packet_overlapping_node<T: RayNodeOverlapCallback>(
+    pub fn report_ray_packet_overlapping_node<T: ProcessRayNode>(
         &self,
         node_callback: &mut T,
         ray_info: &mut RayInfo,
@@ -372,20 +372,20 @@ impl Bvh {
 }
 
 #[derive(Clone, Copy)]
-pub enum NodeType {
+pub enum BvhNodeType {
     Leaf { triangle_index: usize },
     Branch { escape_index: usize },
 }
 
 #[derive(Clone, Copy)]
-pub struct BvhNode {
+pub struct Node {
     pub aabb: Aabb,
-    pub node_type: NodeType,
+    pub node_type: BvhNodeType,
 }
 
-impl BvhNode {
+impl Node {
     pub const DEFAULT: Self = Self {
         aabb: Aabb::ZERO,
-        node_type: NodeType::Leaf { triangle_index: 0 },
+        node_type: BvhNodeType::Leaf { triangle_index: 0 },
     };
 }

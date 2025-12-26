@@ -2,7 +2,7 @@ use glam::Vec3A;
 
 use super::triangle_shape::TriangleShape;
 use crate::bullet::{
-    collision::shapes::triangle_callback::TriangleCallback, linear_math::aabb_util_2::Aabb,
+    collision::shapes::triangle_callback::ProcessTriangle, linear_math::aabb_util_2::Aabb,
 };
 
 #[derive(Debug)]
@@ -32,7 +32,7 @@ impl TriangleMesh {
         Self { triangles, aabbs }
     }
 
-    pub fn internal_process_all_triangles<T: TriangleCallback>(&self, callback: &mut T) {
+    pub fn internal_process_all_triangles<T: ProcessTriangle>(&self, callback: &mut T) {
         let (tris, aabbs) = self.get_tris_aabbs();
 
         for (i, (triangle, aabb)) in tris.iter().zip(aabbs).enumerate() {
