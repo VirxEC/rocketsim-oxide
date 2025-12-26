@@ -3,18 +3,21 @@ use glam::{Affine3A, Vec3A};
 use crate::bullet::{
     collision::{
         broadphase::CollisionAlgorithm,
-        dispatch::{
-            collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
-        },
+        dispatch::collision_object::CollisionObject,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::{collision_shape::CollisionShapes, sphere_shape::SPHERE_RADIUS_MARGIN},
+        shapes::{
+            compound_shape::CompoundShape,
+            sphere_shape::{SPHERE_RADIUS_MARGIN, SphereShape},
+        },
     },
     linear_math::AffineExt,
 };
 
 pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
     sphere_obj: &'a CollisionObject,
-    obb_obj: CollisionObjectWrapper<'a>,
+    sphere_shape: &'a SphereShape,
+    obb_obj: &'a CollisionObject,
+    obb_shape: &'a CompoundShape,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
@@ -22,13 +25,17 @@ pub struct SphereObbCollisionAlgorithm<'a, T: ContactAddedCallback> {
 impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
     pub const fn new(
         sphere_obj: &'a CollisionObject,
-        obb_obj: CollisionObjectWrapper<'a>,
+        sphere_shape: &'a SphereShape,
+        obb_obj: &'a CollisionObject,
+        obb_shape: &'a CompoundShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             sphere_obj,
+            sphere_shape,
             obb_obj,
+            obb_shape,
             is_swapped,
             contact_added_callback,
         }
@@ -37,29 +44,20 @@ impl<'a, T: ContactAddedCallback> SphereObbCollisionAlgorithm<'a, T> {
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm<'_, T> {
     fn process_collision<'a>(self) -> Option<PersistentManifold> {
-        let CollisionShapes::Sphere(sphere_ref) = self.sphere_obj.get_collision_shape() else {
-            unreachable!();
-        };
-
-        let CollisionShapes::Compound(compound_shape) = self.obb_obj.object.get_collision_shape()
-        else {
-            unreachable!();
-        };
-
         let sphere_trans = self.sphere_obj.get_world_transform();
-        let aabb_1 = sphere_ref.get_aabb(sphere_trans);
+        let aabb_1 = self.sphere_shape.get_aabb(sphere_trans);
 
-        let org_trans = self.obb_obj.object.get_world_transform();
-        let aabb_2 = compound_shape.get_aabb(org_trans);
+        let org_trans = self.obb_obj.get_world_transform();
+        let aabb_2 = self.obb_shape.get_aabb(org_trans);
 
         if !aabb_1.intersects(&aabb_2) {
             return None;
         }
 
-        let child_trans = &compound_shape.child_transform;
+        let child_trans = &self.obb_shape.child_transform;
         let new_child_world_trans = org_trans * child_trans;
 
-        let box_shape = &compound_shape.child_shape;
+        let box_shape = &self.obb_shape.child_shape;
         let box_aabb = box_shape.get_aabb(&Affine3A::IDENTITY);
 
         let sphere_from_local = new_child_world_trans.inv_x_form(sphere_trans.translation);
@@ -68,7 +66,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let delta = sphere_from_local - closest;
         let dist_sq = delta.length_squared();
 
-        let radius = sphere_ref.get_radius();
+        let radius = self.sphere_shape.get_radius();
         let radius_with_threshold = radius + SPHERE_RADIUS_MARGIN;
         if dist_sq >= radius_with_threshold * radius_with_threshold {
             return None;
@@ -85,11 +83,10 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let point_in_world = new_child_world_trans.transform_point3a(closest);
         let depth = radius_with_threshold - dist;
 
-        let mut manifold =
-            PersistentManifold::new(self.sphere_obj, self.obb_obj.object, self.is_swapped);
+        let mut manifold = PersistentManifold::new(self.sphere_obj, self.obb_obj, self.is_swapped);
         manifold.add_contact_point(
             self.sphere_obj,
-            self.obb_obj.object,
+            self.obb_obj,
             normal_in_world,
             point_in_world,
             depth,
@@ -97,7 +94,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
             -1,
             self.contact_added_callback,
         );
-        manifold.refresh_contact_points(self.sphere_obj, self.obb_obj.object);
+        manifold.refresh_contact_points(self.sphere_obj, self.obb_obj);
 
         Some(manifold)
     }

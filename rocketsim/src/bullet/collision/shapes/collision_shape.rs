@@ -8,7 +8,6 @@ use super::{
 };
 use crate::bullet::{
     collision::{
-        broadphase::BroadphaseNativeTypes,
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
         shapes::sphere_shape::SPHERE_RADIUS_MARGIN,
     },
@@ -45,16 +44,6 @@ impl CollisionShapes {
                 debug_assert!(fast_compare_transforms(t, &Affine3A::IDENTITY));
                 shape.aabb_ident_cache
             }
-        }
-    }
-
-    #[must_use]
-    pub const fn get_shape_type(&self) -> BroadphaseNativeTypes {
-        match self {
-            Self::Compound(_) => BroadphaseNativeTypes::CompoundShapeProxytype,
-            Self::Sphere(_) => BroadphaseNativeTypes::SphereShapeProxytype,
-            Self::StaticPlane(_) => BroadphaseNativeTypes::StaticPlaneProxytype,
-            Self::TriangleMesh(_) => BroadphaseNativeTypes::TriangleMeshShapeProxytype,
         }
     }
 

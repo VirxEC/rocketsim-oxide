@@ -4,7 +4,7 @@ use crate::{
     BallState, GameMode, MutatorConfig,
     bullet::{
         collision::{
-            broadphase::{BroadphaseNativeTypes, CollisionFilterGroups},
+            broadphase::CollisionFilterGroups,
             dispatch::collision_object::{ActivationState, CollisionFlags},
             shapes::{collision_shape::CollisionShapes, sphere_shape::SphereShape},
         },
@@ -50,7 +50,6 @@ impl Ball {
     ) -> Self {
         let (collision_shape, local_inertia) =
             Self::make_ball_collision_shape(game_mode, mutator_config);
-        let shape_type = collision_shape.get_shape_type();
 
         let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
         info.start_world_transform.translation.z = consts::ball::REST_Z * consts::UU_TO_BT;
@@ -62,8 +61,11 @@ impl Ball {
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Ball;
         body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
-        body.collision_object.no_rot =
-            no_rot && shape_type == BroadphaseNativeTypes::SphereShapeProxytype;
+        body.collision_object.no_rot = no_rot
+            && matches!(
+                body.collision_object.get_collision_shape(),
+                CollisionShapes::Sphere(_)
+            );
 
         let rigid_body_idx = bullet_world.add_rigid_body(
             body,

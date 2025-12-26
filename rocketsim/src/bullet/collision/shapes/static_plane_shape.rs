@@ -11,7 +11,6 @@ use crate::bullet::{
 
 pub struct StaticPlaneShape {
     plane_normal: Vec3A,
-    plane_constant: f32,
     is_single_axis: bool,
     single_axis_idx: usize,
     single_axis_backwards: bool,
@@ -23,7 +22,7 @@ pub struct StaticPlaneShape {
 
 impl StaticPlaneShape {
     #[must_use]
-    pub fn new(world_transform: Affine3A, plane_normal: Vec3A, plane_constant: f32) -> Self {
+    pub fn new(world_transform: Affine3A, plane_normal: Vec3A) -> Self {
         debug_assert!(plane_normal.is_normalized());
 
         let [x, y, z]: [bool; 3] = plane_normal.abs().cmpge(Vec3A::splat(f32::EPSILON)).into();
@@ -39,7 +38,6 @@ impl StaticPlaneShape {
 
         let mut plane = Self {
             plane_normal,
-            plane_constant,
             is_single_axis,
             single_axis_idx,
             single_axis_backwards,
@@ -63,10 +61,8 @@ impl StaticPlaneShape {
         if self.is_single_axis {
             const PLANE_CONSTANT_OFFSET: f32 = 0.2;
 
-            min[self.single_axis_idx] =
-                t.translation[self.single_axis_idx] + (self.plane_constant - PLANE_CONSTANT_OFFSET);
-            max[self.single_axis_idx] =
-                t.translation[self.single_axis_idx] + (self.plane_constant + PLANE_CONSTANT_OFFSET);
+            min[self.single_axis_idx] = t.translation[self.single_axis_idx] - PLANE_CONSTANT_OFFSET;
+            max[self.single_axis_idx] = t.translation[self.single_axis_idx] + PLANE_CONSTANT_OFFSET;
 
             (if self.single_axis_backwards {
                 &mut max
@@ -85,11 +81,6 @@ impl StaticPlaneShape {
     #[must_use]
     pub const fn get_plane_normal(&self) -> Vec3A {
         self.plane_normal
-    }
-
-    #[must_use]
-    pub const fn get_plane_constant(&self) -> f32 {
-        self.plane_constant
     }
 
     pub fn perform_raycast<T: RayResultCallback>(

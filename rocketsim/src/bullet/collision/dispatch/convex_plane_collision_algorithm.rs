@@ -5,13 +5,14 @@ use crate::bullet::collision::{
     broadphase::CollisionAlgorithm,
     dispatch::collision_object_wrapper::CollisionObjectWrapper,
     narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-    shapes::collision_shape::CollisionShapes,
+    shapes::static_plane_shape::StaticPlaneShape,
 };
 
 pub struct ConvexPlaneCollisionAlgorithm<'a, T: ContactAddedCallback> {
     is_swapped: bool,
     convex_obj: CollisionObjectWrapper<'a>,
     plane_obj: &'a CollisionObject,
+    plane_shape: &'a StaticPlaneShape,
     contact_added_callback: &'a mut T,
 }
 
@@ -19,6 +20,7 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
     pub const fn new(
         convex_obj: CollisionObjectWrapper<'a>,
         plane_obj: &'a CollisionObject,
+        plane_shape: &'a StaticPlaneShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
@@ -26,6 +28,7 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
             is_swapped,
             convex_obj,
             plane_obj,
+            plane_shape,
             contact_added_callback,
         }
     }
@@ -34,17 +37,12 @@ impl<'a, T: ContactAddedCallback> ConvexPlaneCollisionAlgorithm<'a, T> {
 impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorithm<'_, T> {
     fn process_collision(self) -> Option<PersistentManifold> {
         let col_shape = self.convex_obj.object.get_collision_shape();
-        let CollisionShapes::StaticPlane(plane_shape) = self.plane_obj.get_collision_shape() else {
-            unreachable!()
-        };
-
         let convex_aabb = col_shape.get_aabb(&self.convex_obj.world_transform);
-        if !convex_aabb.intersects(&plane_shape.aabb_cache) {
+        if !convex_aabb.intersects(&self.plane_shape.aabb_cache) {
             return None;
         }
 
-        let plane_normal = plane_shape.get_plane_normal();
-        let plane_constant = plane_shape.get_plane_constant();
+        let plane_normal = self.plane_shape.get_plane_normal();
 
         let plane_trans = self.plane_obj.get_world_transform();
         let plane_in_convex =
@@ -57,7 +55,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
 
         let vtx = col_shape.local_get_supporting_vertex(plane_in_convex * -plane_normal);
         let vtx_in_plane = convex_in_plane_trans.transform_point3a(vtx);
-        let distance = plane_normal.dot(vtx_in_plane) - plane_constant;
+        let distance = plane_normal.dot(vtx_in_plane);
 
         let mut manifold =
             PersistentManifold::new(self.convex_obj.object, self.plane_obj, self.is_swapped);

@@ -4,9 +4,7 @@ use super::{
 };
 use crate::bullet::{
     collision::{
-        broadphase::{
-            BroadphaseNativeTypes, CollisionAlgorithm, GridBroadphase, GridBroadphaseProxy,
-        },
+        broadphase::{CollisionAlgorithm, GridBroadphase, GridBroadphaseProxy},
         dispatch::{
             collision_object::CollisionObject, collision_object_wrapper::CollisionObjectWrapper,
             compound_collision_algorithm::CompoundCollisionAlgorithm,
@@ -14,6 +12,11 @@ use crate::bullet::{
             sphere_obb_collision_algorithm::SphereObbCollisionAlgorithm,
         },
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
+        shapes::{
+            bvh_triangle_mesh_shape::BvhTriangleMeshShape, collision_shape::CollisionShapes,
+            compound_shape::CompoundShape, sphere_shape::SphereShape,
+            static_plane_shape::StaticPlaneShape,
+        },
     },
     dynamics::rigid_body::RigidBody,
 };
@@ -30,12 +33,14 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
     const fn new_convex_plane(
         convex_obj: CollisionObjectWrapper<'a>,
         plane_obj: &'a CollisionObject,
+        plane_shape: &'a StaticPlaneShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self::ConvexPlane(ConvexPlaneCollisionAlgorithm::new(
             convex_obj,
             plane_obj,
+            plane_shape,
             is_swapped,
             contact_added_callback,
         ))
@@ -43,13 +48,17 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
 
     const fn new_convex_concave(
         convex_obj: &'a CollisionObject,
+        sphere_shape: &'a SphereShape,
         concave_obj: &'a CollisionObject,
+        tri_mesh: &'a BvhTriangleMeshShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self::ConvexConcave(ConvexConcaveCollisionAlgorithm::new(
             convex_obj,
+            sphere_shape,
             concave_obj,
+            tri_mesh,
             is_swapped,
             contact_added_callback,
         ))
@@ -57,38 +66,48 @@ impl<'a, T: ContactAddedCallback> Algorithms<'a, T> {
 
     const fn new_sphere_obb(
         sphere_obj: &'a CollisionObject,
-        obb_obj: CollisionObjectWrapper<'a>,
+        sphere_shape: &'a SphereShape,
+        obb_obj: &'a CollisionObject,
+        obb_shape: &'a CompoundShape,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self::SphereObb(SphereObbCollisionAlgorithm::new(
             sphere_obj,
+            sphere_shape,
             obb_obj,
+            obb_shape,
             is_swapped,
             contact_added_callback,
         ))
     }
 
     const fn new_obb_obb(
-        compound_0_obj: CollisionObjectWrapper<'a>,
-        compound_1_obj: CollisionObjectWrapper<'a>,
+        compound_0_obj: &'a CollisionObject,
+        compound_0_shape: &'a CompoundShape,
+        compound_1_obj: &'a CollisionObject,
+        compound_1_shape: &'a CompoundShape,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self::ObbObb(ObbObbCollisionAlgorithm::new(
             compound_0_obj,
+            compound_0_shape,
             compound_1_obj,
+            compound_1_shape,
             contact_added_callback,
         ))
     }
 
     const fn new_compound(
         compound_obj: &'a CollisionObject,
+        compound_shape: &'a CompoundShape,
         other_obj: &'a CollisionObject,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self::Compound(CompoundCollisionAlgorithm::new(
             compound_obj,
+            compound_shape,
             other_obj,
             is_swapped,
             contact_added_callback,
@@ -119,94 +138,100 @@ impl CollisionDispatcher {
         col_obj_1: &'a CollisionObject,
         contact_added_callback: &'a mut T,
     ) -> Algorithms<'a, T> {
-        let shape0 = col_obj_0.get_collision_shape().get_shape_type();
-        let shape1 = col_obj_1.get_collision_shape().get_shape_type();
-
-        match shape0 {
-            BroadphaseNativeTypes::StaticPlaneProxytype => match shape1 {
-                BroadphaseNativeTypes::SphereShapeProxytype => Algorithms::new_convex_plane(
+        match col_obj_0.get_collision_shape() {
+            CollisionShapes::StaticPlane(plane) => match col_obj_1.get_collision_shape() {
+                CollisionShapes::Sphere(_) => Algorithms::new_convex_plane(
                     CollisionObjectWrapper {
                         object: col_obj_1,
                         world_transform: *col_obj_1.get_world_transform(),
                     },
                     col_obj_0,
+                    plane,
                     true,
                     contact_added_callback,
                 ),
-                BroadphaseNativeTypes::CompoundShapeProxytype => {
-                    Algorithms::new_compound(col_obj_1, col_obj_0, true, contact_added_callback)
-                }
-                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
+                CollisionShapes::Compound(compound) => Algorithms::new_compound(
+                    col_obj_1,
+                    compound,
+                    col_obj_0,
+                    true,
+                    contact_added_callback,
+                ),
+                _ => unimplemented!(),
             },
-            BroadphaseNativeTypes::SphereShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::StaticPlaneProxytype => Algorithms::new_convex_plane(
+            CollisionShapes::Sphere(sphere) => match col_obj_1.get_collision_shape() {
+                CollisionShapes::StaticPlane(plane) => Algorithms::new_convex_plane(
                     CollisionObjectWrapper {
                         object: col_obj_0,
                         world_transform: *col_obj_0.get_world_transform(),
                     },
                     col_obj_1,
+                    plane,
                     false,
                     contact_added_callback,
                 ),
-                BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
-                    Algorithms::new_convex_concave(
+                CollisionShapes::TriangleMesh(mesh) => Algorithms::new_convex_concave(
+                    col_obj_0,
+                    sphere,
+                    col_obj_1,
+                    mesh,
+                    false,
+                    contact_added_callback,
+                ),
+                CollisionShapes::Compound(compound) => Algorithms::new_sphere_obb(
+                    col_obj_0,
+                    sphere,
+                    col_obj_1,
+                    compound,
+                    false,
+                    contact_added_callback,
+                ),
+                _ => unimplemented!(),
+            },
+            CollisionShapes::TriangleMesh(mesh) => match col_obj_1.get_collision_shape() {
+                CollisionShapes::Sphere(sphere) => Algorithms::new_convex_concave(
+                    col_obj_1,
+                    sphere,
+                    col_obj_0,
+                    mesh,
+                    true,
+                    contact_added_callback,
+                ),
+                CollisionShapes::Compound(compound) => Algorithms::new_compound(
+                    col_obj_1,
+                    compound,
+                    col_obj_0,
+                    true,
+                    contact_added_callback,
+                ),
+                _ => unimplemented!(),
+            },
+            CollisionShapes::Compound(compound_0) => match col_obj_1.get_collision_shape() {
+                CollisionShapes::StaticPlane(_) | CollisionShapes::TriangleMesh(_) => {
+                    Algorithms::new_compound(
                         col_obj_0,
+                        compound_0,
                         col_obj_1,
                         false,
                         contact_added_callback,
                     )
                 }
-                BroadphaseNativeTypes::CompoundShapeProxytype => Algorithms::new_sphere_obb(
-                    col_obj_0,
-                    CollisionObjectWrapper {
-                        object: col_obj_1,
-                        world_transform: *col_obj_1.get_world_transform(),
-                    },
-                    false,
-                    contact_added_callback,
-                ),
-                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
-            },
-            BroadphaseNativeTypes::TriangleMeshShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::SphereShapeProxytype => Algorithms::new_convex_concave(
+                CollisionShapes::Sphere(sphere) => Algorithms::new_sphere_obb(
                     col_obj_1,
+                    sphere,
                     col_obj_0,
+                    compound_0,
                     true,
                     contact_added_callback,
                 ),
-                BroadphaseNativeTypes::CompoundShapeProxytype => {
-                    Algorithms::new_compound(col_obj_1, col_obj_0, true, contact_added_callback)
-                }
-                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
-            },
-            BroadphaseNativeTypes::CompoundShapeProxytype => match shape1 {
-                BroadphaseNativeTypes::StaticPlaneProxytype
-                | BroadphaseNativeTypes::TriangleMeshShapeProxytype => {
-                    Algorithms::new_compound(col_obj_0, col_obj_1, false, contact_added_callback)
-                }
-                BroadphaseNativeTypes::SphereShapeProxytype => Algorithms::new_sphere_obb(
+                CollisionShapes::Compound(compound_1) => Algorithms::new_obb_obb(
+                    col_obj_0,
+                    compound_0,
                     col_obj_1,
-                    CollisionObjectWrapper {
-                        object: col_obj_0,
-                        world_transform: *col_obj_0.get_world_transform(),
-                    },
-                    true,
+                    compound_1,
                     contact_added_callback,
                 ),
-                BroadphaseNativeTypes::CompoundShapeProxytype => Algorithms::new_obb_obb(
-                    CollisionObjectWrapper {
-                        object: col_obj_0,
-                        world_transform: *col_obj_0.get_world_transform(),
-                    },
-                    CollisionObjectWrapper {
-                        object: col_obj_1,
-                        world_transform: *col_obj_1.get_world_transform(),
-                    },
-                    contact_added_callback,
-                ),
-                _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
             },
-            _ => todo!("shape0/shape1: {shape0:?}/{shape1:?}"),
         }
     }
 

@@ -1,31 +1,5 @@
 use crate::bullet::linear_math::aabb_util_2::Aabb;
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BroadphaseNativeTypes {
-    // polyhedral convex shapes
-    BoxShapeProxytype,
-    TetrahedralShapeProxytype,
-    ConvexHullShapeProxytype,
-    CustomPolyhedralShapeType,
-    //implicit convex shapes
-    ImplicitConvexShapesStartHere,
-    SphereShapeProxytype,
-    CapsuleShapeProxytype,
-    ConeShapeProxytype,
-    ConvexShapeProxytype,
-    CylinderShapeProxytype,
-    //concave shapes
-    ConcaveShapesStartHere,
-    //keep all the convex shapetype below here, for the check IsConvexShape in broadphase proxy!
-    TriangleMeshShapeProxytype,
-    StaticPlaneProxytype,
-    ConcaveShapesEndHere,
-    CompoundShapeProxytype,
-    #[default]
-    InvalidShapeProxytype,
-}
-
 pub enum CollisionFilterGroups {
     Default = 1,
     Static = (1 << 1),

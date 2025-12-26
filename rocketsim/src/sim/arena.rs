@@ -432,7 +432,7 @@ impl Arena {
                 translation: pos_bt,
             };
 
-            let plane_shape = StaticPlaneShape::new(trans, normal, 0.0);
+            let plane_shape = StaticPlaneShape::new(trans, normal);
 
             Self::add_static_collision_shape(
                 bullet_world,

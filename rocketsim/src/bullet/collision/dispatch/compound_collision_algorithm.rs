@@ -9,7 +9,7 @@ use crate::bullet::{
         },
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
         shapes::{
-            box_shape::BoxShape, collision_shape::CollisionShapes,
+            box_shape::BoxShape, collision_shape::CollisionShapes, compound_shape::CompoundShape,
             triangle_callback::TriangleCallback, triangle_shape::TriangleShape,
         },
     },
@@ -285,40 +285,22 @@ impl<T: ContactAddedCallback> TriangleCallback for ConvexTriangleCallback<'_, T>
     }
 }
 
-struct CompoundLeafCallback<'a, T: ContactAddedCallback> {
+pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
     compound_obj: &'a CollisionObject,
+    compound_shape: &'a CompoundShape,
     other_obj: &'a CollisionObject,
     is_swapped: bool,
     contact_added_callback: &'a mut T,
 }
 
-impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
-    pub const fn new(
-        compound_obj: &'a CollisionObject,
-        other_obj: &'a CollisionObject,
-        is_swapped: bool,
-        contact_added_callback: &'a mut T,
-    ) -> Self {
-        Self {
-            compound_obj,
-            other_obj,
-            is_swapped,
-            contact_added_callback,
-        }
-    }
-
+impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
     pub fn process_child_shape(&mut self) -> Option<PersistentManifold> {
-        let CollisionShapes::Compound(compound_shape) = self.compound_obj.get_collision_shape()
-        else {
-            unreachable!()
-        };
-
         let org_trans = *self.compound_obj.get_world_transform();
 
-        let child_trans = &compound_shape.child_transform;
+        let child_trans = &self.compound_shape.child_transform;
         let new_child_world_trans = org_trans * child_trans;
 
-        let box_shape = &compound_shape.child_shape;
+        let box_shape = &self.compound_shape.child_shape;
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
         let other_col_shape = self.other_obj.get_collision_shape();
@@ -369,9 +351,10 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
                     Some(convex_triangle_callback.manifold)
                 }
             }
-            CollisionShapes::StaticPlane(_) => ConvexPlaneCollisionAlgorithm::new(
+            CollisionShapes::StaticPlane(plane) => ConvexPlaneCollisionAlgorithm::new(
                 compound_obj_wrap,
                 self.other_obj,
+                plane,
                 self.is_swapped,
                 self.contact_added_callback,
             )
@@ -381,22 +364,17 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
     }
 }
 
-pub struct CompoundCollisionAlgorithm<'a, T: ContactAddedCallback> {
-    compound_obj: &'a CollisionObject,
-    other_obj: &'a CollisionObject,
-    is_swapped: bool,
-    contact_added_callback: &'a mut T,
-}
-
 impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
     pub const fn new(
         compound_obj: &'a CollisionObject,
+        compound_shape: &'a CompoundShape,
         other_obj: &'a CollisionObject,
         is_swapped: bool,
         contact_added_callback: &'a mut T,
     ) -> Self {
         Self {
             compound_obj,
+            compound_shape,
             other_obj,
             is_swapped,
             contact_added_callback,
@@ -405,16 +383,8 @@ impl<'a, T: ContactAddedCallback> CompoundCollisionAlgorithm<'a, T> {
 }
 
 impl<T: ContactAddedCallback> CollisionAlgorithm for CompoundCollisionAlgorithm<'_, T> {
-    fn process_collision(self) -> Option<PersistentManifold> {
-        let mut compound_leaf_callback = CompoundLeafCallback::new(
-            self.compound_obj,
-            self.other_obj,
-            self.is_swapped,
-            self.contact_added_callback,
-        );
-
-        compound_leaf_callback
-            .process_child_shape()
+    fn process_collision(mut self) -> Option<PersistentManifold> {
+        self.process_child_shape()
             .and_then(|manifold| (!manifold.point_cache.is_empty()).then_some(manifold))
     }
 }
