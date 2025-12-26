@@ -37,3 +37,5 @@ required-features = ["rlviser"]
 
 [lints.clippy]
 all = "warn"
+# nursery = "warn"
+# pedantic = "warn"

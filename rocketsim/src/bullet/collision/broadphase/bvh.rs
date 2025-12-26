@@ -80,6 +80,11 @@ pub struct Bvh {
 impl Bvh {
     const SAH_BINS: usize = 4;
 
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss
+    )]
     fn calc_sah_split(leaf_nodes: &mut [BvhNode], start_index: usize, end_index: usize) -> usize {
         let count = end_index - start_index;
         debug_assert!(count >= 2);

@@ -156,7 +156,7 @@ pub struct BridgeTriangleRaycastPacketCallback<'a, T: RayResultCallback> {
     pub result_callback: &'a mut T,
 }
 
-impl<'a, T: RayResultCallback> BridgeTriangleRaycastPacketCallback<'a, T> {
+impl<T: RayResultCallback> BridgeTriangleRaycastPacketCallback<'_, T> {
     fn internal_report_hit(&mut self, hit_normal_local: Vec3A, hit_fraction: f32, ray_idx: usize) {
         let hit_normal_world =
             self.collision_object.get_world_transform().matrix3 * hit_normal_local;

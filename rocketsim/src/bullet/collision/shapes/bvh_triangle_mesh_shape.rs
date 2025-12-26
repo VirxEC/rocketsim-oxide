@@ -1,15 +1,12 @@
 use glam::Affine3A;
 
 use super::{
-    collision_shape::CollisionShape, triangle_callback::TriangleCallback,
-    triangle_info_map::TriangleInfoMap, triangle_mesh::TriangleMesh,
-    triangle_mesh_shape::TriangleMeshShape,
+    triangle_callback::TriangleCallback, triangle_info_map::TriangleInfoMap,
+    triangle_mesh::TriangleMesh, triangle_mesh_shape::TriangleMeshShape,
 };
 use crate::bullet::{
     collision::{
-        broadphase::{
-            BroadphaseNativeTypes, Bvh, BvhNodeOverlapCallback, BvhRayNodeOverlapCallback,
-        },
+        broadphase::{Bvh, BvhNodeOverlapCallback, BvhRayNodeOverlapCallback},
         dispatch::internal_edge_utility::generate_internal_edge_info,
         shapes::{optimized_bvh::create_bvh, triangle_callback::TriangleRayCallback},
     },
@@ -17,39 +14,28 @@ use crate::bullet::{
 };
 
 pub struct BvhTriangleMeshShape {
-    triangle_mesh_shape: TriangleMeshShape,
     bvh: Bvh,
     mesh_interface: TriangleMesh,
     triangle_info_map: TriangleInfoMap,
+    pub aabb_ident_cache: Aabb,
 }
 
 impl BvhTriangleMeshShape {
     pub fn new(mesh_interface: TriangleMesh) -> Self {
-        let mut triangle_mesh_shape = TriangleMeshShape::new(&mesh_interface);
-        triangle_mesh_shape.concave_shape.collision_shape.shape_type =
-            BroadphaseNativeTypes::TriangleMeshShapeProxytype;
+        let triangle_mesh_shape = TriangleMeshShape::new(&mesh_interface);
 
         // pre-calculate the aabb
         let trans = Affine3A::IDENTITY;
-        let aabb = triangle_mesh_shape.get_aabb(&trans);
-        triangle_mesh_shape
-            .concave_shape
-            .collision_shape
-            .aabb_ident_cache = Some(aabb);
-        triangle_mesh_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
-        triangle_mesh_shape
-            .concave_shape
-            .collision_shape
-            .aabb_cache_trans = trans;
+        let aabb_ident_cache = triangle_mesh_shape.get_aabb(&trans);
 
         let bvh = create_bvh(&mesh_interface, triangle_mesh_shape.local_aabb);
         let triangle_info_map = generate_internal_edge_info(&bvh, &mesh_interface);
 
         Self {
-            triangle_mesh_shape,
             bvh,
             mesh_interface,
             triangle_info_map,
+            aabb_ident_cache,
         }
     }
 
@@ -82,10 +68,5 @@ impl BvhTriangleMeshShape {
             BvhRayNodeOverlapCallback::new(self.get_mesh_interface(), callback);
         self.bvh
             .report_ray_packet_overlapping_node(&mut my_node_callback, ray_info);
-    }
-
-    #[must_use]
-    pub const fn get_collision_shape(&self) -> &CollisionShape {
-        &self.triangle_mesh_shape.concave_shape.collision_shape
     }
 }

@@ -315,11 +315,10 @@ impl<'a, T: ContactAddedCallback> CompoundLeafCallback<'a, T> {
 
         let org_trans = *self.compound_obj.get_world_transform();
 
-        let child = compound_shape.child.as_ref().unwrap();
-        let child_trans = child.transform;
+        let child_trans = &compound_shape.child_transform;
         let new_child_world_trans = org_trans * child_trans;
 
-        let box_shape = &child.child_shape;
+        let box_shape = &compound_shape.child_shape;
         let aabb1 = box_shape.get_aabb(&new_child_world_trans);
 
         let other_col_shape = self.other_obj.get_collision_shape();

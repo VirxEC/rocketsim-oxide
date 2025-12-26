@@ -2,15 +2,9 @@ use std::mem;
 
 use glam::{Affine3A, Vec3A};
 
-use super::{
-    collision_shape::CollisionShape, convex_internal_shape::ConvexInternalShape,
-    convex_shape::ConvexShape,
-};
+use super::convex_internal_shape::ConvexInternalShape;
 use crate::bullet::{
-    collision::{
-        broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
-    },
+    collision::dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
 
@@ -21,16 +15,11 @@ pub struct SphereShape {
 }
 
 impl SphereShape {
+    #[inline]
     #[must_use]
-    pub fn new(radius: f32) -> Self {
+    pub const fn new(radius: f32) -> Self {
         Self {
             convex_internal_shape: ConvexInternalShape {
-                convex_shape: ConvexShape {
-                    collision_shape: CollisionShape {
-                        shape_type: BroadphaseNativeTypes::SphereShapeProxytype,
-                        ..Default::default()
-                    },
-                },
                 implicit_shape_dimensions: Vec3A::new(radius, 0.0, 0.0),
                 collision_margin: radius,
             },

@@ -426,18 +426,13 @@ impl Arena {
 
         let mut add_plane = |pos_uu: Vec3A, normal: Vec3A, mask: u8| {
             debug_assert!(normal.is_normalized());
-            let mut plane_shape = StaticPlaneShape::new(normal, 0.0);
-
             let pos_bt = pos_uu * UU_TO_BT;
             let trans = Affine3A {
                 matrix3: Mat3A::IDENTITY,
                 translation: pos_bt,
             };
-            let aabb = plane_shape.get_aabb(&trans);
-            plane_shape.concave_shape.collision_shape.aabb_cache = Some(aabb);
-            plane_shape.concave_shape.collision_shape.aabb_cache_trans = trans;
-            plane_shape.concave_shape.collision_shape.aabb_ident_cache =
-                Some(plane_shape.get_aabb(&Affine3A::IDENTITY));
+
+            let plane_shape = StaticPlaneShape::new(trans, normal, 0.0);
 
             Self::add_static_collision_shape(
                 bullet_world,

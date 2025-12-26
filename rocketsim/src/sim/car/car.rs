@@ -51,14 +51,13 @@ impl Car {
         let child_hitbox_shape = BoxShape::new(config.hitbox_size * UU_TO_BT * 0.5);
         let local_inertia = child_hitbox_shape.calculate_local_intertia(car_consts::MASS_BT);
 
-        let mut compound_shape = CompoundShape::new();
         let hitbox_offset = Affine3A {
             matrix3: Mat3A::IDENTITY,
             translation: config.hitbox_pos_offset * UU_TO_BT,
         };
-        compound_shape.add_child_shape(hitbox_offset, child_hitbox_shape);
+        let compound_shape = CompoundShape::new(child_hitbox_shape, hitbox_offset);
 
-        let collision_shape = CollisionShapes::Compound(Box::new(compound_shape));
+        let collision_shape = CollisionShapes::Compound(compound_shape);
         let mut info = RigidBodyConstructionInfo::new(car_consts::MASS_BT, collision_shape);
         info.friction = car_consts::BASE_COEFS.friction;
         info.restitution = car_consts::BASE_COEFS.restitution;

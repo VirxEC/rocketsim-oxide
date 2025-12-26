@@ -1,12 +1,7 @@
 use glam::{Affine3A, Vec3A};
 
-use super::concave_shape::ConcaveShape;
 use crate::bullet::{
-    collision::{
-        broadphase::BroadphaseNativeTypes,
-        dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
-        shapes::collision_shape::CollisionShape,
-    },
+    collision::dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     linear_math::{
         LARGE_FLOAT,
         aabb_util_2::{Aabb, intersect_ray_aabb_packet},
@@ -15,19 +10,20 @@ use crate::bullet::{
 };
 
 pub struct StaticPlaneShape {
-    pub concave_shape: ConcaveShape,
-    // local_aabb_min: Vec3A,
-    // local_aabb_max: Vec3A,
     plane_normal: Vec3A,
     plane_constant: f32,
     is_single_axis: bool,
     single_axis_idx: usize,
     single_axis_backwards: bool,
+    pub aabb_ident_cache: Aabb,
+    pub aabb_cache: Aabb,
+    #[cfg(debug_assertions)]
+    pub aabb_cache_trans: Affine3A,
 }
 
 impl StaticPlaneShape {
     #[must_use]
-    pub fn new(plane_normal: Vec3A, plane_constant: f32) -> Self {
+    pub fn new(world_transform: Affine3A, plane_normal: Vec3A, plane_constant: f32) -> Self {
         debug_assert!(plane_normal.is_normalized());
 
         let [x, y, z]: [bool; 3] = plane_normal.abs().cmpge(Vec3A::splat(f32::EPSILON)).into();
@@ -41,22 +37,22 @@ impl StaticPlaneShape {
                 (false, 0, false)
             };
 
-        Self {
-            concave_shape: ConcaveShape {
-                collision_shape: CollisionShape {
-                    shape_type: BroadphaseNativeTypes::StaticPlaneProxytype,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+        let mut plane = Self {
             plane_normal,
             plane_constant,
             is_single_axis,
             single_axis_idx,
             single_axis_backwards,
-            // local_aabb_min: Vec3A::ZERO,
-            // local_aabb_max: Vec3A::ZERO,
-        }
+            aabb_ident_cache: Aabb::ZERO,
+            aabb_cache: Aabb::ZERO,
+            #[cfg(debug_assertions)]
+            aabb_cache_trans: world_transform,
+        };
+
+        plane.aabb_ident_cache = plane.get_aabb(&Affine3A::IDENTITY);
+        plane.aabb_cache = plane.get_aabb(&world_transform);
+
+        plane
     }
 
     #[must_use]
@@ -101,14 +97,14 @@ impl StaticPlaneShape {
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
         ray_info: &RayInfo,
     ) {
-        let plane = self.concave_shape.collision_shape.aabb_ident_cache.unwrap();
-        if !ray_info.aabb.intersects(&plane) {
+        let plane = &self.aabb_ident_cache;
+        if !ray_info.aabb.intersects(plane) {
             return;
         }
 
         let (origins, inv_dirs) = ray_info.calc_pos_dir();
         let mask =
-            intersect_ray_aabb_packet(&origins, &inv_dirs, &plane, result_callback.hit_fraction);
+            intersect_ray_aabb_packet(&origins, &inv_dirs, plane, result_callback.hit_fraction);
 
         for i in 0..4 {
             if (mask & (1 << i)) == 0 {

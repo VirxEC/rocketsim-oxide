@@ -64,6 +64,7 @@ impl HashedOverlappingPairCache {
         self.internal_add_pair(proxy0.unique_id, proxy0_idx, proxy1.unique_id, proxy1_idx);
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.hash_table.is_empty()
     }
@@ -81,7 +82,11 @@ impl HashedOverlappingPairCache {
             .contains_key(&(proxy0.unique_id, proxy1.unique_id))
     }
 
-    pub fn needs_broadphase_collision(proxy0: &BroadphaseProxy, proxy1: &BroadphaseProxy) -> bool {
+    #[inline]
+    pub const fn needs_broadphase_collision(
+        proxy0: &BroadphaseProxy,
+        proxy1: &BroadphaseProxy,
+    ) -> bool {
         (proxy0.collision_filter_group & proxy1.collision_filter_mask) != 0
             && (proxy1.collision_filter_group & proxy0.collision_filter_mask) != 0
     }

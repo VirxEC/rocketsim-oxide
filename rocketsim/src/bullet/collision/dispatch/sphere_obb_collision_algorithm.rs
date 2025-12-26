@@ -56,11 +56,10 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
             return None;
         }
 
-        let child = compound_shape.child.as_ref().unwrap();
-        let child_trans = child.transform;
+        let child_trans = &compound_shape.child_transform;
         let new_child_world_trans = org_trans * child_trans;
 
-        let box_shape = &child.child_shape;
+        let box_shape = &compound_shape.child_shape;
         let box_aabb = box_shape.get_aabb(&Affine3A::IDENTITY);
 
         let sphere_from_local = new_child_world_trans.inv_x_form(sphere_trans.translation);

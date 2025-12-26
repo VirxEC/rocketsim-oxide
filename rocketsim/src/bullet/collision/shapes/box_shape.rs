@@ -1,14 +1,10 @@
 use glam::{Affine3A, Vec3A, Vec3Swizzles};
 
 use super::{
-    collision_margin::CONVEX_DISTANCE_MARGIN, collision_shape::CollisionShape,
-    convex_internal_shape::ConvexInternalShape, convex_shape::ConvexShape,
+    collision_margin::CONVEX_DISTANCE_MARGIN, convex_internal_shape::ConvexInternalShape,
     polyhedral_convex_shape::PolyhedralConvexShape,
 };
-use crate::bullet::{
-    collision::broadphase::BroadphaseNativeTypes,
-    linear_math::aabb_util_2::{Aabb, transform_aabb},
-};
+use crate::bullet::linear_math::aabb_util_2::{Aabb, transform_aabb};
 
 pub struct BoxShape {
     polyhedral_convex_shape: PolyhedralConvexShape,
@@ -19,12 +15,6 @@ impl BoxShape {
         Self {
             polyhedral_convex_shape: PolyhedralConvexShape {
                 convex_internal_shape: ConvexInternalShape {
-                    convex_shape: ConvexShape {
-                        collision_shape: CollisionShape {
-                            shape_type: BroadphaseNativeTypes::BoxShapeProxytype,
-                            ..Default::default()
-                        },
-                    },
                     implicit_shape_dimensions: box_half_extents - CONVEX_DISTANCE_MARGIN,
                     collision_margin: {
                         let safe_margin = 0.1 * box_half_extents.min_element();

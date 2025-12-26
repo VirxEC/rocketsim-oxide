@@ -5,7 +5,6 @@ pub mod collision_shape;
 pub mod compound_shape;
 mod concave_shape;
 mod convex_internal_shape;
-mod convex_shape;
 mod optimized_bvh;
 mod polyhedral_convex_shape;
 pub mod sphere_shape;

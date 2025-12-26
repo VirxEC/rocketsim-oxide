@@ -39,12 +39,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ConvexPlaneCollisionAlgorit
         };
 
         let convex_aabb = col_shape.get_aabb(&self.convex_obj.world_transform);
-        let plane_aabb = plane_shape
-            .concave_shape
-            .collision_shape
-            .aabb_cache
-            .unwrap();
-        if !convex_aabb.intersects(&plane_aabb) {
+        if !convex_aabb.intersects(&plane_shape.aabb_cache) {
             return None;
         }
 

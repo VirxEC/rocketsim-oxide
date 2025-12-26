@@ -15,32 +15,14 @@ use crate::bullet::{
     linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
 };
 
-#[derive(Clone, Debug)]
-pub struct CollisionShape {
-    pub shape_type: BroadphaseNativeTypes,
-    pub aabb_ident_cache: Option<Aabb>,
-    pub aabb_cache: Option<Aabb>,
-    pub aabb_cache_trans: Affine3A,
-}
-
-impl Default for CollisionShape {
-    fn default() -> Self {
-        Self {
-            shape_type: BroadphaseNativeTypes::InvalidShapeProxytype,
-            aabb_ident_cache: None,
-            aabb_cache: None,
-            aabb_cache_trans: Affine3A::ZERO,
-        }
-    }
-}
-
 pub enum CollisionShapes {
-    Compound(Box<CompoundShape>),
+    Compound(CompoundShape),
     Sphere(SphereShape),
     StaticPlane(StaticPlaneShape),
     TriangleMesh(Arc<BvhTriangleMeshShape>),
 }
 
+#[cfg(debug_assertions)]
 fn fast_compare_transforms(a: &Affine3A, b: &Affine3A) -> bool {
     a.translation == b.translation
         && a.matrix3.x_axis == b.matrix3.x_axis
@@ -49,24 +31,19 @@ fn fast_compare_transforms(a: &Affine3A, b: &Affine3A) -> bool {
 
 impl CollisionShapes {
     #[must_use]
-    pub fn get_collision_shape(&self) -> &CollisionShape {
-        match self {
-            Self::Compound(shape) => &shape.collision_shape,
-            Self::Sphere(shape) => &shape.convex_internal_shape.convex_shape.collision_shape,
-            Self::StaticPlane(shape) => &shape.concave_shape.collision_shape,
-            Self::TriangleMesh(shape) => shape.get_collision_shape(),
-        }
-    }
-
-    #[must_use]
     pub fn get_aabb(&self, t: &Affine3A) -> Aabb {
         match self {
             Self::Sphere(shape) => shape.get_aabb(t),
             Self::Compound(shape) => shape.get_aabb(t),
-            _ => {
-                let cs = self.get_collision_shape();
-                debug_assert!(fast_compare_transforms(t, &cs.aabb_cache_trans));
-                cs.aabb_cache.unwrap()
+            Self::StaticPlane(shape) => {
+                #[cfg(debug_assertions)]
+                debug_assert!(fast_compare_transforms(t, &shape.aabb_cache_trans));
+                shape.aabb_cache
+            }
+            Self::TriangleMesh(shape) => {
+                #[cfg(debug_assertions)]
+                debug_assert!(fast_compare_transforms(t, &Affine3A::IDENTITY));
+                shape.aabb_ident_cache
             }
         }
     }
@@ -91,8 +68,15 @@ impl CollisionShapes {
 
                 (center, radius)
             }
-            _ => {
-                let aabb = self.get_collision_shape().aabb_ident_cache.unwrap();
+            Self::StaticPlane(shape) => {
+                let aabb = &shape.aabb_ident_cache;
+                let center = (aabb.min + aabb.max) * 0.5;
+                let radius = (aabb.max - aabb.min).length() * 0.5;
+
+                (center, radius)
+            }
+            Self::TriangleMesh(shape) => {
+                let aabb = &shape.aabb_ident_cache;
                 let center = (aabb.min + aabb.max) * 0.5;
                 let radius = (aabb.max - aabb.min).length() * 0.5;
 
@@ -115,12 +99,7 @@ impl CollisionShapes {
     pub fn local_get_supporting_vertex(&self, vec: Vec3A) -> Vec3A {
         match self {
             Self::Sphere(shape) => shape.local_get_supporting_vertex(vec),
-            Self::Compound(shape) => shape
-                .child
-                .as_ref()
-                .unwrap()
-                .child_shape
-                .local_get_supporting_vertex(vec),
+            Self::Compound(shape) => shape.child_shape.local_get_supporting_vertex(vec),
             _ => todo!(),
         }
     }

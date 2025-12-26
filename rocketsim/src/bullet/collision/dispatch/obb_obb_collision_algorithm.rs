@@ -49,18 +49,16 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for ObbObbCollisionAlgorithm<'_
             return None;
         }
 
-        let child_0 = compound_0_ref.child.as_ref().unwrap();
-        let child_0_trans = child_0.transform;
+        let child_0_trans = &compound_0_ref.child_transform;
         let child_0_world_trans = org_0_trans * child_0_trans;
 
-        let child_1 = compound_1_ref.child.as_ref().unwrap();
-        let child_1_trans = child_1.transform;
+        let child_1_trans = &compound_1_ref.child_transform;
         let child_1_world_trans = org_1_trans * child_1_trans;
 
         let mut detector = BoxBoxDetector {
-            box1: &child_0.child_shape,
+            box1: &compound_0_ref.child_shape,
             col1: self.compound_0_obj.object,
-            box2: &child_1.child_shape,
+            box2: &compound_1_ref.child_shape,
             col2: self.compound_1_obj.object,
             contact_added_callback: self.contact_added_callback,
         };
