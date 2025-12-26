@@ -4,10 +4,11 @@ use crate::bullet::{
     collision::dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
     linear_math::{
         LARGE_FLOAT,
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
+        aabb_util_2::{intersect_ray_aabb_packet},
         ray_packet::RayInfo,
     },
 };
+use crate::shared::Aabb;
 
 pub struct StaticPlaneShape {
     plane_normal: Vec3A,

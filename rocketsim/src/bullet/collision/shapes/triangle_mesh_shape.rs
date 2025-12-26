@@ -4,7 +4,7 @@ use super::{
     concave_shape::ConcaveShape, triangle_callback::ProcessTriangle, triangle_mesh::TriangleMesh,
     triangle_shape::TriangleShape,
 };
-use crate::bullet::linear_math::aabb_util_2::Aabb;
+use crate::shared::Aabb;
 
 pub struct TriangleMeshShape {
     pub concave_shape: ConcaveShape,

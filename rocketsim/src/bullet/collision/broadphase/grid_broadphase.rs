@@ -14,8 +14,8 @@ use crate::bullet::{
         shapes::collision_shape::CollisionShapes,
     },
     dynamics::rigid_body::RigidBody,
-    linear_math::aabb_util_2::Aabb,
 };
+use crate::shared::Aabb;
 
 pub struct GridBroadphaseProxy {
     broadphase_proxy: BroadphaseProxy,

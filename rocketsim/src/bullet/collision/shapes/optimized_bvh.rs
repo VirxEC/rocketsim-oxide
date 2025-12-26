@@ -1,7 +1,7 @@
 use glam::Vec3A;
 
 use super::triangle_mesh::TriangleMesh;
-use crate::bullet::linear_math::aabb_util_2::Aabb;
+use crate::shared::Aabb;
 use crate::shared::bvh::{Tree, Node, BvhNodeType};
 
 fn update_triangle_aabb(mut aabb: Aabb) -> Aabb {

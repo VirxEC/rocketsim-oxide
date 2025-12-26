@@ -10,8 +10,9 @@ use crate::bullet::{
             triangle_callback::ProcessTriangle, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, aabb_util_2::Aabb},
+    linear_math::AffineExt,
 };
+use crate::shared::Aabb;
 
 struct ConvexTriangleCallback<'a, T: ContactAddedCallback> {
     pub manifold: PersistentManifold,

@@ -14,9 +14,9 @@ use crate::bullet::{
             triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, QuatExt, aabb_util_2::Aabb},
+    linear_math::{AffineExt, QuatExt},
 };
-
+use crate::shared::Aabb;
 use crate::shared::bvh::{Tree, NodeOverlapCallback};
 
 fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {

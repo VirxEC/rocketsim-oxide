@@ -11,8 +11,9 @@ use crate::bullet::{
         dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
         shapes::sphere_shape::SPHERE_RADIUS_MARGIN,
     },
-    linear_math::{aabb_util_2::Aabb, ray_packet::RayInfo},
+    linear_math::ray_packet::RayInfo,
 };
+use crate::shared::Aabb;
 
 pub enum CollisionShapes {
     Compound(CompoundShape),

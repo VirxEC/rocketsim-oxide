@@ -4,7 +4,8 @@ use super::{
     collision_margin::CONVEX_DISTANCE_MARGIN, convex_internal_shape::ConvexInternalShape,
     polyhedral_convex_shape::PolyhedralConvexShape,
 };
-use crate::bullet::linear_math::aabb_util_2::{Aabb, transform_aabb};
+use crate::bullet::linear_math::aabb_util_2::{transform_aabb};
+use crate::shared::Aabb;
 
 pub struct BoxShape {
     polyhedral_convex_shape: PolyhedralConvexShape,

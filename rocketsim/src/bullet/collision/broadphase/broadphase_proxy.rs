@@ -1,4 +1,4 @@
-use crate::bullet::linear_math::aabb_util_2::Aabb;
+use crate::shared::Aabb;
 
 pub enum CollisionFilterGroups {
     Default = 1,

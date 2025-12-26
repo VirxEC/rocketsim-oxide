@@ -10,10 +10,11 @@ use crate::bullet::{
         triangle_shape::TriangleShape,
     },
     linear_math::{
-        aabb_util_2::{Aabb, intersect_ray_aabb_packet},
+        aabb_util_2::intersect_ray_aabb_packet,
         ray_packet::RayInfo,
     },
 };
+use crate::shared::Aabb;
 
 pub trait ProcessNode {
     fn process_node(&mut self, triangle_index: usize);

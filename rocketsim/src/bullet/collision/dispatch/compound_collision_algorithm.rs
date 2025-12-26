@@ -13,8 +13,9 @@ use crate::bullet::{
             triangle_callback::ProcessTriangle, triangle_shape::TriangleShape,
         },
     },
-    linear_math::{AffineExt, aabb_util_2::Aabb, obb::Obb},
+    linear_math::{AffineExt, obb::Obb},
 };
+use crate::shared::Aabb;
 
 struct Hit {
     depth: f32,
