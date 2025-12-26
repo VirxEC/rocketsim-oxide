@@ -724,15 +724,9 @@ impl Arena {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
 
-            // TODO: Get mutable state instead? Unsure
-            let mut car_state = *car.get_state();
-            if self
-                .data
+            self.data
                 .boost_pad_grid
-                .maybe_give_car_boost(&mut car_state, &self.data.mutator_config)
-            {
-                car.set_state(rb, &car_state);
-            }
+                .maybe_give_car_boost(&mut car.internal_state, &self.data.mutator_config);
 
             car.finish_physics_tick(rb);
         }

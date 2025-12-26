@@ -108,54 +108,55 @@ impl BoostPadGrid {
         &self,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
-    ) -> bool {
+    ) {
         if car_state.boost >= mutator_config.car_max_boost_amount {
-            return false; // Already full on boost
+            return; // Already full on boost
         }
 
         if car_state.pos.z > self.max_pad_z {
-            return false; // Can't possibly overlap with a boost pad
+            return; // Can't possibly overlap with a boost pad
         }
 
-        if let Some(cell) = self.get_cell_at_pos(car_state.pos) {
-            for pad_idx_ref in &cell.pad_indices {
-                let mut pad = self.all_pads[*pad_idx_ref];
-                let mut pad_state = *pad.get_state();
-                if !pad_state.gave_car_boost && pad_state.cooldown == 0.0 {
-                    // Check if car origin is inside the cylinder hitbox
-                    let pad_pos = pad.get_config().pos;
-                    let cyl_radius = pad.get_radius();
-                    let dist_sq_2d = pad_pos
-                        .truncate()
-                        .distance_squared(car_state.pos.truncate());
-                    let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
-                        && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
-                    if overlapping {
-                        // Give boost
+        let Some(cell) = self.get_cell_at_pos(car_state.pos) else {
+            return;
+        };
 
-                        let max_cooldown = if pad.get_config().is_big {
-                            mutator_config.boost_pad_cooldown_big
-                        } else {
-                            mutator_config.boost_pad_cooldown_small
-                        };
+        for pad_idx_ref in &cell.pad_indices {
+            let mut pad = self.all_pads[*pad_idx_ref];
+            let mut pad_state = *pad.get_state();
+            if !pad_state.gave_car_boost && pad_state.cooldown == 0.0 {
+                // Check if car origin is inside the cylinder hitbox
+                let pad_pos = pad.get_config().pos;
+                let cyl_radius = pad.get_radius();
+                let dist_sq_2d = pad_pos
+                    .truncate()
+                    .distance_squared(car_state.pos.truncate());
+                let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
+                    && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
+                if overlapping {
+                    // Give boost
 
-                        let boost_give_amount = if pad.get_config().is_big {
-                            mutator_config.boost_pad_amount_big
-                        } else {
-                            mutator_config.boost_pad_amount_small
-                        };
+                    let max_cooldown = if pad.get_config().is_big {
+                        mutator_config.boost_pad_cooldown_big
+                    } else {
+                        mutator_config.boost_pad_cooldown_small
+                    };
 
-                        car_state.boost = (car_state.boost + boost_give_amount)
-                            .min(mutator_config.car_max_boost_amount);
-                        pad_state.cooldown = max_cooldown;
-                        pad.set_state(pad_state);
-                        return true;
-                    }
+                    let boost_give_amount = if pad.get_config().is_big {
+                        mutator_config.boost_pad_amount_big
+                    } else {
+                        mutator_config.boost_pad_amount_small
+                    };
+
+                    car_state.boost = (car_state.boost + boost_give_amount)
+                        .min(mutator_config.car_max_boost_amount);
+                    pad_state.cooldown = max_cooldown;
+                    pad.set_state(pad_state);
+
+                    return;
                 }
             }
         }
-
-        false
     }
 
     pub(crate) fn post_tick_update(&mut self, tick_time: f32) {
