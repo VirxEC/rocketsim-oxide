@@ -171,16 +171,16 @@ impl DiscreteDynamicsWorld {
             body.update_deactivation(time_step);
 
             if body.wants_sleeping() {
-                if body.collision_object.is_static_object() {
-                    body.collision_object
-                        .set_activation_state(ActivationState::Sleeping);
-                } else if body.collision_object.get_activation_state() == ActivationState::Active {
-                    body.collision_object
-                        .set_activation_state(ActivationState::WantsDeactivation);
-                } else if body.collision_object.get_activation_state() == ActivationState::Sleeping
-                {
-                    body.set_angular_velocity(Vec3A::ZERO);
-                    body.set_linear_velocity(Vec3A::ZERO);
+                match body.collision_object.get_activation_state() {
+                    ActivationState::Active => {
+                        body.collision_object
+                            .set_activation_state(ActivationState::Sleeping);
+                    }
+                    ActivationState::Sleeping => {
+                        body.set_angular_velocity(Vec3A::ZERO);
+                        body.set_linear_velocity(Vec3A::ZERO);
+                    }
+                    _ => {}
                 }
             } else {
                 body.collision_object

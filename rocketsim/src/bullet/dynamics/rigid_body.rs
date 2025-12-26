@@ -221,10 +221,7 @@ impl RigidBody {
     pub fn update_deactivation(&mut self, time_step: f32) {
         let activation_state = self.collision_object.get_activation_state();
 
-        if matches!(
-            activation_state,
-            ActivationState::Sleeping | ActivationState::DisableDeactivation
-        ) {
+        if activation_state == ActivationState::Sleeping {
             return;
         }
 
@@ -245,11 +242,8 @@ impl RigidBody {
     pub fn wants_sleeping(&self) -> bool {
         let activation_state = self.collision_object.get_activation_state();
 
-        activation_state == ActivationState::DisableDeactivation
-            && (matches!(
-                activation_state,
-                ActivationState::Active | ActivationState::WantsDeactivation
-            ) || self.collision_object.deactivation_time > 2.0)
+        activation_state == ActivationState::Sleeping
+            || self.collision_object.deactivation_time > 2.0
     }
 
     pub const fn clear_forces(&mut self) {

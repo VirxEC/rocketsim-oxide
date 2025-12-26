@@ -12,17 +12,13 @@ use crate::{
 pub enum ActivationState {
     Active,
     Sleeping,
-    WantsDeactivation,
-    DisableDeactivation,
     DisableSimulation,
 }
 
 pub enum CollisionFlags {
-    // DynamicObject = 0,
     StaticObject = 1,
-    // KinematicObject = (1 << 1),
-    NoContactResponse = (1 << 2),
-    CustomMaterialCallback = (1 << 3),
+    NoContactResponse = (1 << 1),
+    CustomMaterialCallback = (1 << 2),
 }
 
 pub struct CollisionObject {
@@ -113,17 +109,15 @@ impl CollisionObject {
         self.activation_state
     }
 
-    pub const fn set_activation_state(&mut self, new_state: ActivationState) {
-        if !matches!(
-            self.activation_state,
-            ActivationState::DisableDeactivation | ActivationState::DisableSimulation
-        ) {
+    pub fn set_activation_state(&mut self, new_state: ActivationState) {
+        if self.activation_state != ActivationState::DisableSimulation {
             self.activation_state = new_state;
         }
     }
 
     pub const fn force_activate(&mut self) {
         self.activation_state = ActivationState::Active;
+        self.deactivation_time = 0.0;
     }
 
     pub const fn set_broadphase_handle(&mut self, handle: usize) {

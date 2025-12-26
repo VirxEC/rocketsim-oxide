@@ -126,7 +126,7 @@ impl SequentialImpulseConstraintSolver {
         manifolds: &mut Vec<PersistentManifold>,
         time_step: f32,
     ) {
-        self.setup_solver_bodies(collision_objects, non_static_bodies, manifolds, time_step);
+        self.setup_solver_bodies(collision_objects, non_static_bodies, time_step);
 
         for manifold in manifolds.iter_mut() {
             debug_assert!(manifold.body0_idx < collision_objects.len());
@@ -211,7 +211,6 @@ impl SequentialImpulseConstraintSolver {
         &mut self,
         collision_objects: &mut [RigidBody],
         non_static_bodies: &[usize],
-        manifolds: &[PersistentManifold],
         time_step: f32,
     ) {
         self.fixed_body_id = None;
@@ -223,36 +222,23 @@ impl SequentialImpulseConstraintSolver {
         self.tmp_solver_contact_friction_constraint_pool
             .reserve(non_static_bodies.len() * 2);
 
-        for manifold in manifolds {
-            collision_objects[manifold.body0_idx]
-                .collision_object
-                .companion_id = None;
-            collision_objects[manifold.body1_idx]
-                .collision_object
-                .companion_id = None;
+        for rb in &mut *collision_objects {
+            rb.collision_object.companion_id = None;
         }
 
         for &rb_idx in non_static_bodies {
             let rb = &mut collision_objects[rb_idx];
-            rb.collision_object.companion_id = None;
+            debug_assert_ne!(rb.inverse_mass, 0.0);
 
-            if rb.inverse_mass != 0.0 {
-                if !rb.collision_object.is_active() {
-                    continue;
-                }
-
-                let solver_body_id = self.tmp_solver_body_pool.len();
-                rb.collision_object.companion_id = Some(solver_body_id);
-
-                self.tmp_solver_body_pool
-                    .push(SolverBody::new(rb, time_step));
-            } else if self.fixed_body_id.is_none() {
-                let solver_body_id = self.tmp_solver_body_pool.len();
-                rb.collision_object.companion_id = Some(solver_body_id);
-
-                self.fixed_body_id = Some(solver_body_id);
-                self.tmp_solver_body_pool.push(SolverBody::DEFAULT);
+            if !rb.collision_object.is_active() {
+                continue;
             }
+
+            let solver_body_id = self.tmp_solver_body_pool.len();
+            rb.collision_object.companion_id = Some(solver_body_id);
+
+            self.tmp_solver_body_pool
+                .push(SolverBody::new(rb, time_step));
         }
     }
 

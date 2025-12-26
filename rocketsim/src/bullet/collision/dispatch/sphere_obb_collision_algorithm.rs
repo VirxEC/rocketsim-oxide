@@ -81,7 +81,7 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
 
         let normal_in_world = new_child_world_trans.transform_vector3a(normal);
         let point_in_world = new_child_world_trans.transform_point3a(closest);
-        let depth = radius_with_threshold - dist;
+        let depth = -(radius_with_threshold - dist);
 
         let mut manifold = PersistentManifold::new(self.sphere_obj, self.obb_obj, self.is_swapped);
         manifold.add_contact_point(
@@ -96,6 +96,10 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         );
         manifold.refresh_contact_points(self.sphere_obj, self.obb_obj);
 
-        Some(manifold)
+        if manifold.point_cache.is_empty() {
+            None
+        } else {
+            Some(manifold)
+        }
     }
 }
