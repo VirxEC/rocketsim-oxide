@@ -9,7 +9,7 @@ struct GridCell {
 
 #[derive(Debug, Clone)]
 pub struct BoostPadGrid {
-    cells: [GridCell; Self::CELL_AMOUNT],
+    cells: [GridCell; BoostPadGrid::CELL_AMOUNT],
     pub(crate) all_pads: Vec<BoostPad>,
     max_pad_z: f32,
 }
@@ -121,10 +121,10 @@ impl BoostPadGrid {
             return; // Can't possibly overlap with a boost pad
         }
 
-        let Some(cell) = Self::calc_cell_idx(car_state.pos).map(|cell_idx| &self.cells[cell_idx])
-        else {
-            return;
-        };
+        let Some(cell_idx) = Self::calc_cell_idx(car_state.pos)
+        else { return; };
+
+        let cell = &self.cells[cell_idx];
 
         for pad_idx_ref in &cell.pad_indices {
             let pad = &mut self.all_pads[*pad_idx_ref];
@@ -157,7 +157,6 @@ impl BoostPadGrid {
                 && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
             if overlapping {
                 // Give boost
-
                 car_state.boost =
                     (car_state.boost + boost_give_amount).min(mutator_config.car_max_boost_amount);
                 pad.internal_state.gave_boost_tick_count = Some(tick_count);
