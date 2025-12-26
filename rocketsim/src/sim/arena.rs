@@ -724,7 +724,7 @@ impl Arena {
         for car in self.data.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
-            
+
             // TODO: Get mutable state instead? Unsure
             let mut car_state = *car.get_state();
             if self

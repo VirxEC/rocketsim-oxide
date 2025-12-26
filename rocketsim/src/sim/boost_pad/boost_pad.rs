@@ -1,6 +1,6 @@
 use glam::Vec3A;
-use crate::{BoostPadConfig, BoostPadState};
-use crate::sim::consts;
+
+use crate::{BoostPadConfig, BoostPadState, sim::consts};
 
 #[derive(Debug, Copy, Clone)]
 pub struct BoostPad {
@@ -25,7 +25,9 @@ impl BoostPad {
         );
 
         Self {
-            config, radius, aabb,
+            config,
+            radius,
+            aabb,
             internal_state: BoostPadState::DEFAULT,
         }
     }
@@ -44,5 +46,7 @@ impl BoostPad {
         &self.config
     }
 
-    pub const fn get_radius(&self) -> f32 { self.radius }
+    pub const fn get_radius(&self) -> f32 {
+        self.radius
+    }
 }

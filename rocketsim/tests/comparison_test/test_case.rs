@@ -116,7 +116,7 @@ impl TestCase {
                     let old_car_state = &old_arena_ptr.pin_mut().get_car(old_car_id);
                     let old_car_state_conv = &state_convert::conv_to_new_car_state(
                         old_car_state,
-                        state_convert::conv_to_new_car_controls(old_car_state.last_controls) // Just use previous
+                        state_convert::conv_to_new_car_controls(old_car_state.last_controls), // Just use previous
                     );
 
                     let err_set = state_compare::map_car_err(new_car_state, old_car_state_conv);

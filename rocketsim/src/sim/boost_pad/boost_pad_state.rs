@@ -6,7 +6,6 @@
 )]
 pub struct BoostPadState {
     // TODO: Implement car-locking to improve accuracy under certain conditions
-
     pub cooldown: f32,
     pub gave_car_boost: bool,
 }

@@ -1,6 +1,6 @@
-use crate::consts::boost_pads;
-use crate::{BoostPad, BoostPadConfig, CarState, MutatorConfig};
 use glam::{USizeVec2, Vec2, Vec3A};
+
+use crate::{BoostPad, BoostPadConfig, CarState, MutatorConfig, consts::boost_pads};
 
 #[derive(Debug, Clone)]
 struct GridCell {
@@ -131,7 +131,6 @@ impl BoostPadGrid {
                 let mut pad = self.all_pads[*pad_idx_ref];
                 let mut pad_state = *pad.get_state();
                 if !pad_state.gave_car_boost && pad_state.cooldown == 0.0 {
-
                     // Check if car origin is inside the cylinder hitbox
                     let pad_pos = pad.get_config().pos;
                     let cyl_radius = pad.get_radius();
@@ -139,7 +138,8 @@ impl BoostPadGrid {
                         Vec2::distance_squared(pad_pos.truncate(), car_state.pos.truncate());
                     let overlapping = dist_sq_2d < (cyl_radius * cyl_radius)
                         && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
-                    if overlapping { // Give boost
+                    if overlapping {
+                        // Give boost
 
                         let max_cooldown = if pad.get_config().is_big {
                             mutator_config.boost_pad_cooldown_big
