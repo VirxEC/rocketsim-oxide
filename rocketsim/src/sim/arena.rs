@@ -800,6 +800,12 @@ impl Arena {
 
     #[inline]
     #[must_use]
+    pub fn boost_pads_mut(&mut self) -> &mut [BoostPad] {
+        self.data.boost_pad_grid.pads_mut()
+    }
+
+    #[inline]
+    #[must_use]
     pub const fn get_ball(&self) -> &BallState {
         &self.data.ball.internal_state
     }
@@ -895,8 +901,8 @@ impl Arena {
                     self.boost_pads()
                         .iter()
                         .map(|pad| BoostPadInfo {
-                            config: *pad.get_config(),
-                            state: *pad.get_state(),
+                            config: *pad.config(),
+                            state: pad.internal_state,
                         })
                         .collect(),
                 )
@@ -933,8 +939,8 @@ impl Arena {
                 );
             }
 
-            for (new_pad, old_pad) in pads.into_iter().zip(&mut self.data.boost_pad_grid.all_pads) {
-                old_pad.set_state(new_pad.state);
+            for i in 0..self.boost_pads().len() {
+                self.set_boost_pad_state(i, pads[i].state);
             }
         }
 

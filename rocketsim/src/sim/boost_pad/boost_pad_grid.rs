@@ -95,9 +95,10 @@ impl BoostPadGrid {
     }
 
     #[must_use]
-    pub fn pads(&self) -> &[BoostPad] {
-        &self.all_pads
-    }
+    pub fn pads(&self) -> &[BoostPad] { &self.all_pads }
+
+    #[must_use]
+    pub fn pads_mut(&mut self) -> &mut [BoostPad] { &mut self.all_pads }
 
     pub fn reset(&mut self) {
         for pad in &mut self.all_pads {
@@ -129,7 +130,7 @@ impl BoostPadGrid {
         for pad_idx_ref in &cell.pad_indices {
             let pad = &mut self.all_pads[*pad_idx_ref];
 
-            let (cooldown, boost_give_amount) = if pad.get_config().is_big {
+            let (cooldown, boost_give_amount) = if pad.config().is_big {
                 (
                     mutator_config.boost_pad_cooldown_big,
                     mutator_config.boost_pad_amount_big,
@@ -148,8 +149,8 @@ impl BoostPadGrid {
             }
 
             // Check if car origin is inside the cylinder hitbox
-            let pad_pos = pad.get_config().pos;
-            let cyl_radius = pad.get_radius();
+            let pad_pos = pad.config().pos;
+            let cyl_radius = pad.radius();
             let dist_sq_2d = pad_pos
                 .truncate()
                 .distance_squared(car_state.pos.truncate());

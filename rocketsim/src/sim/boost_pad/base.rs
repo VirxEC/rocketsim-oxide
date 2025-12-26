@@ -23,26 +23,13 @@ impl BoostPad {
         }
     }
 
-    #[must_use]
-    pub const fn get_state(&self) -> &BoostPadState {
-        &self.internal_state
-    }
-
-    pub const fn set_state(&mut self, state: BoostPadState) {
-        self.internal_state = state;
-    }
-
     pub const fn reset(&mut self) {
         self.internal_state = BoostPadState::DEFAULT;
     }
 
     #[must_use]
-    pub const fn get_config(&self) -> &BoostPadConfig {
-        &self.config
-    }
+    pub const fn config(&self) -> &BoostPadConfig { &self.config }
 
     #[must_use]
-    pub const fn get_radius(&self) -> f32 {
-        self.radius
-    }
+    pub const fn radius(&self) -> f32 { self.radius }
 }
