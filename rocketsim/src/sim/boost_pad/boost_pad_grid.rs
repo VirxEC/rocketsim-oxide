@@ -101,9 +101,11 @@ impl BoostPadGrid {
 
     /// Returns true if boost was given
     pub(crate) fn maybe_give_car_boost(
-        &mut self,
+        &self,
+        car_id: u64,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
+        tick_count: u64, tick_time: f32
     ) {
         if car_state.boost >= mutator_config.car_max_boost_amount {
             return; // Already full on boost
@@ -119,9 +121,25 @@ impl BoostPadGrid {
         };
 
         for pad_idx_ref in &cell.pad_indices {
-            let pad = &mut self.all_pads[*pad_idx_ref];
-            let pad_state = pad.get_state();
-            if pad_state.is_active() {
+            let mut pad = self.all_pads[*pad_idx_ref];
+            let mut pad_state = *pad.get_state();
+
+            let (cooldown, boost_give_amount) = if pad.get_config().is_big {
+                (mutator_config.boost_pad_cooldown_big, mutator_config.boost_pad_amount_big)
+            } else {
+                (mutator_config.boost_pad_cooldown_small,  mutator_config.boost_pad_amount_small)
+            };
+
+            let cooldown_ticks = (cooldown * tick_time).round() as u64;
+
+            let is_in_cooldown = if let Some(last_give_tick_count) = pad_state.gave_boost_tick_count {
+                let ticks_since_gave_boost = tick_count - last_give_tick_count;
+                ticks_since_gave_boost < cooldown_ticks
+            } else {
+                false
+            };
+
+            if !is_in_cooldown {
                 // Check if car origin is inside the cylinder hitbox
                 let pad_pos = pad.get_config().pos;
                 let cyl_radius = pad.get_radius();
@@ -133,36 +151,16 @@ impl BoostPadGrid {
                 if overlapping {
                     // Give boost
 
-                    let max_cooldown = if pad.get_config().is_big {
-                        mutator_config.boost_pad_cooldown_big
-                    } else {
-                        mutator_config.boost_pad_cooldown_small
-                    };
 
-                    let boost_give_amount = if pad.get_config().is_big {
-                        mutator_config.boost_pad_amount_big
-                    } else {
-                        mutator_config.boost_pad_amount_small
-                    };
 
                     car_state.boost = (car_state.boost + boost_give_amount)
                         .min(mutator_config.car_max_boost_amount);
-
-                    let mut pad_state = *pad_state;
-                    pad_state.cooldown = max_cooldown;
+                    pad_state.gave_boost_tick_count = Some(car_id);
                     pad.set_state(pad_state);
 
                     return;
                 }
             }
-        }
-    }
-
-    pub(crate) fn post_tick_update(&mut self, tick_time: f32) {
-        for pad in &mut self.all_pads {
-            let mut pad_state = *pad.get_state();
-            pad_state.cooldown = (pad_state.cooldown - tick_time).max(0.0);
-            pad.set_state(pad_state);
         }
     }
 }
