@@ -127,7 +127,7 @@ impl From<crate::BoostPadConfig> for flat::BoostPadConfig {
 impl From<flat::BoostPadState> for crate::BoostPadState {
     fn from(_value: flat::BoostPadState) -> Self {
         Self {
-            gave_boost_tick_count: None
+            gave_boost_tick_count: None,
         }
     }
 }

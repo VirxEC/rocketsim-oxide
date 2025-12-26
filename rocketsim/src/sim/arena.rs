@@ -725,7 +725,6 @@ impl Arena {
             car.post_tick_update(self.tick_time, rb);
             car.finish_physics_tick(rb);
 
-
             self.data.boost_pad_grid.maybe_give_car_boost(
                 car.id,
                 &mut car.internal_state,

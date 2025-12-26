@@ -105,7 +105,8 @@ impl BoostPadGrid {
         car_id: u64,
         car_state: &mut CarState,
         mutator_config: &MutatorConfig,
-        tick_count: u64, tick_time: f32
+        tick_count: u64,
+        tick_time: f32,
     ) {
         if car_state.boost >= mutator_config.car_max_boost_amount {
             return; // Already full on boost
@@ -125,14 +126,21 @@ impl BoostPadGrid {
             let mut pad_state = *pad.get_state();
 
             let (cooldown, boost_give_amount) = if pad.get_config().is_big {
-                (mutator_config.boost_pad_cooldown_big, mutator_config.boost_pad_amount_big)
+                (
+                    mutator_config.boost_pad_cooldown_big,
+                    mutator_config.boost_pad_amount_big,
+                )
             } else {
-                (mutator_config.boost_pad_cooldown_small,  mutator_config.boost_pad_amount_small)
+                (
+                    mutator_config.boost_pad_cooldown_small,
+                    mutator_config.boost_pad_amount_small,
+                )
             };
 
             let cooldown_ticks = (cooldown * tick_time).round() as u64;
 
-            let is_in_cooldown = if let Some(last_give_tick_count) = pad_state.gave_boost_tick_count {
+            let is_in_cooldown = if let Some(last_give_tick_count) = pad_state.gave_boost_tick_count
+            {
                 let ticks_since_gave_boost = tick_count - last_give_tick_count;
                 ticks_since_gave_boost < cooldown_ticks
             } else {
@@ -150,8 +158,6 @@ impl BoostPadGrid {
                     && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
                 if overlapping {
                     // Give boost
-
-
 
                     car_state.boost = (car_state.boost + boost_give_amount)
                         .min(mutator_config.car_max_boost_amount);

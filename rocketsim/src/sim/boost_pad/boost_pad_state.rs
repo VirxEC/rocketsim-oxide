@@ -6,9 +6,7 @@
 )]
 pub struct BoostPadState {
     /// The last tick when we gave a car boost
-    pub gave_boost_tick_count: Option<u64>
-
-    // TODO: Implement car-locking to improve accuracy under certain conditions
+    pub gave_boost_tick_count: Option<u64>, // TODO: Implement car-locking to improve accuracy under certain conditions
 }
 
 impl Default for BoostPadState {
@@ -19,6 +17,6 @@ impl Default for BoostPadState {
 
 impl BoostPadState {
     pub const DEFAULT: Self = Self {
-        gave_boost_tick_count: None
+        gave_boost_tick_count: None,
     };
 }
