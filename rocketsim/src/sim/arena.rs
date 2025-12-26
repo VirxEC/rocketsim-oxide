@@ -7,7 +7,7 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
-    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, GameMode,
+    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, BoostPadGrid, GameMode,
     bullet::{
         collision::{
             broadphase::{GridBroadphase, HashedOverlappingPairCache},
@@ -42,7 +42,7 @@ struct ArenaInner {
     tick_count: u64,
     game_mode: GameMode,
     mutator_config: MutatorConfig,
-    boost_pads: Vec<BoostPad>,
+    boost_pad_grid: BoostPadGrid,
 }
 
 impl ArenaInner {
@@ -302,32 +302,33 @@ impl Arena {
             config.no_ball_rot,
         );
 
-        let mut boost_pads = Vec::new();
+        let boost_pad_grid = {
+            let mut boost_pad_configs = Vec::new();
+            if game_mode != GameMode::TheVoid && game_mode != GameMode::Dropshot {
+                if config.use_custom_boost_pads {
+                    boost_pad_configs = config.custom_boost_pads.clone();
+                } else {
+                    let small_pad_locs = consts::boost_pads::get_locations(game_mode, false);
+                    let big_pad_locs = consts::boost_pads::get_locations(game_mode, true);
+                    boost_pad_configs.reserve(small_pad_locs.len() + big_pad_locs.len());
 
-        if game_mode != GameMode::TheVoid && game_mode != GameMode::Dropshot {
-            if config.use_custom_boost_pads {
-                boost_pads.reserve(config.custom_boost_pads.len());
-                boost_pads.extend(config.custom_boost_pads.iter().copied().map(BoostPad::new));
-            } else {
-                let small_pad_locs = consts::boost_pads::get_locations(game_mode, false);
-                let big_pad_locs = consts::boost_pads::get_locations(game_mode, true);
-
-                boost_pads.reserve(small_pad_locs.len() + big_pad_locs.len());
-
-                for small_pos in small_pad_locs {
-                    boost_pads.push(BoostPad::new(BoostPadConfig {
-                        pos: *small_pos,
-                        is_big: false,
-                    }));
-                }
-                for big_pos in big_pad_locs {
-                    boost_pads.push(BoostPad::new(BoostPadConfig {
-                        pos: *big_pos,
-                        is_big: true,
-                    }));
+                    for small_pos in small_pad_locs {
+                        boost_pad_configs.push(BoostPadConfig {
+                            pos: *small_pos,
+                            is_big: false,
+                        });
+                    }
+                    for big_pos in big_pad_locs {
+                        boost_pad_configs.push(BoostPadConfig {
+                            pos: *big_pos,
+                            is_big: true,
+                        });
+                    }
                 }
             }
-        }
+
+            BoostPadGrid::new(&boost_pad_configs)
+        };
 
         let rng = config.rng_seed.map_or_else(Rng::new, Rng::with_seed);
 
@@ -340,7 +341,7 @@ impl Arena {
             data: ArenaInner {
                 ball,
                 game_mode,
-                boost_pads,
+                boost_pad_grid,
                 mutator_config,
                 tick_count: 0,
                 cars: AHashMap::with_capacity(6),
@@ -711,13 +712,6 @@ impl Arena {
             );
         }
 
-        let ball_only = self.data.cars.is_empty();
-        let has_arena_stuff = self.data.game_mode != GameMode::TheVoid;
-
-        if has_arena_stuff && !ball_only {
-            // todo: boostpad pretickupdate
-        }
-
         self.data
             .ball
             .pre_tick_update(self.data.game_mode, self.tick_time);
@@ -725,19 +719,26 @@ impl Arena {
         self.bullet_world
             .step_simulation(self.tick_time, &mut self.data);
 
+        // TODO: We have to clone this to prevent reference issues :(
+        let mutator_config = self.mutator_config().clone();
         for car in self.data.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.tick_time, rb);
-            car.finish_physics_tick(rb);
-
-            if has_arena_stuff {
-                // todo: boostpad collision checks
+            
+            // TODO: Get mutable state instead? Unsure
+            let mut car_state = *car.get_state();
+            if self
+                .data
+                .boost_pad_grid
+                .maybe_give_car_boost(&mut car_state, &mutator_config)
+            {
+                car.set_state(rb, &car_state);
             }
+
+            car.finish_physics_tick(rb);
         }
 
-        if has_arena_stuff && !ball_only {
-            // todo: boostpad posttickupdate
-        }
+        self.data.boost_pad_grid.post_tick_update(self.tick_time);
 
         self.data.ball.finish_physics_tick(
             &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
@@ -773,14 +774,14 @@ impl Arena {
 
     #[inline]
     #[must_use]
-    pub const fn mutator_config(&self) -> MutatorConfig {
-        self.data.mutator_config
+    pub const fn mutator_config(&self) -> &MutatorConfig {
+        &self.data.mutator_config
     }
 
     #[inline]
     #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
-        &self.data.boost_pads
+        &self.data.boost_pad_grid.pads()
     }
 
     #[inline]

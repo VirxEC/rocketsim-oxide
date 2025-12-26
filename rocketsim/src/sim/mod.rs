@@ -2,8 +2,6 @@ mod arena;
 mod arena_config;
 mod ball;
 mod boost_pad;
-#[allow(clippy::redundant_pub_crate)]
-pub(crate) mod boost_pad_grid;
 mod car;
 mod collision_masks;
 #[allow(clippy::redundant_pub_crate)]

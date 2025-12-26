@@ -68,6 +68,7 @@ impl CarSetup {
         result.phys.vel = self.vel;
         result.phys.ang_vel = self.ang_vel;
 
+        result.controls = self.controls;
         result.boost = self.boost;
         result
     }
