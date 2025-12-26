@@ -101,7 +101,7 @@ impl StaticPlaneShape {
         result_callback: &mut BridgeTriangleRaycastPacketCallback<T>,
         ray_info: &RayInfo,
     ) {
-        let plane = self.concave_shape.collision_shape.aabb_cache.unwrap();
+        let plane = self.concave_shape.collision_shape.aabb_ident_cache.unwrap();
         if !ray_info.aabb.intersects(&plane) {
             return;
         }
