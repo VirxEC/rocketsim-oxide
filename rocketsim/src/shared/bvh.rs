@@ -1,3 +1,4 @@
+use std::iter::repeat_n;
 use std::mem;
 
 use glam::{Vec3A, Vec4};
@@ -79,6 +80,14 @@ pub struct Tree {
 
 impl Tree {
     const SAH_BINS: usize = 4;
+
+    pub fn new(aabb: Aabb, num_leaf_nodes: usize) -> Self {
+        Self {
+            aabb,
+            cur_node_index: 0,
+            nodes: repeat_n(Node::DEFAULT, 2 * num_leaf_nodes).collect(),
+        }
+    }
 
     #[allow(
         clippy::cast_precision_loss,

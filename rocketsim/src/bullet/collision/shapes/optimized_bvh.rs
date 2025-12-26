@@ -1,5 +1,3 @@
-use std::iter::repeat_n;
-
 use glam::Vec3A;
 
 use super::triangle_mesh::TriangleMesh;
@@ -50,12 +48,7 @@ pub fn create_bvh(triangles: &TriangleMesh, aabb: Aabb) -> Tree {
 
     let num_leaf_nodes = leaf_nodes.len();
 
-    let mut bvh = Tree {
-        aabb,
-        cur_node_index: 0,
-        nodes: repeat_n(Node::DEFAULT, 2 * num_leaf_nodes).collect(),
-    };
-
+    let mut bvh = Tree::new(aabb, num_leaf_nodes);
     bvh.build_tree(&mut leaf_nodes, 0, num_leaf_nodes);
 
     bvh
