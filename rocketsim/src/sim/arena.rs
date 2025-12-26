@@ -731,7 +731,9 @@ impl Arena {
             car.finish_physics_tick(rb);
         }
 
-        self.data.boost_pad_grid.post_tick_update(self.tick_time);
+        if !self.data.cars.is_empty() {
+            self.data.boost_pad_grid.post_tick_update(self.tick_time);
+        }
 
         self.data.ball.finish_physics_tick(
             &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
