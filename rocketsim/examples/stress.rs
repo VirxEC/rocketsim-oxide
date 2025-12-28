@@ -150,14 +150,14 @@ fn main() {
             arena.reset_to_random_kickoff();
 
             // Accelerate the ball randomly
-            let mut ball_state = *arena.get_ball();
+            let mut ball_state = *arena.get_ball_state();
             ball_state.phys.vel +=
                 Vec3A::new(rand_axis_val(), rand_axis_val(), rand_axis_val()) * VEL_ADD_MAG;
-            arena.set_ball(ball_state);
+            arena.set_ball_state(ball_state);
         }
 
         for _ in 0..NUM_EPISODE_TICKS {
-            let ball_state = *arena.get_ball();
+            let ball_state = *arena.get_ball_state();
             for &id in &ids {
                 const UPDATE_CHANCE: f32 = 0.05; // (120 * 0.05) = Avg of 6 per sec
 

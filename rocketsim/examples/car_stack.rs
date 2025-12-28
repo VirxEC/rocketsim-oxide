@@ -17,9 +17,9 @@ fn main() {
     let id2 = arena.add_car(Team::Blue, CarConfig::OCTANE);
     arena.reset_to_random_kickoff();
 
-    let mut ball_state = *arena.get_ball();
+    let mut ball_state = *arena.get_ball_state();
     ball_state.phys.pos.z += 200.0;
-    arena.set_ball(ball_state);
+    arena.set_ball_state(ball_state);
 
     {
         let state = arena.car(id).get_state();

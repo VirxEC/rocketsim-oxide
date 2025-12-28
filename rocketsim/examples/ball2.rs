@@ -9,10 +9,10 @@ fn main() {
     ball.phys.vel.y = 1550.0;
     ball.phys.vel.z = 0.0;
 
-    arena.set_ball(ball);
+    arena.set_ball_state(ball);
     arena.step(720);
 
-    let ball = arena.get_ball();
+    let ball = arena.get_ball_state();
     println!("\npos: {}", ball.phys.pos);
     println!("vel: {}", ball.phys.vel);
     println!("ang_vel: {}", ball.phys.ang_vel);

@@ -1,5 +1,5 @@
 use std::{f32::consts::PI, iter::repeat_n, mem};
-
+use std::ops::{Deref, DerefMut};
 use ahash::AHashMap;
 use arrayvec::ArrayVec;
 use fastrand::Rng;
@@ -35,14 +35,76 @@ use crate::{
     },
 };
 
-/// The arena's inner data, separated to prevent circular reference issues
-struct ArenaInner {
-    ball: Ball,
-    cars: AHashMap<u64, Car>,
-    tick_count: u64,
-    game_mode: GameMode,
-    mutator_config: MutatorConfig,
-    boost_pad_grid: BoostPadGrid,
+pub struct ArenaInner {
+    pub(crate) rng: Rng,
+    pub(crate) tick_time: f32,
+    pub(crate) last_car_id: u64,
+    config: ArenaConfig,
+
+    pub(crate) ball: Ball,
+    pub(crate) cars: AHashMap<u64, Car>,
+    pub(crate) tick_count: u64,
+    pub(crate) game_mode: GameMode,
+    pub(crate) mutator_config: MutatorConfig,
+    pub(crate) boost_pad_grid: BoostPadGrid,
+}
+
+impl ContactAddedCallback for ArenaInner {
+    fn callback<'a>(
+        &mut self,
+        contact_point: &mut ManifoldPoint,
+        mut body_a: &'a CollisionObject,
+        mut body_b: &'a CollisionObject,
+    ) {
+        debug_assert!(body_a.has_contact_response() || body_b.has_contact_response());
+
+        let should_swap = if body_a.user_index != UserInfoTypes::None
+            && body_b.user_index != UserInfoTypes::None
+        {
+            body_a.user_index > body_b.user_index
+        } else {
+            body_b.user_index != UserInfoTypes::None
+        };
+
+        if should_swap {
+            mem::swap(&mut body_a, &mut body_b);
+        }
+
+        let user_index_a = body_a.user_index;
+        let user_index_b = body_b.user_index;
+
+        if user_index_a == UserInfoTypes::Car {
+            match user_index_b {
+                UserInfoTypes::Ball => {
+                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap);
+                }
+                UserInfoTypes::Car => self.on_car_car_collision(
+                    body_a.user_pointer,
+                    body_b.user_pointer,
+                    contact_point,
+                ),
+                _ => self.on_car_world_collision(body_a.user_pointer, contact_point),
+            }
+        } else if user_index_a == UserInfoTypes::Ball {
+            if user_index_b == UserInfoTypes::DropshotTile {
+                todo!()
+            } else if user_index_b == UserInfoTypes::None {
+                contact_point.is_special = true;
+            }
+        }
+
+        if should_swap {
+            mem::swap(&mut body_a, &mut body_b);
+        }
+
+        let index = if should_swap {
+            contact_point.index_0
+        } else {
+            contact_point.index_1
+        };
+
+        adjust_internal_edge_contacts(contact_point, body_a, index as usize);
+    }
 }
 
 impl ArenaInner {
@@ -61,14 +123,7 @@ impl ArenaInner {
             manifold_point.local_point_b
         };
 
-        let car = self.cars.get_mut(&car_id).unwrap();
-        self.ball.on_hit(
-            car,
-            rel_ball_pos,
-            self.game_mode,
-            &self.mutator_config,
-            self.tick_count,
-        );
+        self.on_ball_hit(car_id, rel_ball_pos);
     }
 
     fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &mut ManifoldPoint) {
@@ -88,11 +143,12 @@ impl ArenaInner {
         manifold_point.combined_friction = consts::car::HIT_CAR_COEFS.friction;
         manifold_point.combined_restitution = consts::car::HIT_CAR_COEFS.restitution;
 
-        debug_assert_ne!(car_1_id, car_2_id);
-        let [car_1, car_2] =
-            unsafe { self.cars.get_disjoint_unchecked_mut([&car_1_id, &car_2_id]) };
-        let mut car_1 = car_1.unwrap();
-        let mut car_2 = car_2.unwrap();
+        let [Some(mut car_1), Some(mut car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id])
+        else {
+            panic!(
+                "on_car_car_collision() called with invalid or duplicate car ids: {car_1_id}=={car_2_id}"
+            );
+        };
 
         if car_1.internal_state.is_demoed || car_2.internal_state.is_demoed {
             return;
@@ -162,7 +218,7 @@ impl ArenaInner {
                 } else {
                     consts::curves::BUMP_VEL_AMOUNT_AIR
                 }
-                .get_output(speed_towards_other_car);
+                    .get_output(speed_towards_other_car);
 
                 let hit_up_dir = if state_2.is_on_ground {
                     state_2.phys.rot_mat.z_axis
@@ -172,9 +228,9 @@ impl ArenaInner {
 
                 let bump_impulse = vel_dir * base_scale
                     + hit_up_dir
-                        * consts::curves::BUMP_UPWARD_VEL_AMOUNT
-                            .get_output(speed_towards_other_car)
-                        * self.mutator_config.bump_force_scale;
+                    * consts::curves::BUMP_UPWARD_VEL_AMOUNT
+                    .get_output(speed_towards_other_car)
+                    * self.mutator_config.bump_force_scale;
 
                 car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
             }
@@ -189,78 +245,26 @@ impl ArenaInner {
     }
 }
 
-impl ContactAddedCallback for ArenaInner {
-    fn callback<'a>(
-        &mut self,
-        contact_point: &mut ManifoldPoint,
-        mut body_a: &'a CollisionObject,
-        mut body_b: &'a CollisionObject,
-    ) {
-        debug_assert!(body_a.has_contact_response() || body_b.has_contact_response());
-
-        let should_swap = if body_a.user_index != UserInfoTypes::None
-            && body_b.user_index != UserInfoTypes::None
-        {
-            body_a.user_index > body_b.user_index
-        } else {
-            body_b.user_index != UserInfoTypes::None
-        };
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
-
-        let user_index_a = body_a.user_index;
-        let user_index_b = body_b.user_index;
-
-        if user_index_a == UserInfoTypes::Car {
-            match user_index_b {
-                UserInfoTypes::Ball => {
-                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap);
-                }
-                UserInfoTypes::Car => self.on_car_car_collision(
-                    body_a.user_pointer,
-                    body_b.user_pointer,
-                    contact_point,
-                ),
-                _ => self.on_car_world_collision(body_a.user_pointer, contact_point),
-            }
-        } else if user_index_a == UserInfoTypes::Ball {
-            if user_index_b == UserInfoTypes::DropshotTile {
-                todo!()
-            } else if user_index_b == UserInfoTypes::None {
-                contact_point.is_special = true;
-            }
-        }
-
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
-
-        let index = if should_swap {
-            contact_point.index_0
-        } else {
-            contact_point.index_1
-        };
-
-        adjust_internal_edge_contacts(contact_point, body_a, index as usize);
-    }
-}
-
 pub type GoalScoredCallback = fn(&mut Arena, Team);
 
-pub struct Arena<D = ()> {
-    rng: Rng,
-    tick_time: f32,
-    last_car_id: u64,
-    config: ArenaConfig,
-    bullet_world: DiscreteDynamicsWorld,
-    data: ArenaInner,
+pub struct Arena {
+    pub(crate) bullet_world: DiscreteDynamicsWorld,
+    pub(crate) inner: ArenaInner,
+
     /// Callback that is called when a goal is scored.
     ///
     /// By default, this calls `Arena::reset_to_random_kickoff`.
-    pub goal_scored_callback: Option<GoalScoredCallback>,
-    pub user_data: Option<D>,
+    pub(crate) goal_scored_callback: Option<GoalScoredCallback>,
+}
+
+// Implicit resolution of inner components
+impl Deref for Arena {
+    type Target = ArenaInner;
+    fn deref(&self) -> &Self::Target { &self.inner }
+}
+
+impl DerefMut for Arena {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.inner }
 }
 
 impl Arena {
@@ -340,12 +344,11 @@ impl Arena {
         let rng = config.rng_seed.map_or_else(Rng::new, Rng::with_seed);
 
         Self {
-            rng,
-            config,
-            bullet_world,
-            last_car_id: 0,
-            tick_time: 1. / f32::from(tick_rate),
-            data: ArenaInner {
+            inner: ArenaInner {
+                rng,
+                config,
+                last_car_id: 0,
+                tick_time: 1. / f32::from(tick_rate),
                 ball,
                 game_mode,
                 boost_pad_grid,
@@ -353,14 +356,14 @@ impl Arena {
                 tick_count: 0,
                 cars: AHashMap::with_capacity(6),
             },
+            bullet_world,
             goal_scored_callback: None,
-            user_data: None,
         }
     }
 
     #[must_use]
     pub const fn get_config(&self) -> &ArenaConfig {
-        &self.config
+        &self.inner.config
     }
 
     fn add_static_collision_shape(
@@ -505,17 +508,16 @@ impl Arena {
 
     #[must_use]
     pub fn is_ball_scored(&self) -> bool {
-        let ball_pos = self.bullet_world.bodies()[self.data.ball.rigid_body_idx]
+        let ball_pos = self.bullet_world.bodies()[self.ball.rigid_body_idx]
             .collision_object
             .get_world_transform()
             .translation
             * BT_TO_UU;
 
-        match self.data.game_mode {
+        match self.game_mode {
             GameMode::Soccar | GameMode::Heatseeker | GameMode::Snowday => {
                 ball_pos.y.abs()
-                    > self.data.mutator_config.goal_base_threshold_y
-                        + self.data.mutator_config.ball_radius
+                    > self.mutator_config.goal_base_threshold_y + self.mutator_config.ball_radius
             }
             GameMode::Hoops => {
                 if ball_pos.z < consts::goal::HOOPS_GOAL_SCORE_THRESHOLD_Z {
@@ -524,18 +526,18 @@ impl Arena {
                     false
                 }
             }
-            GameMode::Dropshot => ball_pos.z < -self.data.mutator_config.ball_radius * 1.75,
+            GameMode::Dropshot => ball_pos.z < -self.mutator_config.ball_radius * 1.75,
             GameMode::TheVoid => false,
         }
     }
 
     #[must_use]
-    pub const fn get_tick_rate(&self) -> f32 {
+    pub fn get_tick_rate(&self) -> f32 {
         1.0 / self.tick_time
     }
 
     pub fn reset_to_random_kickoff(&mut self) {
-        let game_mode = self.data.game_mode;
+        let game_mode = self.game_mode;
         let kickoff_locs = consts::car::spawn::get_kickoff_spawn_locations(game_mode);
         let respawn_locs = consts::car::spawn::get_respawn_locations(game_mode);
 
@@ -546,7 +548,7 @@ impl Arena {
         let mut num_blue_cars = 0;
         let mut num_orange_cars = 0;
 
-        for (_, car) in &mut self.data.cars {
+        for (_, car) in &mut self.cars {
             if car.team == Team::Blue {
                 num_blue_cars += 1;
             } else {
@@ -579,13 +581,13 @@ impl Arena {
                     vel: Vec3A::ZERO,
                     ang_vel: Vec3A::ZERO,
                 },
-                boost: self.data.mutator_config.car_spawn_boost_amount,
+                boost: self.mutator_config.car_spawn_boost_amount,
                 is_on_ground: true,
                 ..Default::default()
             };
 
             for is_blue in [true, false] {
-                let team_cars = self.data.cars.values_mut().filter(|car| {
+                let team_cars = self.inner.cars.values_mut().filter(|car| {
                     if is_blue {
                         car.team == Team::Blue
                     } else {
@@ -617,7 +619,7 @@ impl Arena {
         }
 
         let mut ball_state = BallState::DEFAULT;
-        match self.data.game_mode {
+        match self.game_mode {
             GameMode::Heatseeker => {
                 let next_rand = self.rng.bool();
                 let y_sign = f32::from(i8::from(next_rand) * 2 - 1);
@@ -631,12 +633,9 @@ impl Arena {
             _ => {}
         }
 
-        self.data.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
-            ball_state,
-        );
+        self.set_ball_state(ball_state);
 
-        self.data.boost_pad_grid.reset();
+        self.boost_pad_grid.reset();
 
         // TODO
         // Reset tile states
@@ -653,30 +652,30 @@ impl Arena {
             id,
             team,
             &mut self.bullet_world,
-            &self.data.mutator_config,
+            &self.inner.mutator_config,
             config,
         );
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            &mut self.rng,
-            self.data.game_mode,
-            self.data.mutator_config.car_spawn_boost_amount,
+            &mut self.inner.rng,
+            self.inner.game_mode,
+            self.inner.mutator_config.car_spawn_boost_amount,
         );
 
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
             .collision_object
             .user_pointer = self.last_car_id;
-        self.data.cars.insert(self.last_car_id, car);
+        self.inner.cars.insert(self.inner.last_car_id, car);
         self.last_car_id
     }
 
     pub fn remove_car(&mut self, id: u64) -> bool {
-        if let Some(car) = self.data.cars.remove(&id) {
-            if car.rigid_body_idx < self.data.ball.rigid_body_idx {
-                self.data.ball.rigid_body_idx -= 1;
+        if let Some(car) = self.cars.remove(&id) {
+            if car.rigid_body_idx < self.ball.rigid_body_idx {
+                self.ball.rigid_body_idx -= 1;
             }
 
-            for other_car in self.data.cars.values_mut() {
+            for other_car in self.cars.values_mut() {
                 if car.rigid_body_idx < other_car.rigid_body_idx {
                     other_car.rigid_body_idx -= 1;
                     other_car.bullet_vehicle.chassis_body_idx -= 1;
@@ -699,8 +698,8 @@ impl Arena {
     }
 
     fn internal_step(&mut self) {
-        {
-            let ball_rb = &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx];
+        { // Update ball activation
+            let ball_rb = &mut self.bullet_world.bodies_mut()[self.inner.ball.rigid_body_idx];
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
 
@@ -713,49 +712,43 @@ impl Arena {
                 });
         }
 
-        for car in self.data.cars.values_mut() {
+        for car in self.inner.cars.values_mut() {
             car.pre_tick_update(
                 &mut self.bullet_world,
-                &mut self.rng,
-                self.data.game_mode,
-                self.tick_time,
-                &self.data.mutator_config,
+                &mut self.inner.rng,
+                self.inner.game_mode,
+                self.inner.tick_time,
+                &self.inner.mutator_config,
             );
         }
 
-        self.data
-            .ball
-            .pre_tick_update(self.data.game_mode, self.tick_time);
+        self.ball_pre_tick_update();
 
-        self.bullet_world
-            .step_simulation(self.tick_time, &mut self.data);
+        self.bullet_world.step_simulation(self.tick_time, &mut self.inner);
 
-        for car in self.data.cars.values_mut() {
+        for car in self.inner.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
-            car.post_tick_update(self.tick_time, rb);
+            car.post_tick_update(self.inner.tick_time, rb);
             car.finish_physics_tick(rb);
 
-            self.data.boost_pad_grid.maybe_give_car_boost(
+            self.inner.boost_pad_grid.maybe_give_car_boost(
                 &mut car.internal_state,
-                &self.data.mutator_config,
-                self.data.tick_count,
-                self.tick_time,
+                &self.inner.mutator_config,
+                self.inner.tick_count,
+                self.inner.tick_time,
             );
         }
 
-        self.data.ball.finish_physics_tick(
-            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
-            &self.data.mutator_config,
-        );
+        self.ball_finish_physics_tick();
 
-        if self.data.game_mode == GameMode::Dropshot {
+        if self.game_mode == GameMode::Dropshot {
             todo!("dropshot tile state sync")
         }
 
         if let Some(callback) = self.goal_scored_callback
             && self.is_ball_scored()
         {
-            let ball = &self.bullet_world.bodies()[self.data.ball.rigid_body_idx];
+            let ball = &self.bullet_world.bodies()[self.ball.rigid_body_idx];
             let scoring_team = if ball.collision_object.get_world_transform().translation.y > 0.0 {
                 Team::Blue
             } else {
@@ -765,7 +758,7 @@ impl Arena {
             callback(self, scoring_team);
         }
 
-        self.data.tick_count += 1;
+        self.tick_count += 1;
     }
 
     pub fn step(&mut self, ticks_to_simulate: u32) {
@@ -777,76 +770,61 @@ impl Arena {
     #[inline]
     #[must_use]
     pub const fn tick_count(&self) -> u64 {
-        self.data.tick_count
+        self.inner.tick_count
     }
 
     #[inline]
     #[must_use]
     pub const fn game_mode(&self) -> GameMode {
-        self.data.game_mode
+        self.inner.game_mode
     }
 
     #[inline]
     #[must_use]
     pub const fn mutator_config(&self) -> &MutatorConfig {
-        &self.data.mutator_config
+        &self.inner.mutator_config
     }
 
     #[inline]
     #[must_use]
     pub fn boost_pads(&self) -> &[BoostPad] {
-        self.data.boost_pad_grid.pads()
+        self.boost_pad_grid.pads()
     }
 
     #[inline]
     #[must_use]
     pub fn boost_pads_mut(&mut self) -> &mut [BoostPad] {
-        self.data.boost_pad_grid.pads_mut()
-    }
-
-    #[inline]
-    #[must_use]
-    pub const fn get_ball(&self) -> &BallState {
-        &self.data.ball.internal_state
-    }
-
-    #[inline]
-    pub fn set_ball(&mut self, state: BallState) {
-        self.data.ball.set_state(
-            &mut self.bullet_world.bodies_mut()[self.data.ball.rigid_body_idx],
-            state,
-        );
+        self.boost_pad_grid.pads_mut()
     }
 
     #[inline]
     #[must_use]
     pub const fn cars(&self) -> &AHashMap<u64, Car> {
-        &self.data.cars
+        &self.inner.cars
     }
 
     #[must_use]
     pub fn car(&self, car_id: u64) -> &Car {
-        self.data.cars.get(&car_id).unwrap()
+        self.cars.get(&car_id).unwrap()
     }
 
     #[must_use]
     pub fn car_mut(&mut self, car_id: u64) -> &mut Car {
-        self.data.cars.get_mut(&car_id).unwrap()
+        self.cars.get_mut(&car_id).unwrap()
     }
 
     #[must_use]
     pub fn get_car(&self, car_id: u64) -> Option<&Car> {
-        self.data.cars.get(&car_id)
+        self.cars.get(&car_id)
     }
 
     #[must_use]
     pub fn get_car_mut(&mut self, car_id: u64) -> Option<&mut Car> {
-        self.data.cars.get_mut(&car_id)
+        self.cars.get_mut(&car_id)
     }
 
     pub fn set_car_state(&mut self, car_id: u64, state: CarState) {
-        let car = self
-            .data
+        let car = self.inner
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");
@@ -858,17 +836,16 @@ impl Arena {
     }
 
     pub fn respawn_car(&mut self, car_id: u64) {
-        let car = self
-            .data
+        let car = self.inner
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");
 
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            &mut self.rng,
-            self.data.game_mode,
-            self.data.mutator_config.car_spawn_boost_amount,
+            &mut self.inner.rng,
+            self.inner.game_mode,
+            self.inner.mutator_config.car_spawn_boost_amount,
         );
     }
 
@@ -893,7 +870,7 @@ impl Arena {
                         .collect(),
                 )
             },
-            ball: *self.get_ball(),
+            ball: *self.get_ball_state(),
             pads: if self.boost_pads().is_empty() {
                 None
             } else {
@@ -928,7 +905,7 @@ impl Arena {
             }
         }
 
-        self.set_ball(state.ball);
+        self.set_ball_state(state.ball);
 
         if let Some(pads) = state.pads {
             if pads.len() != self.boost_pads().len() {

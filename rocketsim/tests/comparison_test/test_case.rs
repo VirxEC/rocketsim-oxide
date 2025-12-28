@@ -77,7 +77,7 @@ impl TestCase {
         if let Some(ball_setup) = self.ball_setup {
             // Set ball
             let new_ball_state = ball_setup.make_ball_state();
-            new_arena.set_ball(new_ball_state);
+            new_arena.set_ball_state(new_ball_state);
             old_arena_ptr
                 .pin_mut()
                 .set_ball(state_convert::conv_to_old_ball_state(&new_ball_state));
@@ -85,7 +85,7 @@ impl TestCase {
             // Send ball to the backrooms
             let mut new_ball_state = BallState::default();
             new_ball_state.phys.pos = Vec3A::new(0.0, 0.0, -9999.0);
-            new_arena.set_ball(new_ball_state);
+            new_arena.set_ball_state(new_ball_state);
             old_arena_ptr
                 .pin_mut()
                 .set_ball(state_convert::conv_to_old_ball_state(&new_ball_state));
@@ -124,7 +124,7 @@ impl TestCase {
                 }
 
                 if self.ball_setup.is_some() {
-                    let new_ball_state = new_arena.get_ball();
+                    let new_ball_state = new_arena.get_ball_state();
                     let old_ball_state = &old_arena_ptr.pin_mut().get_ball();
                     let old_ball_state_conv =
                         &state_convert::conv_to_new_ball_state(old_ball_state);
@@ -154,10 +154,10 @@ impl TestCase {
             }
 
             let ball_state_pair = if self.ball_setup.is_some() {
-                let new_ball_state = *new_arena.get_ball();
+                let new_ball_state = *new_arena.get_ball_state();
                 let old_ball_state = old_arena_ptr.pin_mut().get_ball();
                 let old_ball_state_conv = state_convert::conv_to_new_ball_state(&old_ball_state);
-                new_arena.set_ball(old_ball_state_conv);
+                new_arena.set_ball_state(old_ball_state_conv);
                 Some((new_ball_state, old_ball_state_conv))
             } else {
                 None

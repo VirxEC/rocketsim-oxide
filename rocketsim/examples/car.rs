@@ -12,9 +12,9 @@ fn main() {
     fastrand::seed(0);
     arena.reset_to_random_kickoff();
 
-    let mut ball_state = *arena.get_ball();
+    let mut ball_state = *arena.get_ball_state();
     ball_state.phys.pos.z += 1000.0;
-    arena.set_ball(ball_state);
+    arena.set_ball_state(ball_state);
 
     let state = {
         let car = arena.car(id);
@@ -33,7 +33,7 @@ fn main() {
 
     let start = Instant::now();
     for _ in 0..10_000 {
-        arena.set_ball(ball_state);
+        arena.set_ball_state(ball_state);
         arena.set_car_state(id, state);
         arena.step(720);
     }

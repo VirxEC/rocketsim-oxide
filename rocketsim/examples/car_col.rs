@@ -8,9 +8,9 @@ fn main() {
     let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
     let id2 = arena.add_car(Team::Orange, CarConfig::OCTANE);
 
-    let mut ball_state = *arena.get_ball();
+    let mut ball_state = *arena.get_ball_state();
     ball_state.phys.pos.z += 200.0;
-    arena.set_ball(ball_state);
+    arena.set_ball_state(ball_state);
 
     {
         let car1 = arena.car(id);

@@ -13,7 +13,7 @@ fn main() {
         ball.phys.vel.y = 1550.0;
         ball.phys.vel.z = 0.0;
 
-        arena.set_ball(ball);
+        arena.set_ball_state(ball);
         arena.step(720);
     }
     let elapsed = Instant::now().duration_since(start).as_secs_f32();
