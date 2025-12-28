@@ -128,7 +128,7 @@ impl ArenaInner {
             manifold_point.local_point_a
         } else {
             manifold_point.local_point_b
-        };
+        } * BT_TO_UU;
 
         self.on_ball_hit(car_id, rel_ball_pos);
     }
