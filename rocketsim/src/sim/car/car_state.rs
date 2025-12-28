@@ -93,7 +93,7 @@ impl Default for CarState {
 impl CarState {
     pub const DEFAULT: Self = Self {
         phys: PhysState {
-            pos: Vec3A::new(0.0, 0.0, crate::sim::consts::car::spawn::SPAWN_Z),
+            pos: Vec3A::new(0.0, 0.0, crate::sim::consts::car::spawn::REST_Z),
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
             ang_vel: Vec3A::ZERO,
