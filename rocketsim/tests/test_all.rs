@@ -15,9 +15,8 @@ fn test_comparisons() {
 
     init_for_test();
 
-    let ball_test_cases = all_test_cases::make_ball_cases();
-    let car_test_cases = all_test_cases::make_car_cases();
-    for test_case in ball_test_cases.iter().chain(car_test_cases.iter()) {
+    let test_cases = all_test_cases::make_all_cases();
+    for test_case in test_cases {
         let test_result = test_case.run();
 
         for (tick_idx, state) in test_result.ticks.iter().enumerate() {

@@ -3,7 +3,7 @@ use rocketsim::{CarControls, GameMode, Team};
 
 use crate::comparison_test::{BallSetup, CarSetup, ControlsBuilder, TestCase};
 
-pub fn make_ball_cases() -> Vec<TestCase> {
+fn make_ball_cases() -> Vec<TestCase> {
     let simple_ball_case = |name: &'static str,
                             duration_ticks: usize,
                             pos: (i32, i32, i32),
@@ -11,7 +11,7 @@ pub fn make_ball_cases() -> Vec<TestCase> {
                             ang_vel: (i32, i32, i32)|
      -> TestCase {
         TestCase {
-            name,
+            name: format!("ball_{name}"),
             game_mode: GameMode::Soccar,
             car_setups: Vec::new(),
             ball_setup: Some(
@@ -85,7 +85,7 @@ pub fn make_ball_cases() -> Vec<TestCase> {
 
 ///////////////////
 
-pub fn make_car_cases() -> Vec<TestCase> {
+fn make_car_cases() -> Vec<TestCase> {
     let simple_car_case = |name: &'static str,
                            duration_ticks: usize,
                            pos: (i32, i32, i32),
@@ -96,7 +96,7 @@ pub fn make_car_cases() -> Vec<TestCase> {
                            is_on_ground: bool|
      -> TestCase {
         TestCase {
-            name,
+            name: format!("car_{name}"),
             game_mode: GameMode::Soccar,
             car_setups: vec![
                 CarSetup::new(Team::Blue, IVec3::new(pos.0, pos.1, pos.2).as_vec3a())
@@ -256,4 +256,94 @@ pub fn make_car_cases() -> Vec<TestCase> {
             false,
         ),
     ]
+}
+
+///////////////////
+
+fn make_car_ball_cases() -> Vec<TestCase> {
+    let simple_case = |name: &'static str,
+                       duration_ticks: usize,
+                       car_pos: (i32, i32, i32),
+                       car_euler_rot_ypr: (f32, f32, f32),
+                       car_vel: (i32, i32, i32),
+                       car_ang_vel: (i32, i32, i32),
+
+                       ball_pos: (i32, i32, i32),
+                       ball_vel: (i32, i32, i32),
+                       ball_ang_vel: (i32, i32, i32),
+
+                       car_controls: CarControls,
+                       is_on_ground: bool|
+     -> TestCase {
+        TestCase {
+            name: format!("car_ball_{name}"),
+            game_mode: GameMode::Soccar,
+            car_setups: vec![
+                CarSetup::new(
+                    Team::Blue,
+                    IVec3::new(car_pos.0, car_pos.1, car_pos.2).as_vec3a(),
+                )
+                .with_rot(Mat3A::from_euler(
+                    EulerRot::ZYX,
+                    car_euler_rot_ypr.0,
+                    car_euler_rot_ypr.1,
+                    car_euler_rot_ypr.2,
+                ))
+                .with_vel(IVec3::new(car_vel.0, car_vel.1, car_vel.2).as_vec3a())
+                .with_ang_vel(IVec3::new(car_ang_vel.0, car_ang_vel.1, car_ang_vel.2).as_vec3a())
+                .with_controls(car_controls)
+                .with_on_ground(is_on_ground),
+            ],
+            ball_setup: Some(
+                BallSetup::new(IVec3::new(ball_pos.0, ball_pos.1, ball_pos.2).as_vec3a())
+                    .with_vel(IVec3::new(ball_vel.0, ball_vel.1, ball_vel.2).as_vec3a())
+                    .with_ang_vel(
+                        IVec3::new(ball_ang_vel.0, ball_ang_vel.1, ball_ang_vel.2).as_vec3a(),
+                    ),
+            ),
+            duration_ticks,
+        }
+    };
+
+    vec![
+        simple_case(
+            "basic_air_hit",
+            30,
+            (-175, 0, 500),
+            (0.0, 0.0, 0.0),
+            (800, 0, 0),
+            (0, 0, 0),
+
+            (0, 0, 500),
+            (0, 0, 0),
+            (0, 0, 0),
+
+            CarControls::DEFAULT,
+            true,
+        ),
+
+        simple_case(
+            "basic_push",
+            60,
+            (-175, 0, 17),
+            (0.0, 0.0, 0.0),
+            (0, 0, 0),
+            (0, 0, 0),
+
+            (0, 0, 93),
+            (0, 0, 0),
+            (0, 0, 0),
+
+            ControlsBuilder::new().with_throttle(1.0).build(),
+            true,
+        ),
+    ]
+}
+
+pub fn make_all_cases() -> Vec<TestCase> {
+    let itr = make_ball_cases()
+        .into_iter()
+        .chain(make_car_cases())
+        .chain(make_car_ball_cases());
+    itr.collect()
 }

@@ -13,7 +13,7 @@ use crate::comparison_test::{
 
 #[derive(Debug, Clone)]
 pub struct TestCase {
-    pub name: &'static str,
+    pub name: String,
     pub game_mode: GameMode,
     pub car_setups: Vec<CarSetup>,
     pub ball_setup: Option<BallSetup>,
