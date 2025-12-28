@@ -4,7 +4,7 @@ use super::{
     collision_margin::CONVEX_DISTANCE_MARGIN, convex_internal_shape::ConvexInternalShape,
     polyhedral_convex_shape::PolyhedralConvexShape,
 };
-use crate::bullet::linear_math::aabb_util_2::{transform_aabb};
+use crate::bullet::linear_math::aabb_util_2::transform_aabb;
 use crate::shared::Aabb;
 
 pub struct BoxShape {
@@ -35,6 +35,16 @@ impl BoxShape {
                 .polyhedral_convex_shape
                 .convex_internal_shape
                 .collision_margin
+    }
+
+    pub fn get_half_extents_no_margin(&self) -> Vec3A {
+        self.polyhedral_convex_shape
+            .convex_internal_shape
+            .implicit_shape_dimensions
+    }
+
+    pub fn get_margin(&self) -> f32 {
+        self.polyhedral_convex_shape.convex_internal_shape.collision_margin
     }
 
     pub fn get_aabb(&self, t: &Affine3A) -> Aabb {

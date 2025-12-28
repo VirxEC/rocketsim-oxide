@@ -58,16 +58,16 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let new_child_world_trans = org_trans * child_trans;
 
         let box_shape = &self.obb_shape.child_shape;
-        let box_aabb = box_shape.get_aabb(&Affine3A::IDENTITY);
+        let box_extents = box_shape.get_half_extents_no_margin();
 
         let sphere_from_local = new_child_world_trans.inv_x_form(sphere_trans.translation);
 
-        let closest = sphere_from_local.clamp(box_aabb.min, box_aabb.max);
+        let closest = sphere_from_local.clamp(-box_extents, box_extents);
         let delta = sphere_from_local - closest;
         let dist_sq = delta.length_squared();
 
         let radius = self.sphere_shape.get_radius();
-        let radius_with_threshold = radius + SPHERE_RADIUS_MARGIN;
+        let radius_with_threshold = radius + box_shape.get_margin();
         if dist_sq >= radius_with_threshold * radius_with_threshold {
             return None;
         }
