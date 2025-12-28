@@ -10,7 +10,7 @@ struct GridCell {
 #[derive(Debug, Clone)]
 pub struct BoostPadGrid {
     cells: [GridCell; BoostPadGrid::CELL_AMOUNT],
-    pub(crate) all_pads: Vec<BoostPad>,
+    pub all_pads: Vec<BoostPad>,
     max_pad_z: f32,
 }
 
@@ -142,7 +142,7 @@ impl BoostPadGrid {
                 )
             };
 
-            if let Some(last_give_tick_count) = pad.internal_state.gave_boost_tick_count
+            if let Some(last_give_tick_count) = pad.state.gave_boost_tick_count
                 && (tick_count - last_give_tick_count) as f32 * tick_time < cooldown
             {
                 continue;
@@ -160,7 +160,7 @@ impl BoostPadGrid {
                 // Give boost
                 car_state.boost =
                     (car_state.boost + boost_give_amount).min(mutator_config.car_max_boost_amount);
-                pad.internal_state.gave_boost_tick_count = Some(tick_count);
+                pad.state.gave_boost_tick_count = Some(tick_count);
 
                 return;
             }

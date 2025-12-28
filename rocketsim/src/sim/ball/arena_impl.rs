@@ -6,7 +6,7 @@ use glam::{Affine3A, Vec3A};
 
 impl Arena {
     pub fn get_ball_state(&self) -> &BallState {
-        &self.ball.internal_state
+        &self.ball.state
     }
 
     pub fn set_ball_state(&mut self, state: BallState) {
@@ -30,7 +30,7 @@ impl Arena {
                 .set_activation_state(ActivationState::Active);
         }
 
-        ball.internal_state = state;
+        ball.state = state;
     }
 
     pub(crate) fn ball_pre_tick_update(&mut self) {
@@ -66,19 +66,19 @@ impl Arena {
             rb.angular_velocity = rb.angular_velocity.normalize() * consts::ball::MAX_ANG_SPEED;
         }
 
-        ball.internal_state.phys.vel = rb.linear_velocity * consts::BT_TO_UU;
-        ball.internal_state.phys.ang_vel = rb.angular_velocity;
+        ball.state.phys.vel = rb.linear_velocity * consts::BT_TO_UU;
+        ball.state.phys.ang_vel = rb.angular_velocity;
 
         let trans = *rb.collision_object.get_world_transform();
-        ball.internal_state.phys.pos = trans.translation * consts::BT_TO_UU;
-        ball.internal_state.phys.rot_mat = trans.matrix3;
+        ball.state.phys.pos = trans.translation * consts::BT_TO_UU;
+        ball.state.phys.rot_mat = trans.matrix3;
     }
 }
 
 impl ArenaInner {
     pub(crate) fn on_ball_hit(&mut self, car_id: u64, rel_pos: Vec3A) {
         let tick_count = self.tick_count;
-        let mut ball_state = self.ball.internal_state;
+        let mut ball_state = self.ball.state;
         let car = self.cars.get_mut(&car_id).unwrap();
 
         let mut ball_hit_info = BallHitInfo {
@@ -89,7 +89,7 @@ impl ArenaInner {
             tick_count_when_extra_impulse_applied: 0,
         };
 
-        if let Some(old_bhi) = car.internal_state.ball_hit_info {
+        if let Some(old_bhi) = car.state.ball_hit_info {
             ball_hit_info.tick_count_when_extra_impulse_applied =
                 old_bhi.tick_count_when_extra_impulse_applied;
 
@@ -97,24 +97,24 @@ impl ArenaInner {
             if tick_count <= old_bhi.tick_count_when_extra_impulse_applied + 1
                 && old_bhi.tick_count_when_extra_impulse_applied <= tick_count
             {
-                car.internal_state.ball_hit_info = Some(ball_hit_info);
+                car.state.ball_hit_info = Some(ball_hit_info);
                 return;
             }
         }
 
         ball_hit_info.tick_count_when_extra_impulse_applied = tick_count;
 
-        let car_forward = car.internal_state.phys.rot_mat.x_axis;
-        let rel_pos = ball_state.phys.pos - car.internal_state.phys.pos;
-        let rel_vel = ball_state.phys.vel - car.internal_state.phys.vel;
+        let car_forward = car.state.phys.rot_mat.x_axis;
+        let rel_pos = ball_state.phys.pos - car.state.phys.pos;
+        let rel_vel = ball_state.phys.vel - car.state.phys.vel;
 
         let rel_speed = rel_vel
             .length()
             .min(consts::ball::car_hit_impulse::MAX_DELTA_VEL_UU);
         if rel_speed > 0.0 {
             let extra_z_scale = self.game_mode == GameMode::Hoops
-                && car.internal_state.is_on_ground
-                && car.internal_state.phys.rot_mat.z_axis.z
+                && car.state.is_on_ground
+                && car.state.phys.rot_mat.z_axis.z
                 > consts::ball::car_hit_impulse::Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
                 consts::ball::car_hit_impulse::Z_SCALE_HOOPS_GROUND
@@ -137,7 +137,7 @@ impl ArenaInner {
             self.ball.velocity_impulse_cache += added_vel * consts::UU_TO_BT;
         }
 
-        car.internal_state.ball_hit_info = Some(ball_hit_info);
+        car.state.ball_hit_info = Some(ball_hit_info);
 
         match self.game_mode {
             GameMode::Heatseeker => {
@@ -164,8 +164,8 @@ impl ArenaInner {
                 let charge_level = &mut ball_state.ds_info.charge_level;
 
                 let dir_from_car =
-                    (ball_state.phys.pos - car.internal_state.phys.pos).normalize();
-                let rel_vel_from_car = car.internal_state.phys.vel - ball_state.phys.vel;
+                    (ball_state.phys.pos - car.state.phys.pos).normalize();
+                let rel_vel_from_car = car.state.phys.vel - ball_state.phys.vel;
                 let vel_info_ball = dir_from_car.dot(rel_vel_from_car);
 
                 if vel_info_ball >= dropshot::MIN_CHARGE_HIT_SPEED {

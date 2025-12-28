@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub(crate) struct Ball {
-    pub internal_state: BallState,
+    pub state: BallState,
     pub rigid_body_idx: usize,
     pub ground_stick_applied: bool,
     pub velocity_impulse_cache: Vec3A,
@@ -78,7 +78,7 @@ impl Ball {
         );
 
         Self {
-            internal_state: BallState::DEFAULT,
+            state: BallState::DEFAULT,
             rigid_body_idx,
             ground_stick_applied: false,
             velocity_impulse_cache: Vec3A::ZERO,

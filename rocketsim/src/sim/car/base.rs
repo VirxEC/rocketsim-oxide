@@ -37,7 +37,7 @@ pub struct Car {
     pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
     pub(crate) velocity_impulse_cache: Vec3A,
-    pub(crate) internal_state: CarState,
+    pub(crate) state: CarState,
 }
 
 impl Car {
@@ -123,7 +123,7 @@ impl Car {
             rigid_body_idx,
             bullet_vehicle,
             velocity_impulse_cache: Vec3A::ZERO,
-            internal_state: CarState {
+            state: CarState {
                 boost: mutator_config.car_spawn_boost_amount,
                 ..Default::default()
             },
@@ -138,8 +138,8 @@ impl Car {
 
     /// - `respawn_delay` by default is `rocketsim::consts::DEMO_RESPAWN_TIME`
     pub(crate) const fn demolish(&mut self, respawn_delay: f32) {
-        self.internal_state.is_demoed = true;
-        self.internal_state.demo_respawn_timer = respawn_delay;
+        self.state.is_demoed = true;
+        self.state.demo_respawn_timer = respawn_delay;
     }
 
     /// - `boost_amount` by default is `rocketsim::consts::BOOST_RESPAWN_AMOUNT`
@@ -181,7 +181,7 @@ impl Car {
 
     #[must_use]
     pub const fn get_state(&self) -> &CarState {
-        &self.internal_state
+        &self.state
     }
 
     #[must_use]
@@ -190,7 +190,7 @@ impl Car {
     }
 
     pub const fn set_controls(&mut self, new_controls: CarControls) {
-        self.internal_state.controls = new_controls;
+        self.state.controls = new_controls;
     }
 
     pub(crate) fn set_state(&mut self, rb: &mut RigidBody, state: &CarState) {
@@ -207,7 +207,7 @@ impl Car {
         rb.update_inertia_tensor();
 
         self.velocity_impulse_cache = Vec3A::ZERO;
-        self.internal_state = *state;
+        self.state = *state;
     }
 
     fn update_wheels(
@@ -217,23 +217,23 @@ impl Car {
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
     ) {
-        self.internal_state.handbrake_val +=
-            (f32::from(self.internal_state.controls.handbrake) * 2.0 - 1.0)
+        self.state.handbrake_val +=
+            (f32::from(self.state.controls.handbrake) * 2.0 - 1.0)
                 * drive_consts::POWERSLIDE_FALL_RATE
                 * tick_time;
-        self.internal_state.handbrake_val = self.internal_state.handbrake_val.clamp(0.0, 1.0);
+        self.state.handbrake_val = self.state.handbrake_val.clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
-        let real_throttle = if self.internal_state.controls.boost && self.internal_state.boost > 0.0
+        let real_throttle = if self.state.controls.boost && self.state.boost > 0.0
         {
             1.0
         } else {
-            self.internal_state.controls.throttle
+            self.state.controls.throttle
         };
 
         let abs_forward_speed_uu = forward_speed_uu.abs();
         let mut engine_throttle = real_throttle;
-        if !self.internal_state.controls.handbrake {
+        if !self.state.controls.handbrake {
             if real_throttle.abs() >= drive_consts::THROTTLE_DEADZONE {
                 if abs_forward_speed_uu > drive_consts::STOPPING_FORWARD_VEL
                     && real_throttle.signum() != forward_speed_uu.signum()
@@ -274,14 +274,14 @@ impl Car {
         } else {
             curves::STEER_ANGLE_FROM_SPEED.get_output(abs_forward_speed_uu)
         };
-        if self.internal_state.handbrake_val != 0.0 {
+        if self.state.handbrake_val != 0.0 {
             steer_angle += (curves::POWERSLIDE_STEER_ANGLE_FROM_SPEED
                 .get_output(abs_forward_speed_uu)
                 - steer_angle)
-                * self.internal_state.handbrake_val;
+                * self.state.handbrake_val;
         }
 
-        steer_angle *= self.internal_state.controls.steer;
+        steer_angle *= self.state.controls.steer;
         self.bullet_vehicle.wheels[0].steer_angle = steer_angle;
         self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
@@ -316,8 +316,8 @@ impl Car {
             .get_output(friction_curve_input);
             let mut long_friction = 1.0;
 
-            if self.internal_state.handbrake_val != 0.0 {
-                let handbrake_amount = self.internal_state.handbrake_val;
+            if self.state.handbrake_val != 0.0 {
+                let handbrake_amount = self.state.handbrake_val;
                 lat_friction *= 1.0 - curves::HANDBRAKE_LAT_FRICTION_FACTOR * handbrake_amount;
                 long_friction *= 1.0
                     + (curves::HANDBRAKE_LONG_FRICTION_FACTOR.get_output(friction_curve_input)
@@ -362,32 +362,32 @@ impl Car {
     }
 
     fn update_air_torque(&mut self, rb: &mut RigidBody, update_air_control: bool) {
-        let forward_dir = self.internal_state.get_forward_dir();
-        let right_dir = self.internal_state.get_right_dir();
-        let up_dir = self.internal_state.get_up_dir();
+        let forward_dir = self.state.get_forward_dir();
+        let right_dir = self.state.get_right_dir();
+        let up_dir = self.state.get_up_dir();
 
         let dir_pitch = -right_dir;
         let dir_yaw = up_dir;
         let dir_roll = -forward_dir;
 
-        if self.internal_state.is_flipping {
-            self.internal_state.is_flipping = self.internal_state.has_flipped
-                && self.internal_state.flip_time < car_consts::flip::TORQUE_TIME;
+        if self.state.is_flipping {
+            self.state.is_flipping = self.state.has_flipped
+                && self.state.flip_time < car_consts::flip::TORQUE_TIME;
         }
 
         let mut do_air_control = false;
-        if self.internal_state.is_flipping {
-            if self.internal_state.flip_rel_torque == Vec3A::ZERO {
+        if self.state.is_flipping {
+            if self.state.flip_rel_torque == Vec3A::ZERO {
                 do_air_control = true;
             } else {
-                let mut rel_dodge_torque = self.internal_state.flip_rel_torque;
+                let mut rel_dodge_torque = self.state.flip_rel_torque;
 
                 let mut pitch_scale = 1.0;
                 if rel_dodge_torque.y != 0.0
-                    && self.internal_state.controls.pitch != 0.0
-                    && rel_dodge_torque.y.signum() == self.internal_state.controls.pitch.signum()
+                    && self.state.controls.pitch != 0.0
+                    && rel_dodge_torque.y.signum() == self.state.controls.pitch.signum()
                 {
-                    pitch_scale = 1.0 - self.internal_state.controls.pitch.abs().min(1.0);
+                    pitch_scale = 1.0 - self.state.controls.pitch.abs().min(1.0);
                     do_air_control = true;
                 }
 
@@ -404,17 +404,17 @@ impl Car {
             do_air_control = true;
         }
 
-        do_air_control &= !self.internal_state.is_auto_flipping;
+        do_air_control &= !self.state.is_auto_flipping;
         do_air_control &= update_air_control;
         if do_air_control {
             let mut pitch_torque_scale = 1.0;
-            let torque = if self.internal_state.controls.pitch != 0.0
-                || self.internal_state.controls.yaw != 0.0
-                || self.internal_state.controls.roll != 0.0
+            let torque = if self.state.controls.pitch != 0.0
+                || self.state.controls.yaw != 0.0
+                || self.state.controls.roll != 0.0
             {
-                if self.internal_state.is_flipping
-                    || self.internal_state.has_flipped
-                        && self.internal_state.flip_time
+                if self.state.is_flipping
+                    || self.state.has_flipped
+                        && self.state.flip_time
                             < const {
                                 car_consts::flip::TORQUE_TIME
                                     + car_consts::flip::PITCHLOCK_EXTRA_TIME
@@ -423,12 +423,12 @@ impl Car {
                     pitch_torque_scale = 0.0;
                 }
 
-                self.internal_state.controls.pitch
+                self.state.controls.pitch
                     * dir_pitch
                     * pitch_torque_scale
                     * car_consts::air_control::TORQUE.x
-                    + self.internal_state.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
-                    + self.internal_state.controls.roll
+                    + self.state.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
+                    + self.state.controls.roll
                         * dir_roll
                         * car_consts::air_control::TORQUE.z
             } else {
@@ -439,10 +439,10 @@ impl Car {
 
             let damp_pitch = dir_pitch.dot(ang_vel)
                 * car_consts::air_control::DAMPING.x
-                * (1.0 - (self.internal_state.controls.pitch * pitch_torque_scale).abs());
+                * (1.0 - (self.state.controls.pitch * pitch_torque_scale).abs());
             let damp_yaw = dir_yaw.dot(ang_vel)
                 * car_consts::air_control::DAMPING.y
-                * (1.0 - self.internal_state.controls.yaw.abs());
+                * (1.0 - self.state.controls.yaw.abs());
             let damp_roll = dir_roll.dot(ang_vel) * car_consts::air_control::DAMPING.z;
 
             let damping = dir_yaw * damp_yaw + dir_pitch * damp_pitch + dir_roll * damp_roll;
@@ -453,10 +453,10 @@ impl Car {
             rb.apply_torque(rb_torque);
         }
 
-        if self.internal_state.controls.throttle != 0.0 {
+        if self.state.controls.throttle != 0.0 {
             rb.apply_central_force(
                 forward_dir
-                    * self.internal_state.controls.throttle
+                    * self.state.controls.throttle
                     * const { car_consts::drive::THROTTLE_AIR_ACCEL * UU_TO_BT * car_consts::MASS_BT },
             );
         }
@@ -469,41 +469,41 @@ impl Car {
         mutator_config: &MutatorConfig,
         jump_pressed: bool,
     ) {
-        let up_dir = self.internal_state.get_up_dir();
+        let up_dir = self.state.get_up_dir();
 
-        if self.internal_state.is_on_ground && self.internal_state.is_jumping {
-            if self.internal_state.has_jumped
-                && self.internal_state.jump_time
+        if self.state.is_on_ground && self.state.is_jumping {
+            if self.state.has_jumped
+                && self.state.jump_time
                     < const { car_consts::jump::MIN_TIME + car_consts::jump::RESET_TIME_PAD }
             {
                 // Don't reset the jump just yet, we might still be leaving the ground
                 // This fixes the bug where jump is reset before we actually leave the ground after a minimum-time jump
                 // TODO: RL does something similar to this time-pad, but not exactly the same
             } else {
-                self.internal_state.has_jumped = false;
-                self.internal_state.jump_time = 0.0;
+                self.state.has_jumped = false;
+                self.state.jump_time = 0.0;
             }
         }
 
-        if self.internal_state.is_jumping {
-            self.internal_state.is_jumping = self.internal_state.jump_time
+        if self.state.is_jumping {
+            self.state.is_jumping = self.state.jump_time
                 < car_consts::jump::MIN_TIME
-                || (self.internal_state.controls.jump
-                    && self.internal_state.jump_time < car_consts::jump::MAX_TIME);
-        } else if self.internal_state.is_on_ground && jump_pressed {
-            self.internal_state.is_jumping = true;
-            self.internal_state.jump_time = 0.0;
+                || (self.state.controls.jump
+                    && self.state.jump_time < car_consts::jump::MAX_TIME);
+        } else if self.state.is_on_ground && jump_pressed {
+            self.state.is_jumping = true;
+            self.state.jump_time = 0.0;
             let jump_start_force = up_dir
                 * mutator_config.jump_immediate_force
                 * const { UU_TO_BT * car_consts::MASS_BT };
             rb.apply_central_impulse(jump_start_force);
         }
 
-        if self.internal_state.is_jumping {
-            self.internal_state.has_jumped = true;
+        if self.state.is_jumping {
+            self.state.has_jumped = true;
 
             let mut total_jump_force = up_dir * mutator_config.jump_accel;
-            if self.internal_state.jump_time < car_consts::jump::MIN_TIME {
+            if self.state.jump_time < car_consts::jump::MIN_TIME {
                 // TODO: Temporary fix for unknown accuracy issue (thus not in constants)
                 const JUMP_PRE_MIN_ACCEL_SCALE: f32 = 0.62;
                 total_jump_force *= JUMP_PRE_MIN_ACCEL_SCALE;
@@ -512,44 +512,44 @@ impl Car {
             rb.apply_central_force(total_jump_force * const { UU_TO_BT * car_consts::MASS_BT });
         }
 
-        if self.internal_state.is_jumping || self.internal_state.has_jumped {
-            self.internal_state.jump_time += tick_time;
+        if self.state.is_jumping || self.state.has_jumped {
+            self.state.jump_time += tick_time;
         }
     }
 
     fn update_auto_flip(&mut self, rb: &mut RigidBody, tick_time: f32, jump_pressed: bool) {
         if jump_pressed
             && self
-                .internal_state
+                .state
                 .world_contact_normal
                 .is_some_and(|world_contact_normal| {
                     world_contact_normal.z > car_consts::autoflip::NORM_Z_THRESH
                 })
         {
-            let (_, _, roll) = self.internal_state.phys.rot_mat.to_euler(EulerRot::YZX);
+            let (_, _, roll) = self.state.phys.rot_mat.to_euler(EulerRot::YZX);
             let abs_roll = roll.abs();
             if abs_roll > car_consts::autoflip::ROLL_THRESH {
-                self.internal_state.auto_flip_timer = car_consts::autoflip::TIME * (abs_roll / PI);
-                self.internal_state.auto_flip_torque_scale = roll.signum();
-                self.internal_state.is_auto_flipping = true;
+                self.state.auto_flip_timer = car_consts::autoflip::TIME * (abs_roll / PI);
+                self.state.auto_flip_torque_scale = roll.signum();
+                self.state.is_auto_flipping = true;
 
                 rb.apply_central_impulse(
-                    -self.internal_state.get_up_dir()
+                    -self.state.get_up_dir()
                         * const { car_consts::autoflip::IMPULSE * UU_TO_BT * car_consts::MASS_BT },
                 );
             }
         }
 
-        if self.internal_state.is_auto_flipping {
-            if self.internal_state.auto_flip_timer <= 0.0 {
-                self.internal_state.is_auto_flipping = false;
-                self.internal_state.auto_flip_timer = 0.0;
+        if self.state.is_auto_flipping {
+            if self.state.auto_flip_timer <= 0.0 {
+                self.state.is_auto_flipping = false;
+                self.state.auto_flip_timer = 0.0;
             } else {
-                rb.angular_velocity += self.internal_state.get_forward_dir()
+                rb.angular_velocity += self.state.get_forward_dir()
                     * car_consts::autoflip::TORQUE
-                    * self.internal_state.auto_flip_torque_scale
+                    * self.state.auto_flip_torque_scale
                     * tick_time;
-                self.internal_state.auto_flip_timer -= tick_time;
+                self.state.auto_flip_timer -= tick_time;
             }
         }
     }
@@ -562,36 +562,36 @@ impl Car {
         jump_pressed: bool,
         forward_speed_uu: f32,
     ) {
-        if self.internal_state.is_on_ground {
-            self.internal_state.has_double_jumped = false;
-            self.internal_state.has_flipped = false;
-            self.internal_state.air_time = 0.0;
-            self.internal_state.air_time_since_jump = 0.0;
-            self.internal_state.flip_time = 0.0;
+        if self.state.is_on_ground {
+            self.state.has_double_jumped = false;
+            self.state.has_flipped = false;
+            self.state.air_time = 0.0;
+            self.state.air_time_since_jump = 0.0;
+            self.state.flip_time = 0.0;
             return;
         }
 
         let tick_time_scale = tick_time / const { 1. / 120. };
 
-        self.internal_state.air_time += tick_time;
+        self.state.air_time += tick_time;
 
-        if self.internal_state.has_jumped && !self.internal_state.is_jumping {
-            self.internal_state.air_time_since_jump += tick_time;
+        if self.state.has_jumped && !self.state.is_jumping {
+            self.state.air_time_since_jump += tick_time;
         } else {
-            self.internal_state.air_time_since_jump = 0.0;
+            self.state.air_time_since_jump = 0.0;
         }
 
         if jump_pressed
-            && self.internal_state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY
+            && self.state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY
         {
-            let input_magnitude = self.internal_state.controls.yaw.abs()
-                + self.internal_state.controls.pitch.abs()
-                + self.internal_state.controls.roll.abs();
+            let input_magnitude = self.state.controls.yaw.abs()
+                + self.state.controls.pitch.abs()
+                + self.state.controls.roll.abs();
             let is_flip_input = input_magnitude >= self.config.dodge_deadzone;
 
-            let can_use = !self.internal_state.is_auto_flipping
-                && !self.internal_state.has_double_jumped
-                && !self.internal_state.has_flipped
+            let can_use = !self.state.is_auto_flipping
+                && !self.state.has_double_jumped
+                && !self.state.has_flipped
                 || if is_flip_input {
                     mutator_config.unlimited_flips
                 } else {
@@ -600,14 +600,14 @@ impl Car {
 
             if can_use {
                 if is_flip_input {
-                    self.internal_state.flip_time = 0.0;
-                    self.internal_state.has_flipped = true;
-                    self.internal_state.is_flipping = true;
+                    self.state.flip_time = 0.0;
+                    self.state.has_flipped = true;
+                    self.state.is_flipping = true;
 
                     let forward_speed_ratio = forward_speed_uu.abs() / car_consts::MAX_SPEED;
                     let mut dodge_dir = Vec3A::new(
-                        -self.internal_state.controls.pitch,
-                        self.internal_state.controls.yaw + self.internal_state.controls.roll,
+                        -self.state.controls.pitch,
+                        self.state.controls.yaw + self.state.controls.roll,
                         0.0,
                     );
 
@@ -617,7 +617,7 @@ impl Car {
                         dodge_dir = dodge_dir.normalize();
                     }
 
-                    self.internal_state.flip_rel_torque =
+                    self.state.flip_rel_torque =
                         Vec3A::new(-dodge_dir.y, dodge_dir.x, 0.0) / tick_time_scale;
 
                     if dodge_dir.x.abs() < 0.1 {
@@ -652,7 +652,7 @@ impl Car {
                             initial_dodge_vel.x *= car_consts::flip::BACKWARD_IMPULSE_SCALE_X;
                         }
 
-                        let forward_dir_2d = self.internal_state.get_forward_dir().with_z(0.0).normalize();
+                        let forward_dir_2d = self.state.get_forward_dir().with_z(0.0).normalize();
                         let right_dir_2d = Vec3A::new(-forward_dir_2d.y, forward_dir_2d.x, 0.0);
                         let final_delta_vel = initial_dodge_vel.x * forward_dir_2d
                             + initial_dodge_vel.y * right_dir_2d;
@@ -662,25 +662,25 @@ impl Car {
                         );
                     }
                 } else {
-                    let jump_start_force = self.internal_state.get_up_dir()
+                    let jump_start_force = self.state.get_up_dir()
                         * const { car_consts::jump::IMMEDIATE_FORCE * UU_TO_BT * car_consts::MASS_BT };
                     rb.apply_central_impulse(jump_start_force);
-                    self.internal_state.has_double_jumped = true;
+                    self.state.has_double_jumped = true;
                 }
             }
         }
 
-        if self.internal_state.is_flipping {
-            self.internal_state.flip_time += tick_time;
-            if self.internal_state.flip_time <= car_consts::flip::TORQUE_TIME
-                && self.internal_state.flip_time >= car_consts::flip::Z_DAMP_START
+        if self.state.is_flipping {
+            self.state.flip_time += tick_time;
+            if self.state.flip_time <= car_consts::flip::TORQUE_TIME
+                && self.state.flip_time >= car_consts::flip::Z_DAMP_START
                 && (rb.linear_velocity.z < 0.0
-                    || self.internal_state.flip_time < car_consts::flip::Z_DAMP_END)
+                    || self.state.flip_time < car_consts::flip::Z_DAMP_END)
             {
                 rb.linear_velocity.z *= (1. - car_consts::flip::Z_DAMP_120).powf(tick_time_scale);
             }
-        } else if self.internal_state.has_flipped {
-            self.internal_state.flip_time += tick_time;
+        } else if self.state.has_flipped {
+            self.state.flip_time += tick_time;
         }
     }
 
@@ -688,13 +688,13 @@ impl Car {
         let ground_up_dir = if num_wheels_in_contact > 0 {
             self.bullet_vehicle.get_upwards_dir_from_wheel_contacts(rb)
         } else {
-            self.internal_state.world_contact_normal.unwrap()
+            self.state.world_contact_normal.unwrap()
         };
 
         let ground_down_dir = -ground_up_dir;
 
-        let forward_dir = self.internal_state.get_forward_dir();
-        let right_dir = self.internal_state.get_right_dir();
+        let forward_dir = self.state.get_forward_dir();
+        let right_dir = self.state.get_right_dir();
 
         let cross_right_dir = ground_up_dir.cross(forward_dir);
         let cross_forward_dir = ground_down_dir.cross(cross_right_dir);
@@ -720,40 +720,40 @@ impl Car {
     }
 
     fn update_boost(&mut self, rb: &mut RigidBody, tick_time: f32, mutator_config: &MutatorConfig) {
-        self.internal_state.is_boosting = if self.internal_state.boost > 0.0 {
-            self.internal_state.controls.boost
-                || (self.internal_state.is_boosting
-                    && self.internal_state.boosting_time < car_consts::boost::MIN_TIME)
+        self.state.is_boosting = if self.state.boost > 0.0 {
+            self.state.controls.boost
+                || (self.state.is_boosting
+                    && self.state.boosting_time < car_consts::boost::MIN_TIME)
         } else {
             false
         };
 
-        if self.internal_state.is_boosting {
-            self.internal_state.boosting_time += tick_time;
-            self.internal_state.time_since_boosted = 0.0;
-            self.internal_state.boost -= mutator_config.boost_used_per_second * tick_time;
+        if self.state.is_boosting {
+            self.state.boosting_time += tick_time;
+            self.state.time_since_boosted = 0.0;
+            self.state.boost -= mutator_config.boost_used_per_second * tick_time;
 
-            let accel = if self.internal_state.is_on_ground {
+            let accel = if self.state.is_on_ground {
                 mutator_config.boost_accel_ground
             } else {
                 mutator_config.boost_accel_air
             };
 
             rb.apply_central_force(
-                accel * self.internal_state.get_forward_dir() * (UU_TO_BT * car_consts::MASS_BT),
+                accel * self.state.get_forward_dir() * (UU_TO_BT * car_consts::MASS_BT),
             );
         } else {
-            self.internal_state.boosting_time = 0.0;
-            self.internal_state.time_since_boosted += tick_time;
+            self.state.boosting_time = 0.0;
+            self.state.time_since_boosted += tick_time;
 
             if mutator_config.recharge_boost_enabled
-                && self.internal_state.time_since_boosted >= mutator_config.recharge_boost_delay
+                && self.state.time_since_boosted >= mutator_config.recharge_boost_delay
             {
-                self.internal_state.boost += mutator_config.recharge_boost_per_second * tick_time;
+                self.state.boost += mutator_config.recharge_boost_per_second * tick_time;
             }
         }
 
-        self.internal_state.boost = self.internal_state.boost.clamp(0.0, car_consts::boost::MAX);
+        self.state.boost = self.state.boost.clamp(0.0, car_consts::boost::MAX);
     }
 
     pub(crate) fn pre_tick_update(
@@ -770,10 +770,10 @@ impl Car {
 
         let forward_speed_uu = {
             let rb = &mut collision_world.bodies_mut()[self.rigid_body_idx];
-            if self.internal_state.is_demoed {
-                self.internal_state.demo_respawn_timer =
-                    (self.internal_state.demo_respawn_timer - tick_time).max(0.0);
-                if self.internal_state.demo_respawn_timer == 0.0 {
+            if self.state.is_demoed {
+                self.state.demo_respawn_timer =
+                    (self.state.demo_respawn_timer - tick_time).max(0.0);
+                if self.state.demo_respawn_timer == 0.0 {
                     self.respawn(rb, rng, game_mode, mutator_config.car_spawn_boost_amount);
                 }
 
@@ -785,11 +785,11 @@ impl Car {
                 rb.collision_object.collision_flags &= !(CollisionFlags::NoContactResponse as u8);
             }
 
-            if self.internal_state.is_demoed {
+            if self.state.is_demoed {
                 return;
             }
 
-            self.internal_state.controls = self.internal_state.controls.clamp();
+            self.state.controls = self.state.controls.clamp();
 
             rb.get_forward_speed() * BT_TO_UU
         };
@@ -799,21 +799,21 @@ impl Car {
             .update_vehicle_first(collision_world, tick_time);
 
         let jump_pressed =
-            self.internal_state.controls.jump && !self.internal_state.prev_controls.jump;
+            self.state.controls.jump && !self.state.prev_controls.jump;
 
         let mut num_wheels_in_contact = 0u8;
         for (wheel, has_contact) in self
             .bullet_vehicle
             .wheels
             .iter()
-            .zip(&mut self.internal_state.wheels_with_contact)
+            .zip(&mut self.state.wheels_with_contact)
         {
             let in_contact = wheel.wheel_info.raycast_info.is_in_contact;
             *has_contact = in_contact;
             num_wheels_in_contact += u8::from(in_contact);
         }
 
-        self.internal_state.is_on_ground = num_wheels_in_contact >= 3;
+        self.state.is_on_ground = num_wheels_in_contact >= 3;
 
         self.update_wheels(
             collision_world.bodies_mut(),
@@ -823,8 +823,8 @@ impl Car {
         );
 
         let rb = &mut collision_world.bodies_mut()[self.rigid_body_idx];
-        if self.internal_state.is_on_ground {
-            self.internal_state.is_flipping = false;
+        if self.state.is_on_ground {
+            self.state.is_flipping = false;
         } else {
             self.update_air_torque(rb, num_wheels_in_contact == 0);
         }
@@ -839,14 +839,14 @@ impl Car {
             forward_speed_uu,
         );
 
-        if self.internal_state.controls.throttle != 0.0
+        if self.state.controls.throttle != 0.0
             && ((0 < num_wheels_in_contact && num_wheels_in_contact < 4)
-                || self.internal_state.world_contact_normal.is_some())
+                || self.state.world_contact_normal.is_some())
         {
             self.update_auto_roll(rb, num_wheels_in_contact);
         }
 
-        self.internal_state.world_contact_normal = None;
+        self.state.world_contact_normal = None;
 
         self.bullet_vehicle.update_vehicle_second(rb, tick_time);
         self.update_boost(rb, tick_time, mutator_config);
@@ -854,16 +854,16 @@ impl Car {
 
     pub(crate) fn post_tick_update(&mut self, tick_time: f32, rb: &RigidBody) {
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
-        if self.internal_state.is_demoed {
+        if self.state.is_demoed {
             return;
         }
 
-        self.internal_state.phys.rot_mat = rb.collision_object.get_world_transform().matrix3;
+        self.state.phys.rot_mat = rb.collision_object.get_world_transform().matrix3;
 
         let speed_squared = (rb.linear_velocity * BT_TO_UU).length_squared();
-        self.internal_state.is_supersonic = speed_squared
-            >= if self.internal_state.is_supersonic
-                && self.internal_state.supersonic_time < car_consts::supersonic::MAINTAIN_MAX_TIME
+        self.state.is_supersonic = speed_squared
+            >= if self.state.is_supersonic
+                && self.state.supersonic_time < car_consts::supersonic::MAINTAIN_MAX_TIME
             {
                 const {
                     car_consts::supersonic::MAINTAIN_MIN_SPEED
@@ -873,32 +873,32 @@ impl Car {
                 const { car_consts::supersonic::START_SPEED * car_consts::supersonic::START_SPEED }
             };
 
-        if self.internal_state.is_supersonic {
-            self.internal_state.supersonic_time += tick_time;
+        if self.state.is_supersonic {
+            self.state.supersonic_time += tick_time;
         } else {
-            self.internal_state.supersonic_time = 0.0;
+            self.state.supersonic_time = 0.0;
         }
 
-        if let Some(car_contact) = &mut self.internal_state.car_contact {
+        if let Some(car_contact) = &mut self.state.car_contact {
             car_contact.cooldown_timer -= tick_time;
         }
 
         if self
-            .internal_state
+            .state
             .car_contact
             .is_some_and(|car_contact| car_contact.cooldown_timer <= 0.0)
         {
-            self.internal_state.car_contact = None;
+            self.state.car_contact = None;
         }
 
-        self.internal_state.prev_controls = self.internal_state.controls;
+        self.state.prev_controls = self.state.controls;
     }
 
     pub(crate) fn finish_physics_tick(&mut self, rb: &mut RigidBody) {
         const MAX_SPEED: f32 = car_consts::MAX_SPEED * UU_TO_BT;
         debug_assert_eq!(rb.collision_object.world_array_index, self.rigid_body_idx);
 
-        if self.internal_state.is_demoed {
+        if self.state.is_demoed {
             return;
         }
 
@@ -919,9 +919,9 @@ impl Car {
             *ang_vel = ang_vel.normalize() * car_consts::MAX_ANG_SPEED;
         }
 
-        self.internal_state.phys.pos =
+        self.state.phys.pos =
             rb.collision_object.get_world_transform().translation * BT_TO_UU;
-        self.internal_state.phys.vel = rb.linear_velocity * BT_TO_UU;
-        self.internal_state.phys.ang_vel = rb.angular_velocity;
+        self.state.phys.vel = rb.linear_velocity * BT_TO_UU;
+        self.state.phys.ang_vel = rb.angular_velocity;
     }
 }

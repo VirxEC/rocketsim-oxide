@@ -135,7 +135,7 @@ impl ArenaInner {
 
     fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &ManifoldPoint) {
         let car = self.cars.get_mut(&car_id).unwrap();
-        car.internal_state.world_contact_normal = Some(manifold_point.normal_world_on_b);
+        car.state.world_contact_normal = Some(manifold_point.normal_world_on_b);
     }
 
     fn on_car_car_collision(
@@ -151,7 +151,7 @@ impl ArenaInner {
             );
         };
 
-        if car_1.internal_state.is_demoed || car_2.internal_state.is_demoed {
+        if car_1.state.is_demoed || car_2.state.is_demoed {
             return;
         }
 
@@ -162,8 +162,8 @@ impl ArenaInner {
                 mem::swap(&mut car_1_id, &mut car_2_id);
             }
 
-            let state_1 = &car_1.internal_state;
-            let state_2 = &car_2.internal_state;
+            let state_1 = &car_1.state;
+            let state_2 = &car_2.state;
 
             if let Some(car_contact) = state_1.car_contact
                 && car_contact.other_car_id == car_2_id
@@ -235,7 +235,7 @@ impl ArenaInner {
                 car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
             }
 
-            car_1.internal_state.car_contact = Some(CarContact {
+            car_1.state.car_contact = Some(CarContact {
                 other_car_id: car_2_id,
                 cooldown_timer: self.mutator_config.bump_cooldown_time,
             });
@@ -738,7 +738,7 @@ impl Arena {
             car.finish_physics_tick(rb);
 
             self.inner.boost_pad_grid.maybe_give_car_boost(
-                &mut car.internal_state,
+                &mut car.state,
                 &self.inner.mutator_config,
                 self.inner.tick_count,
                 self.inner.tick_time,
@@ -799,7 +799,7 @@ impl Arena {
 
     #[inline]
     #[must_use]
-    pub fn boost_pads_mut(&mut self) -> &mut [BoostPad] {
+    pub(crate) fn boost_pads_mut(&mut self) -> &mut [BoostPad] {
         self.boost_pad_grid.pads_mut()
     }
 
@@ -887,7 +887,7 @@ impl Arena {
                         .iter()
                         .map(|pad| BoostPadInfo {
                             config: *pad.config(),
-                            state: pad.internal_state,
+                            state: pad.state,
                         })
                         .collect(),
                 )
