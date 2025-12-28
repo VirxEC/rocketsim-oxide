@@ -392,6 +392,8 @@ pub mod heatseeker {
 }
 
 pub mod snowday {
+    use super::*;
+
     /// Real puck radius varies a bit from point to point, but it shouldn't matter
     pub const PUCK_RADIUS: f32 = 114.25;
     pub const PUCK_HEIGHT: f32 = 62.5;
@@ -399,8 +401,10 @@ pub mod snowday {
     pub const PUCK_CIRCLE_POINT_AMOUNT: f32 = 20.0;
     pub const PUCK_MASS_BT: f32 = 50.0;
     pub const PUCK_GROUND_STICK_FORCE: f32 = 70.0;
-    pub const PUCK_FRICTION: f32 = 0.1;
-    pub const PUCK_RESTITUTION: f32 = 0.3;
+    pub const PUCK_COEFS: PhysicsCoefs = PhysicsCoefs {
+        friction: 0.1,
+        restitution: 0.3
+    };
 }
 
 pub mod dropshot {

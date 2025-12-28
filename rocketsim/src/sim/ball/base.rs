@@ -51,8 +51,14 @@ impl Ball {
         info.start_world_transform.translation.z = consts::ball::REST_Z * consts::UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;
-        info.friction = mutator_config.ball_world_friction;
-        info.restitution = mutator_config.ball_world_restitution;
+
+        let coefs = if game_mode == GameMode::Snowday {
+            consts::snowday::PUCK_COEFS
+        } else {
+            consts::ball::COEFS
+        };
+        info.friction = coefs.friction;
+        info.restitution = coefs.restitution;
 
         let mut body = RigidBody::new(info);
         body.collision_object.user_index = UserInfoTypes::Ball;

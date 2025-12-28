@@ -1,9 +1,9 @@
-use std::{f32::consts::PI, iter::repeat_n, mem};
-use std::ops::{Deref, DerefMut};
 use ahash::AHashMap;
 use arrayvec::ArrayVec;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
+use std::ops::{Deref, DerefMut};
+use std::{f32::consts::PI, iter::repeat_n, mem};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
@@ -52,7 +52,7 @@ pub struct ArenaInner {
 impl ContactAddedCallback for ArenaInner {
     fn callback<'a>(
         &mut self,
-        contact_point: &mut ManifoldPoint,
+        manifold_point: &mut ManifoldPoint,
         mut body_a: &'a CollisionObject,
         mut body_b: &'a CollisionObject,
     ) {
@@ -74,22 +74,32 @@ impl ContactAddedCallback for ArenaInner {
         let user_index_b = body_b.user_index;
 
         if user_index_a == UserInfoTypes::Car {
+            let hit_coefs = match user_index_b {
+                UserInfoTypes::Ball => consts::car::HIT_BALL_COEFS,
+                UserInfoTypes::Car => consts::car::HIT_CAR_COEFS,
+                _ => consts::car::HIT_WORLD_COEFS,
+            };
+            manifold_point.combined_friction = hit_coefs.friction;
+            manifold_point.combined_restitution = hit_coefs.restitution;
+
             match user_index_b {
                 UserInfoTypes::Ball => {
-                    self.on_car_ball_collision(body_a.user_pointer, contact_point, should_swap);
+                    self.on_car_ball_collision(body_a.user_pointer, manifold_point, should_swap);
                 }
-                UserInfoTypes::Car => self.on_car_car_collision(
-                    body_a.user_pointer,
-                    body_b.user_pointer,
-                    contact_point,
-                ),
-                _ => self.on_car_world_collision(body_a.user_pointer, contact_point),
+                UserInfoTypes::Car => {
+                    self.on_car_car_collision(
+                        body_a.user_pointer,
+                        body_b.user_pointer,
+                        manifold_point,
+                    );
+                }
+                _ => self.on_car_world_collision(body_a.user_pointer, manifold_point),
             }
         } else if user_index_a == UserInfoTypes::Ball {
             if user_index_b == UserInfoTypes::DropshotTile {
                 todo!()
             } else if user_index_b == UserInfoTypes::None {
-                contact_point.is_special = true;
+                manifold_point.is_special = true;
             }
         }
 
@@ -98,12 +108,12 @@ impl ContactAddedCallback for ArenaInner {
         }
 
         let index = if should_swap {
-            contact_point.index_0
+            manifold_point.index_0
         } else {
-            contact_point.index_1
+            manifold_point.index_1
         };
 
-        adjust_internal_edge_contacts(contact_point, body_a, index as usize);
+        adjust_internal_edge_contacts(manifold_point, body_a, index as usize);
     }
 }
 
@@ -111,12 +121,9 @@ impl ArenaInner {
     fn on_car_ball_collision(
         &mut self,
         car_id: u64,
-        manifold_point: &mut ManifoldPoint,
+        manifold_point: &ManifoldPoint,
         ball_is_body_a: bool,
     ) {
-        manifold_point.combined_friction = consts::car::HIT_BALL_COEFS.friction;
-        manifold_point.combined_restitution = consts::car::HIT_BALL_COEFS.restitution;
-
         let rel_ball_pos = if ball_is_body_a {
             manifold_point.local_point_a
         } else {
@@ -126,23 +133,17 @@ impl ArenaInner {
         self.on_ball_hit(car_id, rel_ball_pos);
     }
 
-    fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &mut ManifoldPoint) {
+    fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &ManifoldPoint) {
         let car = self.cars.get_mut(&car_id).unwrap();
         car.internal_state.world_contact_normal = Some(manifold_point.normal_world_on_b);
-
-        manifold_point.combined_friction = self.mutator_config.car_world_friction;
-        manifold_point.combined_restitution = self.mutator_config.car_world_restitution;
     }
 
     fn on_car_car_collision(
         &mut self,
         mut car_1_id: u64,
         mut car_2_id: u64,
-        manifold_point: &mut ManifoldPoint,
+        manifold_point: &ManifoldPoint,
     ) {
-        manifold_point.combined_friction = consts::car::HIT_CAR_COEFS.friction;
-        manifold_point.combined_restitution = consts::car::HIT_CAR_COEFS.restitution;
-
         let [Some(mut car_1), Some(mut car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id])
         else {
             panic!(
@@ -218,7 +219,7 @@ impl ArenaInner {
                 } else {
                     consts::curves::BUMP_VEL_AMOUNT_AIR
                 }
-                    .get_output(speed_towards_other_car);
+                .get_output(speed_towards_other_car);
 
                 let hit_up_dir = if state_2.is_on_ground {
                     state_2.phys.rot_mat.z_axis
@@ -226,11 +227,10 @@ impl ArenaInner {
                     Vec3A::Z
                 };
 
-                let bump_impulse = vel_dir * base_scale
-                    + hit_up_dir
-                    * consts::curves::BUMP_UPWARD_VEL_AMOUNT
-                    .get_output(speed_towards_other_car)
+                let upward_vel_curve = &consts::curves::BUMP_UPWARD_VEL_AMOUNT;
+                let upward_force = upward_vel_curve.get_output(speed_towards_other_car)
                     * self.mutator_config.bump_force_scale;
+                let bump_impulse = (vel_dir * base_scale) + (hit_up_dir * upward_force);
 
                 car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
             }
@@ -260,11 +260,15 @@ pub struct Arena {
 // Implicit resolution of inner components
 impl Deref for Arena {
     type Target = ArenaInner;
-    fn deref(&self) -> &Self::Target { &self.inner }
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl DerefMut for Arena {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.inner }
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
 }
 
 impl Arena {
@@ -698,7 +702,8 @@ impl Arena {
     }
 
     fn internal_step(&mut self) {
-        { // Update ball activation
+        {
+            // Update ball activation
             let ball_rb = &mut self.bullet_world.bodies_mut()[self.inner.ball.rigid_body_idx];
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
@@ -724,7 +729,8 @@ impl Arena {
 
         self.ball_pre_tick_update();
 
-        self.bullet_world.step_simulation(self.tick_time, &mut self.inner);
+        self.bullet_world
+            .step_simulation(self.tick_time, &mut self.inner);
 
         for car in self.inner.cars.values_mut() {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
@@ -824,7 +830,8 @@ impl Arena {
     }
 
     pub fn set_car_state(&mut self, car_id: u64, state: CarState) {
-        let car = self.inner
+        let car = self
+            .inner
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");
@@ -836,7 +843,8 @@ impl Arena {
     }
 
     pub fn respawn_car(&mut self, car_id: u64) {
-        let car = self.inner
+        let car = self
+            .inner
             .cars
             .get_mut(&car_id)
             .expect("No car with the given id");

@@ -14,13 +14,9 @@ pub enum DemoMode {
 pub struct MutatorConfig {
     pub gravity: Vec3A,
     pub car_mass: f32,
-    pub car_world_friction: f32,
-    pub car_world_restitution: f32,
     pub ball_mass: f32,
     pub ball_max_speed: f32,
     pub ball_drag: f32,
-    pub ball_world_friction: f32,
-    pub ball_world_restitution: f32,
     pub jump_accel: f32,
     pub jump_immediate_force: f32,
     pub boost_accel_ground: f32,
@@ -61,8 +57,6 @@ impl MutatorConfig {
         Self {
             gravity: Vec3A::new(0., 0., consts::GRAVITY_Z),
             car_mass: consts::car::MASS_BT,
-            car_world_friction: consts::car::HIT_WORLD_COEFS.friction,
-            car_world_restitution: consts::car::HIT_WORLD_COEFS.restitution,
             ball_mass: if matches!(game_mode, GameMode::Snowday) {
                 consts::snowday::PUCK_MASS_BT
             } else {
@@ -70,16 +64,6 @@ impl MutatorConfig {
             },
             ball_max_speed: consts::ball::MAX_SPEED,
             ball_drag: consts::ball::DRAG,
-            ball_world_friction: if matches!(game_mode, GameMode::Snowday) {
-                consts::snowday::PUCK_FRICTION
-            } else {
-                consts::ball::COEFS.friction
-            },
-            ball_world_restitution: if matches!(game_mode, GameMode::Snowday) {
-                consts::snowday::PUCK_RESTITUTION
-            } else {
-                consts::ball::COEFS.restitution
-            },
             jump_accel: consts::car::jump::ACCEL,
             jump_immediate_force: consts::car::jump::IMMEDIATE_FORCE,
             boost_accel_ground: consts::car::boost::ACCEL_GROUND,
