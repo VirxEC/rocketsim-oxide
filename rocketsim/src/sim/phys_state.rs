@@ -33,6 +33,17 @@ impl PhysState {
 
         self
     }
+
+    #[must_use]
+    pub const fn get_forward_dir(&self) -> Vec3A { self.rot_mat.x_axis }
+    #[must_use]
+    pub const fn get_right_dir(&self) -> Vec3A {
+        self.rot_mat.y_axis
+    }
+    #[must_use]
+    pub const fn get_up_dir(&self) -> Vec3A {
+        self.rot_mat.z_axis
+    }
 }
 
 impl Display for PhysState {

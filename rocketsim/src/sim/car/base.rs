@@ -130,24 +130,6 @@ impl Car {
         }
     }
 
-    /// Get the forward direction as a unit vector
-    #[must_use]
-    pub const fn get_forward_dir(&self) -> Vec3A {
-        self.internal_state.phys.rot_mat.x_axis
-    }
-
-    /// Get the rightward direction as a unit vector
-    #[must_use]
-    pub const fn get_right_dir(&self) -> Vec3A {
-        self.internal_state.phys.rot_mat.y_axis
-    }
-
-    /// Get the upward direction as a unit vector
-    #[must_use]
-    pub const fn get_up_dir(&self) -> Vec3A {
-        self.internal_state.phys.rot_mat.z_axis
-    }
-
     /// Configuration for this car
     #[must_use]
     pub const fn config(&self) -> &CarConfig {
@@ -155,7 +137,7 @@ impl Car {
     }
 
     /// - `respawn_delay` by default is `rocketsim::consts::DEMO_RESPAWN_TIME`
-    pub const fn demolish(&mut self, respawn_delay: f32) {
+    pub(crate) const fn demolish(&mut self, respawn_delay: f32) {
         self.internal_state.is_demoed = true;
         self.internal_state.demo_respawn_timer = respawn_delay;
     }
@@ -380,9 +362,13 @@ impl Car {
     }
 
     fn update_air_torque(&mut self, rb: &mut RigidBody, update_air_control: bool) {
-        let dir_pitch = -self.get_right_dir();
-        let dir_yaw = self.get_up_dir();
-        let dir_roll = -self.get_forward_dir();
+        let forward_dir = self.internal_state.get_forward_dir();
+        let right_dir = self.internal_state.get_right_dir();
+        let up_dir = self.internal_state.get_up_dir();
+
+        let dir_pitch = -right_dir;
+        let dir_yaw = up_dir;
+        let dir_roll = -forward_dir;
 
         if self.internal_state.is_flipping {
             self.internal_state.is_flipping = self.internal_state.has_flipped
@@ -469,7 +455,7 @@ impl Car {
 
         if self.internal_state.controls.throttle != 0.0 {
             rb.apply_central_force(
-                self.get_forward_dir()
+                forward_dir
                     * self.internal_state.controls.throttle
                     * const { car_consts::drive::THROTTLE_AIR_ACCEL * UU_TO_BT * car_consts::MASS_BT },
             );
@@ -483,6 +469,8 @@ impl Car {
         mutator_config: &MutatorConfig,
         jump_pressed: bool,
     ) {
+        let up_dir = self.internal_state.get_up_dir();
+
         if self.internal_state.is_on_ground && self.internal_state.is_jumping {
             if self.internal_state.has_jumped
                 && self.internal_state.jump_time
@@ -505,7 +493,7 @@ impl Car {
         } else if self.internal_state.is_on_ground && jump_pressed {
             self.internal_state.is_jumping = true;
             self.internal_state.jump_time = 0.0;
-            let jump_start_force = self.get_up_dir()
+            let jump_start_force = up_dir
                 * mutator_config.jump_immediate_force
                 * const { UU_TO_BT * car_consts::MASS_BT };
             rb.apply_central_impulse(jump_start_force);
@@ -514,7 +502,7 @@ impl Car {
         if self.internal_state.is_jumping {
             self.internal_state.has_jumped = true;
 
-            let mut total_jump_force = self.get_up_dir() * mutator_config.jump_accel;
+            let mut total_jump_force = up_dir * mutator_config.jump_accel;
             if self.internal_state.jump_time < car_consts::jump::MIN_TIME {
                 // TODO: Temporary fix for unknown accuracy issue (thus not in constants)
                 const JUMP_PRE_MIN_ACCEL_SCALE: f32 = 0.62;
@@ -546,7 +534,7 @@ impl Car {
                 self.internal_state.is_auto_flipping = true;
 
                 rb.apply_central_impulse(
-                    -self.get_up_dir()
+                    -self.internal_state.get_up_dir()
                         * const { car_consts::autoflip::IMPULSE * UU_TO_BT * car_consts::MASS_BT },
                 );
             }
@@ -557,7 +545,7 @@ impl Car {
                 self.internal_state.is_auto_flipping = false;
                 self.internal_state.auto_flip_timer = 0.0;
             } else {
-                rb.angular_velocity += self.get_forward_dir()
+                rb.angular_velocity += self.internal_state.get_forward_dir()
                     * car_consts::autoflip::TORQUE
                     * self.internal_state.auto_flip_torque_scale
                     * tick_time;
@@ -664,7 +652,7 @@ impl Car {
                             initial_dodge_vel.x *= car_consts::flip::BACKWARD_IMPULSE_SCALE_X;
                         }
 
-                        let forward_dir_2d = self.get_forward_dir().with_z(0.0).normalize();
+                        let forward_dir_2d = self.internal_state.get_forward_dir().with_z(0.0).normalize();
                         let right_dir_2d = Vec3A::new(-forward_dir_2d.y, forward_dir_2d.x, 0.0);
                         let final_delta_vel = initial_dodge_vel.x * forward_dir_2d
                             + initial_dodge_vel.y * right_dir_2d;
@@ -674,7 +662,7 @@ impl Car {
                         );
                     }
                 } else {
-                    let jump_start_force = self.get_up_dir()
+                    let jump_start_force = self.internal_state.get_up_dir()
                         * const { car_consts::jump::IMMEDIATE_FORCE * UU_TO_BT * car_consts::MASS_BT };
                     rb.apply_central_impulse(jump_start_force);
                     self.internal_state.has_double_jumped = true;
@@ -705,8 +693,8 @@ impl Car {
 
         let ground_down_dir = -ground_up_dir;
 
-        let forward_dir = self.get_forward_dir();
-        let right_dir = self.get_right_dir();
+        let forward_dir = self.internal_state.get_forward_dir();
+        let right_dir = self.internal_state.get_right_dir();
 
         let cross_right_dir = ground_up_dir.cross(forward_dir);
         let cross_forward_dir = ground_down_dir.cross(cross_right_dir);
@@ -752,7 +740,7 @@ impl Car {
             };
 
             rb.apply_central_force(
-                accel * self.get_forward_dir() * const { UU_TO_BT * car_consts::MASS_BT },
+                accel * self.internal_state.get_forward_dir() * (UU_TO_BT * car_consts::MASS_BT),
             );
         } else {
             self.internal_state.boosting_time = 0.0;
