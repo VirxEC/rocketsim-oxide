@@ -58,7 +58,7 @@ impl Car {
         let compound_shape = CompoundShape::new(child_hitbox_shape, hitbox_offset);
 
         let collision_shape = CollisionShapes::Compound(compound_shape);
-        let mut info = RigidBodyConstructionInfo::new(car_consts::MASS_BT, collision_shape);
+        let mut info = RigidBodyConstructionInfo::new(car_consts::MASS_BT, collision_shape, false);
         info.friction = car_consts::BASE_COEFS.friction;
         info.restitution = car_consts::BASE_COEFS.restitution;
         info.start_world_transform = Affine3A::IDENTITY;
@@ -217,15 +217,13 @@ impl Car {
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
     ) {
-        self.state.handbrake_val +=
-            (f32::from(self.state.controls.handbrake) * 2.0 - 1.0)
-                * drive_consts::POWERSLIDE_FALL_RATE
-                * tick_time;
+        self.state.handbrake_val += (f32::from(self.state.controls.handbrake) * 2.0 - 1.0)
+            * drive_consts::POWERSLIDE_FALL_RATE
+            * tick_time;
         self.state.handbrake_val = self.state.handbrake_val.clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
-        let real_throttle = if self.state.controls.boost && self.state.boost > 0.0
-        {
+        let real_throttle = if self.state.controls.boost && self.state.boost > 0.0 {
             1.0
         } else {
             self.state.controls.throttle
@@ -371,8 +369,8 @@ impl Car {
         let dir_roll = -forward_dir;
 
         if self.state.is_flipping {
-            self.state.is_flipping = self.state.has_flipped
-                && self.state.flip_time < car_consts::flip::TORQUE_TIME;
+            self.state.is_flipping =
+                self.state.has_flipped && self.state.flip_time < car_consts::flip::TORQUE_TIME;
         }
 
         let mut do_air_control = false;
@@ -428,9 +426,7 @@ impl Car {
                     * pitch_torque_scale
                     * car_consts::air_control::TORQUE.x
                     + self.state.controls.yaw * dir_yaw * car_consts::air_control::TORQUE.y
-                    + self.state.controls.roll
-                        * dir_roll
-                        * car_consts::air_control::TORQUE.z
+                    + self.state.controls.roll * dir_roll * car_consts::air_control::TORQUE.z
             } else {
                 Vec3A::ZERO
             };
@@ -486,10 +482,8 @@ impl Car {
         }
 
         if self.state.is_jumping {
-            self.state.is_jumping = self.state.jump_time
-                < car_consts::jump::MIN_TIME
-                || (self.state.controls.jump
-                    && self.state.jump_time < car_consts::jump::MAX_TIME);
+            self.state.is_jumping = self.state.jump_time < car_consts::jump::MIN_TIME
+                || (self.state.controls.jump && self.state.jump_time < car_consts::jump::MAX_TIME);
         } else if self.state.is_on_ground && jump_pressed {
             self.state.is_jumping = true;
             self.state.jump_time = 0.0;
@@ -581,9 +575,7 @@ impl Car {
             self.state.air_time_since_jump = 0.0;
         }
 
-        if jump_pressed
-            && self.state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY
-        {
+        if jump_pressed && self.state.air_time_since_jump < car_consts::jump::DOUBLEJUMP_MAX_DELAY {
             let input_magnitude = self.state.controls.yaw.abs()
                 + self.state.controls.pitch.abs()
                 + self.state.controls.roll.abs();
@@ -798,8 +790,7 @@ impl Car {
         self.bullet_vehicle
             .update_vehicle_first(collision_world, tick_time);
 
-        let jump_pressed =
-            self.state.controls.jump && !self.state.prev_controls.jump;
+        let jump_pressed = self.state.controls.jump && !self.state.prev_controls.jump;
 
         let mut num_wheels_in_contact = 0u8;
         for (wheel, has_contact) in self
@@ -919,8 +910,7 @@ impl Car {
             *ang_vel = ang_vel.normalize() * car_consts::MAX_ANG_SPEED;
         }
 
-        self.state.phys.pos =
-            rb.collision_object.get_world_transform().translation * BT_TO_UU;
+        self.state.phys.pos = rb.collision_object.get_world_transform().translation * BT_TO_UU;
         self.state.phys.vel = rb.linear_velocity * BT_TO_UU;
         self.state.phys.ang_vel = rb.angular_velocity;
     }

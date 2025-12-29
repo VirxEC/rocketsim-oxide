@@ -23,11 +23,12 @@ pub struct RigidBodyConstructionInfo {
     pub restitution: f32,
     pub linear_sleeping_threshold: f32,
     pub angular_sleeping_threshold: f32,
+    pub can_sleep: bool,
 }
 
 impl RigidBodyConstructionInfo {
     #[must_use]
-    pub const fn new(mass: f32, collision_shape: CollisionShapes) -> Self {
+    pub const fn new(mass: f32, collision_shape: CollisionShapes, can_sleep: bool) -> Self {
         Self {
             mass,
             collision_shape,
@@ -39,6 +40,7 @@ impl RigidBodyConstructionInfo {
             linear_sleeping_threshold: 0.0,
             angular_sleeping_threshold: 1.0,
             start_world_transform: Affine3A::IDENTITY,
+            can_sleep
         }
     }
 }
@@ -218,32 +220,24 @@ impl RigidBody {
         self.linear_velocity + self.angular_velocity.cross(rel_pos)
     }
 
-    pub fn update_deactivation(&mut self, time_step: f32) {
-        let activation_state = self.collision_object.get_activation_state();
-
-        if activation_state == ActivationState::Sleeping {
+    pub fn update_activation_state(&mut self, _time_step: f32) {
+        if !self.collision_object.can_sleep {
+            self.collision_object.set_activation_state(ActivationState::Active);
             return;
         }
 
-        if self.linear_velocity.length_squared()
-            < self.linear_sleeping_threshold * self.linear_sleeping_threshold
-            && self.angular_velocity.length_squared()
-                < self.angular_sleeping_threshold * self.angular_sleeping_threshold
-        {
-            self.collision_object.deactivation_time += time_step;
+        let thresh_lin_sq = self.linear_sleeping_threshold.powi(2);
+        let thresh_ang_sq = self.angular_sleeping_threshold.powi(2);
+        let within_sleep_thresh = (self.linear_velocity.length_squared() < thresh_lin_sq)
+            && (self.angular_velocity.length_squared() < thresh_ang_sq);
+
+        if within_sleep_thresh {
+            self.collision_object
+                .set_activation_state(ActivationState::Sleeping);
         } else {
-            self.collision_object.deactivation_time = 0.0;
             self.collision_object
                 .set_activation_state(ActivationState::Active);
         }
-    }
-
-    #[must_use]
-    pub fn wants_sleeping(&self) -> bool {
-        let activation_state = self.collision_object.get_activation_state();
-
-        activation_state == ActivationState::Sleeping
-            || self.collision_object.deactivation_time > 2.0
     }
 
     pub const fn clear_forces(&mut self) {

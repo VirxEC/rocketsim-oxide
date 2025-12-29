@@ -377,7 +377,7 @@ impl Arena {
         group: u8,
         mask: u8,
     ) {
-        let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape);
+        let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape, false);
         rb_constrution_info.restitution = consts::arena::BASE_COEFS.restitution;
         rb_constrution_info.friction = consts::arena::BASE_COEFS.friction;
         rb_constrution_info.start_world_transform.translation = pos_bt;

@@ -34,6 +34,7 @@ pub struct CollisionObject {
     /// The index of this object in `CollisionWorld`
     pub world_array_index: usize,
     activation_state: ActivationState,
+    pub can_sleep: bool,
     pub deactivation_time: f32,
     pub friction: f32,
     pub restitution: f32,
@@ -66,6 +67,7 @@ impl From<RigidBodyConstructionInfo> for CollisionObject {
             no_rot: false,
             user_pointer: 0,
             user_index: UserInfoTypes::default(),
+            can_sleep: value.can_sleep,
         }
     }
 }

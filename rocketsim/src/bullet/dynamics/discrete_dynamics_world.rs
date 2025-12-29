@@ -168,24 +168,7 @@ impl DiscreteDynamicsWorld {
     fn update_activation_state(&mut self, time_step: f32) {
         for &body in &self.non_static_rigid_bodies {
             let body = &mut self.dynamics_world.collision_world.collision_objects[body];
-            body.update_deactivation(time_step);
-
-            if body.wants_sleeping() {
-                match body.collision_object.get_activation_state() {
-                    ActivationState::Active => {
-                        body.collision_object
-                            .set_activation_state(ActivationState::Sleeping);
-                    }
-                    ActivationState::Sleeping => {
-                        body.set_angular_velocity(Vec3A::ZERO);
-                        body.set_linear_velocity(Vec3A::ZERO);
-                    }
-                    _ => {}
-                }
-            } else {
-                body.collision_object
-                    .set_activation_state(ActivationState::Active);
-            }
+            body.update_activation_state(time_step);
         }
     }
 

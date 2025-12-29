@@ -1,14 +1,11 @@
-use glam::{Affine3A, Vec3A};
+use glam::Vec3A;
 
 use crate::bullet::{
     collision::{
         broadphase::CollisionAlgorithm,
         dispatch::collision_object::CollisionObject,
         narrowphase::persistent_manifold::{ContactAddedCallback, PersistentManifold},
-        shapes::{
-            compound_shape::CompoundShape,
-            sphere_shape::{SPHERE_RADIUS_MARGIN, SphereShape},
-        },
+        shapes::{compound_shape::CompoundShape, sphere_shape::SphereShape},
     },
     linear_math::AffineExt,
 };

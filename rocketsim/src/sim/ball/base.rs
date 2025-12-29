@@ -47,7 +47,8 @@ impl Ball {
         let (collision_shape, local_inertia) =
             Self::make_ball_collision_shape(game_mode, mutator_config);
 
-        let mut info = RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape);
+        let mut info =
+            RigidBodyConstructionInfo::new(mutator_config.ball_mass, collision_shape, true);
         info.start_world_transform.translation.z = consts::ball::REST_Z * consts::UU_TO_BT;
         info.local_inertia = local_inertia;
         info.linear_damping = mutator_config.ball_drag;
