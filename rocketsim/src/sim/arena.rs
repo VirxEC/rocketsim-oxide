@@ -239,7 +239,7 @@ impl ArenaInner {
                     * self.mutator_config.bump_force_scale;
                 let bump_impulse = (vel_dir * base_scale) + (hit_up_dir * upward_force);
 
-                victim.velocity_impulse_cache += bump_impulse * UU_TO_BT;
+                victim.velocity_impulse_cache += bump_impulse;
             }
 
             attacker.state.car_contact = Some(CarContact {

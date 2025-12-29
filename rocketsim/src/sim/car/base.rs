@@ -894,7 +894,7 @@ impl Car {
         }
 
         if self.velocity_impulse_cache != Vec3A::ZERO {
-            rb.linear_velocity += self.velocity_impulse_cache;
+            rb.linear_velocity += self.velocity_impulse_cache * UU_TO_BT;
             self.velocity_impulse_cache = Vec3A::ZERO;
         }
 

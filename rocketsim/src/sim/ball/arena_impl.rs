@@ -1,5 +1,5 @@
 use crate::bullet::collision::dispatch::collision_object::ActivationState;
-use crate::consts::{dropshot, heatseeker};
+use crate::consts::{dropshot, heatseeker, UU_TO_BT};
 use crate::sim::UserInfoTypes;
 use crate::{Arena, ArenaInner, BallHitInfo, BallState, GameMode, Team, consts};
 use glam::{Affine3A, Vec3A};
@@ -51,7 +51,7 @@ impl Arena {
         let rb = &mut self.bullet_world.bodies_mut()[ball.rigid_body_idx];
 
         if ball.velocity_impulse_cache.length_squared() != 0.0 {
-            rb.linear_velocity += ball.velocity_impulse_cache;
+            rb.linear_velocity += ball.velocity_impulse_cache * UU_TO_BT;
             ball.velocity_impulse_cache = Vec3A::ZERO;
         }
 
@@ -134,7 +134,7 @@ impl ArenaInner {
                 * self.mutator_config.ball_hit_extra_force_scale;
             ball_hit_info.extra_hit_vel = added_vel;
 
-            self.ball.velocity_impulse_cache += added_vel * consts::UU_TO_BT;
+            self.ball.velocity_impulse_cache += added_vel;
         }
 
         car.state.ball_hit_info = Some(ball_hit_info);
