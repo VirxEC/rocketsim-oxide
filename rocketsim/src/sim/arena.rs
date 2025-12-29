@@ -140,12 +140,11 @@ impl ArenaInner {
 
     fn on_car_car_collision(
         &mut self,
-        mut car_1_id: u64,
-        mut car_2_id: u64,
+        car_1_id: u64,
+        car_2_id: u64,
         manifold_point: &ManifoldPoint,
     ) {
-        let [Some(mut car_1), Some(mut car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id])
-        else {
+        let [Some(car_1), Some(car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id]) else {
             panic!(
                 "on_car_car_collision() called with invalid or duplicate car ids: {car_1_id}=={car_2_id}"
             );
@@ -155,35 +154,40 @@ impl ArenaInner {
             return;
         }
 
+        let mut attacker = car_1;
+        let mut victim = car_2;
+
         // Test collision both ways
         for is_swapped in [false, true] {
+            let mut attacker_id = car_1_id;
+            let mut victim_id = car_2_id;
             if is_swapped {
-                mem::swap(&mut car_1, &mut car_2);
-                mem::swap(&mut car_1_id, &mut car_2_id);
+                mem::swap(&mut attacker, &mut victim);
+                mem::swap(&mut attacker_id, &mut victim_id);
             }
 
-            let state_1 = &car_1.state;
-            let state_2 = &car_2.state;
+            let attacker_state = &attacker.state;
+            let victim_state = &victim.state;
 
-            if let Some(car_contact) = state_1.car_contact
-                && car_contact.other_car_id == car_2_id
+            if let Some(car_contact) = attacker_state.car_contact
+                && car_contact.other_car_id == victim_id
                 && car_contact.cooldown_timer > 0.0
             {
                 // In cooldown
                 continue;
             }
 
-            let delta_pos = state_2.phys.pos - state_1.phys.pos;
-            if state_1.phys.vel.dot(delta_pos) < 0.0 {
+            let delta_pos = victim_state.phys.pos - attacker_state.phys.pos;
+            if attacker_state.phys.vel.dot(delta_pos) < 0.0 {
                 // Moving away from the other car
                 continue;
             }
 
-            let vel_dir = state_1.phys.vel.normalize_or_zero();
-            let dir_to_other_car = delta_pos.normalize();
+            let vel_dir = attacker_state.phys.vel.normalize_or_zero();
+            let dir_to_victim = delta_pos.normalize();
 
-            let speed_towards_other_car = state_1.phys.vel.dot(dir_to_other_car);
-            let other_car_away_speed = state_2.phys.vel.dot(vel_dir);
+            let speed_towards_other_car = attacker_state.phys.vel.dot(dir_to_victim);
+            let other_car_away_speed = victim_state.phys.vel.dot(vel_dir);
             if speed_towards_other_car <= other_car_away_speed {
                 // Going towards other car slower than they're going away
                 continue;
@@ -194,7 +198,8 @@ impl ArenaInner {
                     manifold_point.local_point_b
                 } else {
                     manifold_point.local_point_a
-                }.x * BT_TO_UU;
+                }
+                .x * BT_TO_UU;
 
                 let hit_with_bumper = local_point_x > consts::car::bump::MIN_FORWARD_DIST;
                 if !hit_with_bumper {
@@ -206,16 +211,16 @@ impl ArenaInner {
             let mut is_demo = match self.mutator_config.demo_mode {
                 DemoMode::OnContact => true,
                 DemoMode::Disabled => false,
-                DemoMode::Normal => state_1.is_supersonic,
+                DemoMode::Normal => attacker_state.is_supersonic,
             };
             if is_demo && !self.mutator_config.enable_team_demos {
-                is_demo = car_1.team != car_2.team;
+                is_demo = attacker.team != victim.team;
             }
 
             if is_demo {
-                car_2.demolish(self.mutator_config.respawn_delay);
+                victim.demolish(self.mutator_config.respawn_delay);
             } else {
-                let ground_hit = state_2.is_on_ground;
+                let ground_hit = victim_state.is_on_ground;
                 let base_scale = if ground_hit {
                     consts::curves::BUMP_VEL_AMOUNT_GROUND
                 } else {
@@ -223,8 +228,8 @@ impl ArenaInner {
                 }
                 .get_output(speed_towards_other_car);
 
-                let hit_up_dir = if state_2.is_on_ground {
-                    state_2.phys.rot_mat.z_axis
+                let hit_up_dir = if victim_state.is_on_ground {
+                    victim_state.phys.rot_mat.z_axis
                 } else {
                     Vec3A::Z
                 };
@@ -234,17 +239,16 @@ impl ArenaInner {
                     * self.mutator_config.bump_force_scale;
                 let bump_impulse = (vel_dir * base_scale) + (hit_up_dir * upward_force);
 
-                car_2.velocity_impulse_cache += bump_impulse * UU_TO_BT;
+                victim.velocity_impulse_cache += bump_impulse * UU_TO_BT;
             }
 
-            car_1.state.car_contact = Some(CarContact {
-                other_car_id: car_2_id,
+            attacker.state.car_contact = Some(CarContact {
+                other_car_id: victim_id,
                 cooldown_timer: self.mutator_config.bump_cooldown_time,
             });
         }
     }
 }
-
 
 pub struct Arena {
     pub(crate) bullet_world: DiscreteDynamicsWorld,
