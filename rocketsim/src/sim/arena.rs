@@ -239,22 +239,14 @@ impl ArenaInner {
                 other_car_id: car_2_id,
                 cooldown_timer: self.mutator_config.bump_cooldown_time,
             });
-
-            // TODO: car bump callback
         }
     }
 }
 
-pub type GoalScoredCallback = fn(&mut Arena, Team);
 
 pub struct Arena {
     pub(crate) bullet_world: DiscreteDynamicsWorld,
     pub(crate) inner: ArenaInner,
-
-    /// Callback that is called when a goal is scored.
-    ///
-    /// By default, this calls `Arena::reset_to_random_kickoff`.
-    pub(crate) goal_scored_callback: Option<GoalScoredCallback>,
 }
 
 // Implicit resolution of inner components
@@ -361,7 +353,6 @@ impl Arena {
                 cars: AHashMap::with_capacity(6),
             },
             bullet_world,
-            goal_scored_callback: None,
         }
     }
 
@@ -749,19 +740,6 @@ impl Arena {
 
         if self.game_mode == GameMode::Dropshot {
             todo!("dropshot tile state sync")
-        }
-
-        if let Some(callback) = self.goal_scored_callback
-            && self.is_ball_scored()
-        {
-            let ball = &self.bullet_world.bodies()[self.ball.rigid_body_idx];
-            let scoring_team = if ball.collision_object.get_world_transform().translation.y > 0.0 {
-                Team::Blue
-            } else {
-                Team::Orange
-            };
-
-            callback(self, scoring_team);
         }
 
         self.tick_count += 1;
