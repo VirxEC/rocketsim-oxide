@@ -164,10 +164,10 @@ impl Car {
                     car_consts::spawn::SPAWN_Z,
                 ),
                 rot_mat: Mat3A::from_euler(
-                    EulerRot::YZX,
+                    EulerRot::ZYX,
+                    0.0,
                     0.0,
                     spawn_pos.yaw_ang + if self.team == Team::Blue { 0.0 } else { PI },
-                    0.0,
                 ),
                 vel: Vec3A::ZERO,
                 ang_vel: Vec3A::ZERO,
@@ -520,7 +520,7 @@ impl Car {
                     world_contact_normal.z > car_consts::autoflip::NORM_Z_THRESH
                 })
         {
-            let (_, _, roll) = self.state.phys.rot_mat.to_euler(EulerRot::YZX);
+            let (_, _, roll) = self.state.phys.rot_mat.to_euler(EulerRot::ZYX);
             let abs_roll = roll.abs();
             if abs_roll > car_consts::autoflip::ROLL_THRESH {
                 self.state.auto_flip_timer = car_consts::autoflip::TIME * (abs_roll / PI);
