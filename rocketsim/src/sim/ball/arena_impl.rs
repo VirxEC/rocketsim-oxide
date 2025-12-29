@@ -78,7 +78,7 @@ impl Arena {
 impl ArenaInner {
     pub(crate) fn on_ball_hit(&mut self, car_id: u64, rel_pos: Vec3A) {
         let tick_count = self.tick_count;
-        let mut ball_state = self.ball.state;
+        let ball_state = &mut self.ball.state;
         let car = self.cars.get_mut(&car_id).unwrap();
 
         let mut ball_hit_info = BallHitInfo {
