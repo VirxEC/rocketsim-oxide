@@ -202,7 +202,7 @@ fn make_car_cases() -> Vec<TestCase> {
         simple_car_case(
             "land_ground_complex",
             60,
-            (0, 0, 100),
+            (0, 0, 50),
             (0.17, -0.044, 0.28),
             (100, -50, -300),
             (0, 0, 0),
@@ -212,7 +212,7 @@ fn make_car_cases() -> Vec<TestCase> {
         simple_car_case(
             "land_ground_powerslide",
             60,
-            (0, 0, 100),
+            (0, 0, 50),
             (0.17, -0.044, 0.28),
             (100, -50, -300),
             (0, 0, 0),
@@ -415,7 +415,6 @@ fn make_car_car_cases() -> Vec<TestCase> {
             (1000, 0, 0),
             (0, 0, 0),
             ControlSeq::new(),
-
             (175, 0, 17),
             (0.0, 0.0, 0.0),
             (0, 0, 0),
@@ -430,13 +429,12 @@ fn make_car_car_cases() -> Vec<TestCase> {
             (2300, 0, 0),
             (0, 0, 0),
             ControlSeq::new_single(quick_drive(1.0, 0.0, true, false)),
-
             (175, 0, 17),
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
             ControlSeq::new(),
-        )
+        ),
     ]
 }
 
