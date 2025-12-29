@@ -64,8 +64,8 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
         let dist_sq = delta.length_squared();
 
         let radius = self.sphere_shape.get_radius();
-        let radius_with_threshold = radius + box_shape.get_margin();
-        if dist_sq >= radius_with_threshold * radius_with_threshold {
+        let box_margin = box_shape.get_margin();
+        if dist_sq >= (radius + box_margin).powi(2) {
             return None;
         }
 
@@ -76,16 +76,19 @@ impl<T: ContactAddedCallback> CollisionAlgorithm for SphereObbCollisionAlgorithm
             Vec3A::X
         };
 
-        let normal_in_world = new_child_world_trans.transform_vector3a(normal);
-        let point_in_world = new_child_world_trans.transform_point3a(closest);
-        let depth = -(radius_with_threshold - dist);
+        let normal_on_box = new_child_world_trans.transform_vector3a(normal);
+        let point_on_box = new_child_world_trans.transform_point3a(closest);
+        let depth = dist - radius - box_margin;
+
+        // This is the official contact point on the box
+        let point_on_box_plus_margin = point_on_box + (normal_on_box * box_margin);
 
         let mut manifold = PersistentManifold::new(self.sphere_obj, self.obb_obj, self.is_swapped);
         manifold.add_contact_point(
             self.sphere_obj,
             self.obb_obj,
-            normal_in_world,
-            point_in_world,
+            normal_on_box,
+            point_on_box_plus_margin,
             depth,
             -1,
             -1,
