@@ -189,16 +189,18 @@ impl ArenaInner {
                 continue;
             }
 
-            let local_point = if is_swapped {
-                manifold_point.local_point_b
-            } else {
-                manifold_point.local_point_a
-            };
+            if self.mutator_config.bump_requires_front_hit {
+                let local_point_x = if is_swapped {
+                    manifold_point.local_point_b
+                } else {
+                    manifold_point.local_point_a
+                }.x * BT_TO_UU;
 
-            let hit_with_bumper = local_point.x * BT_TO_UU > consts::car::bump::MIN_FORWARD_DIST;
-            if !hit_with_bumper {
-                // Didn't hit with bumper
-                continue;
+                let hit_with_bumper = local_point_x > consts::car::bump::MIN_FORWARD_DIST;
+                if !hit_with_bumper {
+                    // Didn't hit with bumper
+                    continue;
+                }
             }
 
             let mut is_demo = match self.mutator_config.demo_mode {
