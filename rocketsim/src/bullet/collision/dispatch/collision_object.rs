@@ -107,6 +107,7 @@ impl CollisionObject {
 
     #[inline]
     #[must_use]
+    #[allow(unused)]
     pub const fn get_activation_state(&self) -> ActivationState {
         self.activation_state
     }
