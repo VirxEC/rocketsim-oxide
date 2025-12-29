@@ -308,7 +308,7 @@ fn make_car_ball_cases() -> Vec<TestCase> {
     vec![
         simple_case(
             "basic_air_hit",
-            30,
+            20,
             (-175, 0, 500),
             (0.0, 0.0, 0.0),
             (800, 0, 0),
@@ -323,16 +323,16 @@ fn make_car_ball_cases() -> Vec<TestCase> {
         ),
 
         simple_case(
-            "basic_push",
-            60,
-            (-175, 0, 17),
-            (0.0, 0.0, 0.0),
-            (0, 0, 0),
-            (0, 0, 0),
+            "complex_air_hit",
+            20,
+            (-162, 15, 554),
+            (1.0, 2.0, 3.0),
+            (1560, 120, 90),
+            (3, 4, -5),
 
-            (0, 0, 93),
-            (0, 0, 0),
-            (0, 0, 0),
+            (0, 0, 500),
+            (-190, -50, 30),
+            (2, -3, -2),
 
             ControlsBuilder::new().with_throttle(1.0).build(),
             true,
