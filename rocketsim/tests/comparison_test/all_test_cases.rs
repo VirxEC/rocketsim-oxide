@@ -355,10 +355,96 @@ fn make_car_ball_cases() -> Vec<TestCase> {
     ]
 }
 
+fn make_car_car_cases() -> Vec<TestCase> {
+    let simple_case = |name: &'static str,
+                       duration_ticks: usize,
+                       car1_pos: (i32, i32, i32),
+                       car1_euler_rot_ypr: (f32, f32, f32),
+                       car1_vel: (i32, i32, i32),
+                       car1_ang_vel: (i32, i32, i32),
+                       car1_controls: ControlSeq,
+
+                       car2_pos: (i32, i32, i32),
+                       car2_euler_rot_ypr: (f32, f32, f32),
+                       car2_vel: (i32, i32, i32),
+                       car2_ang_vel: (i32, i32, i32),
+                       car2_controls: ControlSeq|
+     -> TestCase {
+        TestCase {
+            name: format!("car_car_{name}"),
+            game_mode: GameMode::Soccar,
+            car_setups: vec![
+                CarSetup::new(
+                    Team::Blue,
+                    IVec3::new(car1_pos.0, car1_pos.1, car1_pos.2).as_vec3a(),
+                )
+                .with_rot(Mat3A::from_euler(
+                    EulerRot::ZYX,
+                    car1_euler_rot_ypr.0,
+                    car1_euler_rot_ypr.1,
+                    car1_euler_rot_ypr.2,
+                ))
+                .with_vel(IVec3::new(car1_vel.0, car1_vel.1, car1_vel.2).as_vec3a())
+                .with_ang_vel(IVec3::new(car1_ang_vel.0, car1_ang_vel.1, car1_ang_vel.2).as_vec3a())
+                .with_control_seq(car1_controls),
+                CarSetup::new(
+                    Team::Orange,
+                    IVec3::new(car2_pos.0, car2_pos.1, car2_pos.2).as_vec3a(),
+                )
+                .with_rot(Mat3A::from_euler(
+                    EulerRot::ZYX,
+                    car2_euler_rot_ypr.0,
+                    car2_euler_rot_ypr.1,
+                    car2_euler_rot_ypr.2,
+                ))
+                .with_vel(IVec3::new(car2_vel.0, car2_vel.1, car2_vel.2).as_vec3a())
+                .with_ang_vel(IVec3::new(car2_ang_vel.0, car2_ang_vel.1, car2_ang_vel.2).as_vec3a())
+                .with_control_seq(car2_controls),
+            ],
+            ball_setup: None,
+            duration_ticks,
+        }
+    };
+
+    vec![
+        simple_case(
+            "basic_bump",
+            30,
+            (0, 0, 17),
+            (0.0, 0.0, 0.0),
+            (1000, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new(),
+
+            (175, 0, 17),
+            (0.0, 0.0, 0.0),
+            (0, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new(),
+        ),
+        simple_case(
+            "basic_demo",
+            30,
+            (0, 0, 17),
+            (0.0, 0.0, 0.0),
+            (2300, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new_single(quick_drive(1.0, 0.0, true, false)),
+
+            (175, 0, 17),
+            (0.0, 0.0, 0.0),
+            (0, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new(),
+        )
+    ]
+}
+
 pub fn make_all_cases() -> Vec<TestCase> {
     let itr = make_ball_cases()
         .into_iter()
         .chain(make_car_cases())
-        .chain(make_car_ball_cases());
+        .chain(make_car_ball_cases())
+        .chain(make_car_car_cases());
     itr.collect()
 }

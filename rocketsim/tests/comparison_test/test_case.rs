@@ -144,12 +144,16 @@ impl TestCase {
 
             let mut car_state_pairs = Vec::new();
             for i in 0..self.car_setups.len() {
+                let controls = self.car_setups[i]
+                    .control_seq
+                    .get_controls_at_tick(tick_count as u64);
+
                 let car_id_new = (i + 1) as u64;
                 let car_id_old = (i + 1) as u32;
                 let new_car_state = *new_arena.car(car_id_new).get_state();
                 let old_car_state = old_arena_ptr.pin_mut().get_car(car_id_old);
                 let old_car_state_conv =
-                    state_convert::conv_to_new_car_state(&old_car_state, new_car_state.controls);
+                    state_convert::conv_to_new_car_state(&old_car_state, controls);
                 new_arena.set_car_state(car_id_new, old_car_state_conv);
                 car_state_pairs.push((new_car_state, old_car_state_conv));
             }

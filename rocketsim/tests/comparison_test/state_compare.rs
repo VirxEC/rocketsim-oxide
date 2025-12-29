@@ -56,7 +56,6 @@ pub fn map_ball_err(a: &BallState, b: &BallState, include_rot: bool) -> StateErr
 
 pub fn map_car_err(a: &CarState, b: &CarState) -> StateErrSet {
     let mut err_set = StateErrSet::default();
-    map_phys_err(&mut err_set, &a.phys, &b.phys, true);
 
     if a.is_demoed || b.is_demoed {
         // Nothing apart from the demo bool actually matters
@@ -66,6 +65,8 @@ pub fn map_car_err(a: &CarState, b: &CarState) -> StateErrSet {
         ));
         return err_set;
     }
+
+    map_phys_err(&mut err_set, &a.phys, &b.phys, true);
 
     err_set.push((
         "boost".to_string(),

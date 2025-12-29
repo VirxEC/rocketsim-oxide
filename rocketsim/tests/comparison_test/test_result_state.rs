@@ -57,6 +57,7 @@ impl Display for TestResultState {
             show_diff(f, "\n\t\thas_jumped", csn.has_jumped, cso.has_jumped)?;
             show_diff(f, "\n\t\thas_flipped", csn.has_flipped, cso.has_flipped)?;
             show_diff(f, "\n\t\tflip_time", csn.flip_time, cso.flip_time)?;
+            show_diff(f, "\n\t\tis_demoed", csn.is_demoed, cso.is_demoed)?;
             show_diff(
                 f,
                 "\n\t\twheels_in_contact",
