@@ -1,7 +1,8 @@
 use glam::{EulerRot, IVec3, Mat3A};
 use rocketsim::{CarControls, GameMode, Team};
 
-use crate::comparison_test::{BallSetup, CarSetup, ControlsBuilder, TestCase};
+use crate::comparison_test::quick_controls::{quick_air, quick_drive};
+use crate::comparison_test::{BallSetup, CarSetup, ControlSeq, TestCase};
 
 fn make_ball_cases() -> Vec<TestCase> {
     let simple_ball_case = |name: &'static str,
@@ -92,7 +93,7 @@ fn make_car_cases() -> Vec<TestCase> {
                            euler_rot_ypr: (f32, f32, f32),
                            vel: (i32, i32, i32),
                            ang_vel: (i32, i32, i32),
-                           car_controls: CarControls,
+                           control_seq: ControlSeq,
                            is_on_ground: bool|
      -> TestCase {
         TestCase {
@@ -108,7 +109,7 @@ fn make_car_cases() -> Vec<TestCase> {
                     ))
                     .with_vel(IVec3::new(vel.0, vel.1, vel.2).as_vec3a())
                     .with_ang_vel(IVec3::new(ang_vel.0, ang_vel.1, ang_vel.2).as_vec3a())
-                    .with_controls(car_controls)
+                    .with_control_seq(control_seq)
                     .with_on_ground(is_on_ground),
             ],
             ball_setup: None,
@@ -124,7 +125,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new().with_throttle(1.0).build(),
+            ControlSeq::new_single(quick_drive(1.0, 0.0, false, false)),
             true,
         ),
         simple_car_case(
@@ -134,10 +135,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new()
-                .with_throttle(1.0)
-                .with_boost(true)
-                .build(),
+            ControlSeq::new_single(quick_drive(1.0, 0.0, true, false)),
             true,
         ),
         simple_car_case(
@@ -147,10 +145,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new()
-                .with_throttle(1.0)
-                .with_steer(1.0)
-                .build(),
+            ControlSeq::new_single(quick_drive(1.0, 1.0, false, false)),
             true,
         ),
         simple_car_case(
@@ -160,11 +155,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new()
-                .with_throttle(1.0)
-                .with_steer(1.0)
-                .with_handbrake(true)
-                .build(),
+            ControlSeq::new_single(quick_drive(1.0, 1.0, false, true)),
             true,
         ),
         simple_car_case(
@@ -174,7 +165,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new().with_throttle(1.0).build(),
+            ControlSeq::new_single(quick_drive(1.0, 0.0, false, false)),
             true,
         ),
         simple_car_case(
@@ -184,7 +175,19 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new().with_jump(true).build(),
+            ControlSeq::new_single(quick_air(0.0, 0.0, 0.0, true, false)),
+            true,
+        ),
+        simple_car_case(
+            "jump_short_stationary",
+            30,
+            (0, 0, 17),
+            (0.0, 0.0, 0.0),
+            (0, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new_single(
+                quick_air(0.0, 0.0, 0.0, true, false)
+            ).add(CarControls::default(), 1),
             true,
         ),
         simple_car_case(
@@ -194,7 +197,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new().build(),
+            ControlSeq::new(),
             false,
         ),
         simple_car_case(
@@ -204,7 +207,17 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.17, -0.044, 0.28),
             (100, -50, -300),
             (0, 0, 0),
-            ControlsBuilder::new().build(),
+            ControlSeq::new(),
+            false,
+        ),
+        simple_car_case(
+            "land_ground_powerslide",
+            60,
+            (0, 0, 100),
+            (0.17, -0.044, 0.28),
+            (100, -50, -300),
+            (0, 0, 0),
+            ControlSeq::new_single(quick_drive(0.0, 0.0, false, true)),
             false,
         ),
         simple_car_case(
@@ -214,7 +227,7 @@ fn make_car_cases() -> Vec<TestCase> {
             (-2.095_255_8, 0.719_284_8, 0.850_528_4),
             (0, 0, -2100),
             (0, 0, 0),
-            ControlsBuilder::new().build(),
+            ControlSeq::new(),
             false,
         ),
         simple_car_case(
@@ -224,35 +237,34 @@ fn make_car_cases() -> Vec<TestCase> {
             (1.0, 2.0, 3.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new().with_jump(true).build(),
+            ControlSeq::new_single(quick_air(0.0, 0.0, 0.0, true, false)),
             true,
         ),
         simple_car_case(
-            "flip_forward",
+            "flip_simple",
             120,
             (0, 0, 500),
             (1.0, 2.0, 3.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new()
-                .with_pitch(-1.0)
-                .with_jump(true)
-                .build(),
+            ControlSeq::new_single(quick_air(-1.0, 0.0, 0.0, true, false)),
             false,
         ),
         simple_car_case(
-            "flip_partial_input",
-            120,
+            "flip_complex",
+            60,
             (0, 0, 500),
             (1.0, 2.0, 3.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlsBuilder::new()
-                .with_pitch(-0.3)
-                .with_yaw(-0.7)
-                .with_roll(0.8)
-                .with_jump(true)
-                .build(),
+            ControlSeq::new().add(
+                quick_air(0.9, 0.4, -0.2, true, false),
+                20
+            ).add(
+                // Partial flip cancel
+                quick_air(-0.95, -0.3, -1.0, false, false),
+                1
+            ),
             false,
         ),
     ]
@@ -272,7 +284,7 @@ fn make_car_ball_cases() -> Vec<TestCase> {
                        ball_vel: (i32, i32, i32),
                        ball_ang_vel: (i32, i32, i32),
 
-                       car_controls: CarControls,
+                       control_seq: ControlSeq,
                        is_on_ground: bool|
      -> TestCase {
         TestCase {
@@ -291,7 +303,7 @@ fn make_car_ball_cases() -> Vec<TestCase> {
                 ))
                 .with_vel(IVec3::new(car_vel.0, car_vel.1, car_vel.2).as_vec3a())
                 .with_ang_vel(IVec3::new(car_ang_vel.0, car_ang_vel.1, car_ang_vel.2).as_vec3a())
-                .with_controls(car_controls)
+                .with_control_seq(control_seq)
                 .with_on_ground(is_on_ground),
             ],
             ball_setup: Some(
@@ -313,15 +325,12 @@ fn make_car_ball_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (800, 0, 0),
             (0, 0, 0),
-
             (0, 0, 500),
             (0, 0, 0),
             (0, 0, 0),
-
-            CarControls::DEFAULT,
+            ControlSeq::new(),
             true,
         ),
-
         simple_case(
             "complex_air_hit",
             20,
@@ -329,12 +338,10 @@ fn make_car_ball_cases() -> Vec<TestCase> {
             (1.0, 2.0, 3.0),
             (1560, 120, 90),
             (3, 4, -5),
-
             (0, 0, 500),
             (-190, -50, 30),
             (2, -3, -2),
-
-            ControlsBuilder::new().with_throttle(1.0).build(),
+            ControlSeq::new_single(quick_air(-0.5, 0.8, 1.0, false, true)),
             true,
         ),
     ]

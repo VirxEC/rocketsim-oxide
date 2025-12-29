@@ -2,11 +2,12 @@ use glam::{Mat3A, Vec3A};
 use rocketsim::{BallState, CarControls, CarState, Team};
 use rocketsim_rs::consts;
 use serde::Serialize;
+use crate::comparison_test::ControlSeq;
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone)]
 pub struct CarSetup {
     pub team: Team,
-    pub controls: CarControls,
+    pub control_seq: ControlSeq,
 
     pub pos: Vec3A,
     pub rot_mat: Mat3A,
@@ -21,7 +22,7 @@ impl CarSetup {
     pub const fn new(team: Team, pos: Vec3A) -> Self {
         Self {
             team,
-            controls: CarControls::DEFAULT,
+            control_seq: ControlSeq::new(),
             pos,
             rot_mat: Mat3A::IDENTITY,
             vel: Vec3A::ZERO,
@@ -31,8 +32,8 @@ impl CarSetup {
         }
     }
 
-    pub const fn with_controls(mut self, controls: CarControls) -> Self {
-        self.controls = controls;
+    pub fn with_control_seq(mut self, control_seq: ControlSeq) -> Self {
+        self.control_seq = control_seq;
         self
     }
 
@@ -61,14 +62,14 @@ impl CarSetup {
         self
     }
 
-    pub const fn make_car_state(&self) -> CarState {
+    pub fn make_initial_car_state(&self) -> CarState {
         let mut result = CarState::DEFAULT;
         result.phys.pos = self.pos;
         result.phys.rot_mat = self.rot_mat;
         result.phys.vel = self.vel;
         result.phys.ang_vel = self.ang_vel;
 
-        result.controls = self.controls;
+        result.controls = self.control_seq.get_controls_at_tick(0);
         result.boost = self.boost;
         result
     }
