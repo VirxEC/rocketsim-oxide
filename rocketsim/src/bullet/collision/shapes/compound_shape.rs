@@ -3,10 +3,7 @@ use glam::{Affine3A, Vec3A};
 use super::box_shape::BoxShape;
 use crate::bullet::{
     collision::dispatch::ray_callbacks::{BridgeTriangleRaycastPacketCallback, RayResultCallback},
-    linear_math::{
-        aabb_util_2::intersect_ray_aabb_packet,
-        ray_packet::RayInfo,
-    },
+    linear_math::{aabb_util_2::intersect_ray_aabb_packet, ray_packet::RayInfo},
 };
 use crate::shared::Aabb;
 

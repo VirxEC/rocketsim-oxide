@@ -28,8 +28,12 @@ impl BoostPad {
     }
 
     #[must_use]
-    pub const fn config(&self) -> &BoostPadConfig { &self.config }
+    pub const fn config(&self) -> &BoostPadConfig {
+        &self.config
+    }
 
     #[must_use]
-    pub const fn radius(&self) -> f32 { self.radius }
+    pub const fn radius(&self) -> f32 {
+        self.radius
+    }
 }

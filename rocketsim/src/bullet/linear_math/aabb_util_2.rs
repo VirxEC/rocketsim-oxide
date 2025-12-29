@@ -1,5 +1,5 @@
-use glam::{Affine3A, Vec3A, Vec4};
 use crate::shared::Aabb;
+use glam::{Affine3A, Vec3A, Vec4};
 
 pub fn transform_aabb(half_extents: Vec3A, margin: f32, t: &Affine3A) -> Aabb {
     let half_extents_with_margin = half_extents + margin;

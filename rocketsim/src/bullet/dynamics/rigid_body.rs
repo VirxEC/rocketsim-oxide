@@ -40,7 +40,7 @@ impl RigidBodyConstructionInfo {
             linear_sleeping_threshold: 0.0,
             angular_sleeping_threshold: 1.0,
             start_world_transform: Affine3A::IDENTITY,
-            can_sleep
+            can_sleep,
         }
     }
 }
@@ -222,7 +222,8 @@ impl RigidBody {
 
     pub fn update_activation_state(&mut self, _time_step: f32) {
         if !self.collision_object.can_sleep {
-            self.collision_object.set_activation_state(ActivationState::Active);
+            self.collision_object
+                .set_activation_state(ActivationState::Active);
             return;
         }
 

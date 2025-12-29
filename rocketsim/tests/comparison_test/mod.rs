@@ -1,12 +1,12 @@
 pub mod all_test_cases;
 mod control_seq;
+mod quick_controls;
 mod setup;
 pub mod state_compare;
 pub mod state_convert;
 mod test_case;
 mod test_result;
 mod test_result_state;
-mod quick_controls;
 
 pub use control_seq::*;
 pub use setup::*;

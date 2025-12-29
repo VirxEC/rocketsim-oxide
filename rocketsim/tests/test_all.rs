@@ -11,7 +11,7 @@ fn init_for_test() {
 
 #[test]
 fn test_comparisons() {
-    const FAIL_ERROR_THRESH: f32 = 1.0; // Adjust as needed
+    const FAIL_ERROR_THRESH: f32 = 0.5; // Adjust as needed
 
     init_for_test();
 

@@ -95,10 +95,14 @@ impl BoostPadGrid {
     }
 
     #[must_use]
-    pub fn pads(&self) -> &[BoostPad] { &self.all_pads }
+    pub fn pads(&self) -> &[BoostPad] {
+        &self.all_pads
+    }
 
     #[must_use]
-    pub fn pads_mut(&mut self) -> &mut [BoostPad] { &mut self.all_pads }
+    pub fn pads_mut(&mut self) -> &mut [BoostPad] {
+        &mut self.all_pads
+    }
 
     pub fn reset(&mut self) {
         for pad in &mut self.all_pads {
@@ -122,8 +126,9 @@ impl BoostPadGrid {
             return; // Can't possibly overlap with a boost pad
         }
 
-        let Some(cell_idx) = Self::calc_cell_idx(car_state.pos)
-        else { return; };
+        let Some(cell_idx) = Self::calc_cell_idx(car_state.pos) else {
+            return;
+        };
 
         let cell = &self.cells[cell_idx];
 

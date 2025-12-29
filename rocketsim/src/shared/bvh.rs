@@ -5,14 +5,11 @@ use glam::{Vec3A, Vec4};
 
 use crate::bullet::{
     collision::shapes::{
-        triangle_callback::{ProcessTriangle, ProcessRayTriangle},
+        triangle_callback::{ProcessRayTriangle, ProcessTriangle},
         triangle_mesh::TriangleMesh,
         triangle_shape::TriangleShape,
     },
-    linear_math::{
-        aabb_util_2::intersect_ray_aabb_packet,
-        ray_packet::RayInfo,
-    },
+    linear_math::{aabb_util_2::intersect_ray_aabb_packet, ray_packet::RayInfo},
 };
 use crate::shared::Aabb;
 
@@ -309,11 +306,7 @@ impl Tree {
         }
     }
 
-    pub fn report_aabb_overlapping_node<T: ProcessNode>(
-        &self,
-        node_callback: &mut T,
-        aabb: &Aabb,
-    ) {
+    pub fn report_aabb_overlapping_node<T: ProcessNode>(&self, node_callback: &mut T, aabb: &Aabb) {
         if aabb.intersects(&self.aabb) {
             self.walk_stackless_tree(node_callback, aabb, 0, self.cur_node_index);
         }

@@ -1,7 +1,7 @@
 use crate::bullet::collision::dispatch::collision_object::ActivationState;
 use crate::consts::{dropshot, heatseeker};
 use crate::sim::UserInfoTypes;
-use crate::{Arena, BallHitInfo, BallState, GameMode, Team, consts, ArenaInner};
+use crate::{Arena, ArenaInner, BallHitInfo, BallState, GameMode, Team, consts};
 use glam::{Affine3A, Vec3A};
 
 impl Arena {
@@ -115,7 +115,7 @@ impl ArenaInner {
             let extra_z_scale = self.game_mode == GameMode::Hoops
                 && car.state.is_on_ground
                 && car.state.phys.rot_mat.z_axis.z
-                > consts::ball::car_hit_impulse::Z_SCALE_HOOPS_NORMAL_Z_THRESH;
+                    > consts::ball::car_hit_impulse::Z_SCALE_HOOPS_NORMAL_Z_THRESH;
             let z_scale = if extra_z_scale {
                 consts::ball::car_hit_impulse::Z_SCALE_HOOPS_GROUND
             } else {
@@ -144,18 +144,15 @@ impl ArenaInner {
                 let can_increase = ball_state.hs_info.time_since_hit
                     > heatseeker::MIN_SPEEDUP_INTERVAL
                     || ball_state.hs_info.y_target_dir == 0.0;
-                ball_state.hs_info.y_target_dir =
-                    f32::from(car.team == Team::Blue) * 2.0 - 1.0;
+                ball_state.hs_info.y_target_dir = f32::from(car.team == Team::Blue) * 2.0 - 1.0;
 
                 #[allow(clippy::eq_op)]
                 if can_increase
-                    && ball_state.hs_info.y_target_dir
-                    != ball_state.hs_info.y_target_dir
+                    && ball_state.hs_info.y_target_dir != ball_state.hs_info.y_target_dir
                 {
                     ball_state.hs_info.time_since_hit = 0.0;
                     ball_state.hs_info.cur_target_speed = heatseeker::MAX_SPEED.min(
-                        ball_state.hs_info.cur_target_speed
-                            + heatseeker::TARGET_SPEED_INCREMENT,
+                        ball_state.hs_info.cur_target_speed + heatseeker::TARGET_SPEED_INCREMENT,
                     );
                 }
             }
@@ -163,8 +160,7 @@ impl ArenaInner {
                 let accumulated_hit_force = &mut ball_state.ds_info.accumulated_hit_force;
                 let charge_level = &mut ball_state.ds_info.charge_level;
 
-                let dir_from_car =
-                    (ball_state.phys.pos - car.state.phys.pos).normalize();
+                let dir_from_car = (ball_state.phys.pos - car.state.phys.pos).normalize();
                 let rel_vel_from_car = car.state.phys.vel - ball_state.phys.vel;
                 let vel_info_ball = dir_from_car.dot(rel_vel_from_car);
 
@@ -179,8 +175,7 @@ impl ArenaInner {
                 }
 
                 if *charge_level > 1 {
-                    ball_state.ds_info.y_target_dir =
-                        f32::from(car.team == Team::Blue) * 2.0 - 1.0;
+                    ball_state.ds_info.y_target_dir = f32::from(car.team == Team::Blue) * 2.0 - 1.0;
                 }
             }
             _ => {}

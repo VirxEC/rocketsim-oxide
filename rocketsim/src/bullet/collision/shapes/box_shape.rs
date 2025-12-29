@@ -44,7 +44,9 @@ impl BoxShape {
     }
 
     pub fn get_margin(&self) -> f32 {
-        self.polyhedral_convex_shape.convex_internal_shape.collision_margin
+        self.polyhedral_convex_shape
+            .convex_internal_shape
+            .collision_margin
     }
 
     pub fn get_aabb(&self, t: &Affine3A) -> Aabb {

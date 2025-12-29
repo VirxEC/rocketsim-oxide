@@ -14,7 +14,7 @@ impl ControlSeq {
 
     pub fn new_single(car_controls: CarControls) -> Self {
         Self {
-            car_controls: vec![car_controls]
+            car_controls: vec![car_controls],
         }
     }
 

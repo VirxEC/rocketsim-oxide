@@ -17,7 +17,7 @@ use crate::bullet::{
     linear_math::{AffineExt, QuatExt},
 };
 use crate::shared::Aabb;
-use crate::shared::bvh::{Tree, NodeOverlapCallback};
+use crate::shared::bvh::{NodeOverlapCallback, Tree};
 
 fn get_angle(edge_a: Vec3A, normal_a: Vec3A, normal_b: Vec3A) -> f32 {
     normal_b.dot(edge_a).atan2(normal_b.dot(normal_a))

@@ -41,9 +41,7 @@ impl TestCase {
                 let start_controls = car_setup.control_seq.get_controls_at_tick(0);
                 {
                     let new_car_id = new_arena.add_car(car_setup.team, CarConfig::OCTANE);
-                    new_arena
-                        .car_mut(new_car_id)
-                        .set_controls(start_controls);
+                    new_arena.car_mut(new_car_id).set_controls(start_controls);
                 }
                 {
                     let old_car_id = old_arena_ptr.pin_mut().add_car(
@@ -111,14 +109,17 @@ impl TestCase {
             let comparison = {
                 let mut comparison = StateComparison::default();
                 for i in 0..self.car_setups.len() {
-                    let controls = self.car_setups[i].control_seq.get_controls_at_tick(tick_count as u64);
+                    let controls = self.car_setups[i]
+                        .control_seq
+                        .get_controls_at_tick(tick_count as u64);
 
                     let new_car_id = (i + 1) as u64;
                     let old_car_id = (i + 1) as u32;
                     let new_car_state = new_arena.car(new_car_id).get_state();
                     let old_car_state = &old_arena_ptr.pin_mut().get_car(old_car_id);
-                    let old_car_state_conv = &state_convert::conv_to_new_car_state(old_car_state, controls);
-                    
+                    let old_car_state_conv =
+                        &state_convert::conv_to_new_car_state(old_car_state, controls);
+
                     let err_set = state_compare::map_car_err(new_car_state, old_car_state_conv);
                     comparison.car_errs.push(err_set);
                 }

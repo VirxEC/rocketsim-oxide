@@ -185,9 +185,8 @@ fn make_car_cases() -> Vec<TestCase> {
             (0.0, 0.0, 0.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlSeq::new_single(
-                quick_air(0.0, 0.0, 0.0, true, false)
-            ).add(CarControls::default(), 1),
+            ControlSeq::new_single(quick_air(0.0, 0.0, 0.0, true, false))
+                .add(CarControls::default(), 1),
             true,
         ),
         simple_car_case(
@@ -257,14 +256,23 @@ fn make_car_cases() -> Vec<TestCase> {
             (1.0, 2.0, 3.0),
             (0, 0, 0),
             (0, 0, 0),
-            ControlSeq::new().add(
-                quick_air(0.9, 0.4, -0.2, true, false),
-                20
-            ).add(
-                // Partial flip cancel
-                quick_air(-0.95, -0.3, -1.0, false, false),
-                1
-            ),
+            ControlSeq::new()
+                .add(quick_air(0.9, 0.4, -0.2, true, false), 20)
+                .add(
+                    // Partial flip cancel
+                    quick_air(-0.95, -0.3, -1.0, false, false),
+                    1,
+                ),
+            false,
+        ),
+        simple_car_case(
+            "auto_roll",
+            60,
+            (0, 0, 40),
+            (1.0, 0.0, 3.0), // Turtled
+            (0, 0, 0),
+            (0, 0, 0),
+            ControlSeq::new_single(quick_drive(-1.0, 0.0, false, false)),
             false,
         ),
     ]

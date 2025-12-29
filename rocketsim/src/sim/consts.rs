@@ -403,7 +403,7 @@ pub mod snowday {
     pub const PUCK_GROUND_STICK_FORCE: f32 = 70.0;
     pub const PUCK_COEFS: PhysicsCoefs = PhysicsCoefs {
         friction: 0.1,
-        restitution: 0.3
+        restitution: 0.3,
     };
 }
 

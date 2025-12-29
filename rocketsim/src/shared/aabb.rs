@@ -1,5 +1,5 @@
-use std::ops::{Add, AddAssign};
 use glam::Vec3A;
+use std::ops::{Add, AddAssign};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Aabb {

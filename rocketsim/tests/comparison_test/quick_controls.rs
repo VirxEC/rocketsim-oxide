@@ -10,7 +10,7 @@ pub fn quick_drive(throttle: f32, steer: f32, boost: bool, handbrake: bool) -> C
         pitch: 0.0,
         yaw: 0.0,
         roll: 0.0,
-        jump: false
+        jump: false,
     }
 }
 
@@ -25,7 +25,6 @@ pub fn quick_air(pitch: f32, yaw: f32, roll: f32, jump: bool, boost: bool) -> Ca
         jump,
         boost,
 
-        handbrake: false
+        handbrake: false,
     }
 }
-
