@@ -55,6 +55,8 @@ impl Display for TestResultState {
             show_diff(f, "\n\t\tboost", csn.boost, cso.boost)?;
             show_diff(f, "\n\t\tis_on_ground", csn.is_on_ground, cso.is_on_ground)?;
             show_diff(f, "\n\t\thas_jumped", csn.has_jumped, cso.has_jumped)?;
+            show_diff(f, "\n\t\tis_jumping", csn.is_jumping, cso.is_jumping)?;
+            show_diff(f, "\n\t\tjump_time", csn.jump_time, cso.jump_time)?;
             show_diff(f, "\n\t\thas_flipped", csn.has_flipped, cso.has_flipped)?;
             show_diff(f, "\n\t\tflip_time", csn.flip_time, cso.flip_time)?;
             show_diff(f, "\n\t\tis_demoed", csn.is_demoed, cso.is_demoed)?;
