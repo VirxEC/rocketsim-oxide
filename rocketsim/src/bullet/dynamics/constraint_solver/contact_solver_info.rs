@@ -1,12 +1,8 @@
-pub struct ContactSolverInfo {
-    pub time_step: f32,
-}
+pub struct ContactSolverInfo {}
 
 impl Default for ContactSolverInfo {
     fn default() -> Self {
-        Self {
-            time_step: 1. / 120.,
-        }
+        Self {}
     }
 }
 

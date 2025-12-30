@@ -134,12 +134,12 @@ impl DiscreteDynamicsWorld {
         }
     }
 
-    fn solve_constraints(&mut self) {
+    fn solve_constraints(&mut self, time_step: f32) {
         self.solver.solve_group(
             &mut self.dynamics_world.collision_world.collision_objects,
             &self.non_static_rigid_bodies,
             &mut self.dynamics_world.collision_world.dispatcher1.manifolds,
-            self.dynamics_world.solver_info.time_step,
+            time_step
         );
     }
 
@@ -189,9 +189,7 @@ impl DiscreteDynamicsWorld {
             .collision_world
             .perform_discrete_collision_detection(contact_added_callback);
 
-        self.dynamics_world.solver_info.time_step = time_step;
-
-        self.solve_constraints();
+        self.solve_constraints(time_step);
         self.integrate_transforms(time_step);
         self.update_activation_state(time_step);
     }

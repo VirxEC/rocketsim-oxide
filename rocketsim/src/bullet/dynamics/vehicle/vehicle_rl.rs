@@ -100,7 +100,7 @@ impl WheelInfoRL {
     fn reset_wheel_suspension(&mut self, suspension_travel: f32) {
         self.wheel_info.raycast_info.suspension_length =
             self.wheel_info.suspension_rest_length_1 + suspension_travel;
-        self.wheel_info.suspension_relative_velcity = 0.0;
+        self.wheel_info.suspension_relative_velocity = 0.0;
         self.wheel_info.raycast_info.contact_normal_ws =
             -self.wheel_info.raycast_info.wheel_direction_ws;
         self.wheel_info.clipped_inv_contact_dot_suspension = 1.0;
@@ -110,9 +110,9 @@ impl WheelInfoRL {
     fn apply_ray_cast(
         &mut self,
         chassis: &RigidBody,
-        collision_world: &DiscreteDynamicsWorld,
         suspension_travel: f32,
         ray_results: VehicleRaycasterResult,
+        time_step: f32
     ) {
         let co = &ray_results.rigid_body.collision_object;
         self.wheel_info.raycast_info.contact_point_ws = ray_results.hit_point_in_world;
@@ -154,10 +154,10 @@ impl WheelInfoRL {
 
         if denom > 0.1 {
             let inv = 1.0 / denom;
-            self.wheel_info.suspension_relative_velcity = proj_vel * inv;
+            self.wheel_info.suspension_relative_velocity = proj_vel * inv;
             self.wheel_info.clipped_inv_contact_dot_suspension = inv;
         } else {
-            self.wheel_info.suspension_relative_velcity = 0.0;
+            self.wheel_info.suspension_relative_velocity = 0.0;
             self.wheel_info.clipped_inv_contact_dot_suspension = 10.0;
         }
 
@@ -173,7 +173,7 @@ impl WheelInfoRL {
                     ray_results.rigid_body,
                     ray_results.hit_point_in_world,
                     ray_results.hit_normal_in_world,
-                    collision_world.dynamics_world.solver_info.time_step,
+                    time_step,
                     wheel_trace_dist_delta,
                 );
 
@@ -255,14 +255,16 @@ impl WheelInfoRL {
             - self.wheel_info.raycast_info.suspension_length)
             * bullet_vehicle::SUSPENSION_STIFFNESS
             * self.wheel_info.clipped_inv_contact_dot_suspension;
-        let damping_vel_scale = if self.wheel_info.suspension_relative_velcity < 0.0 {
+
+        let damping_vel_scale = if self.wheel_info.suspension_relative_velocity < 0.0 {
             bullet_vehicle::WHEELS_DAMPING_COMPRESSION
         } else {
             bullet_vehicle::WHEELS_DAMPING_RELAXATION
         };
 
         self.wheel_info.wheels_suspension_force =
-            force - (damping_vel_scale * self.wheel_info.suspension_relative_velcity);
+            force - (damping_vel_scale * self.wheel_info.suspension_relative_velocity);
+
         self.wheel_info.wheels_suspension_force *= self.suspsension_force_scale;
         self.wheel_info.wheels_suspension_force = self.wheel_info.wheels_suspension_force.max(0.0);
 
@@ -274,6 +276,7 @@ impl WheelInfoRL {
             self.wheel_info.wheels_suspension_force * delta_time + self.extra_pushback;
         let contact_point_offset = self.wheel_info.raycast_info.contact_point_ws
             - cb.collision_object.get_world_transform().translation;
+
         let force = self.wheel_info.raycast_info.contact_normal_ws * base_force_scale;
         cb.apply_impulse(force, contact_point_offset);
     }
@@ -361,7 +364,7 @@ impl VehicleRL {
         self.wheels.len()
     }
 
-    pub fn update_vehicle_first(&mut self, collision_world: &DiscreteDynamicsWorld, step: f32) {
+    pub fn update_vehicle_first(&mut self, collision_world: &DiscreteDynamicsWorld, time_step: f32) {
         let chassis = &collision_world.bodies()[self.chassis_body_idx];
 
         let friction_scale = chassis.get_mass() / 3.0;
@@ -386,14 +389,14 @@ impl VehicleRL {
 
         for (i, wheel) in self.wheels.iter_mut().enumerate() {
             if let Some(ray_result) = ray_results[i] {
-                wheel.apply_ray_cast(chassis, collision_world, suspension_travels[i], ray_result);
+                wheel.apply_ray_cast(chassis, suspension_travels[i], ray_result, time_step);
             } else {
                 wheel.reset_wheel_suspension(suspension_travels[i]);
             }
         }
 
         for wheel in &mut self.wheels {
-            wheel.calc_friction_impulses(chassis, collision_world.bodies(), friction_scale, step);
+            wheel.calc_friction_impulses(chassis, collision_world.bodies(), friction_scale, time_step);
         }
     }
 
