@@ -3,7 +3,7 @@ use glam::Vec3A;
 use super::solver_body::SolverBody;
 use crate::bullet::{
     collision::narrowphase::manifold_point::ManifoldPoint,
-    dynamics::{constraint_solver::contact_solver_info::ContactSolverInfo, rigid_body::RigidBody},
+    dynamics::{constraint_solver::contact_solver_info, rigid_body::RigidBody},
 };
 
 fn bullet_dot(vec0: Vec3A, vec1: Vec3A) -> f32 {
@@ -94,7 +94,7 @@ impl SolverConstraint {
     }
 
     pub fn restitution_curve(rel_vel: f32, restitution: f32) -> f32 {
-        if rel_vel.abs() < ContactSolverInfo::RESTITUTION_VELOCITY_THRESHOLD {
+        if rel_vel.abs() < contact_solver_info::RESTITUTION_VELOCITY_THRESHOLD {
             0.0
         } else {
             restitution * -rel_vel
@@ -110,8 +110,8 @@ impl SolverConstraint {
         time_step: f32,
     ) {
         let inv_time_step = 1.0 / time_step;
-        let erp = ContactSolverInfo::ERP_2;
-        self.applied_impulse = cp.applied_impulse * ContactSolverInfo::WARMSTARTING_FACTOR;
+        let erp = contact_solver_info::ERP_2;
+        self.applied_impulse = cp.applied_impulse * contact_solver_info::WARMSTARTING_FACTOR;
 
         let (denom0, vel0, vel_1_dot_n) = rb0.map_or((0.0, Vec3A::ZERO, 0.0), |rb| {
             let torque_axis = rel_pos1.cross(cp.normal_world_on_b);
@@ -164,7 +164,7 @@ impl SolverConstraint {
             (denom, vel, vel_dot_n)
         });
 
-        self.jac_diag_ab_inv = ContactSolverInfo::SOR / (denom0 + denom1);
+        self.jac_diag_ab_inv = contact_solver_info::SOR / (denom0 + denom1);
 
         let vel = vel0 - vel1;
         let rel_vel = cp.normal_world_on_b.dot(vel);
@@ -184,7 +184,7 @@ impl SolverConstraint {
         let velocity_impulse = velocity_error * self.jac_diag_ab_inv;
 
         (self.rhs, self.rhs_penetration) =
-            if penetration > ContactSolverInfo::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
+            if penetration > contact_solver_info::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
                 (penetration_impulse + velocity_impulse, 0.0)
             } else {
                 (velocity_impulse, penetration_impulse)
@@ -234,7 +234,7 @@ impl SolverConstraint {
             (vel_dot_n, denom)
         });
 
-        self.jac_diag_ab_inv = ContactSolverInfo::SOR / (denom1 + denom2);
+        self.jac_diag_ab_inv = contact_solver_info::SOR / (denom1 + denom2);
 
         let rel_vel = vel_1_dot_n + vel_2_dot_n;
         let velocity_error = -rel_vel;

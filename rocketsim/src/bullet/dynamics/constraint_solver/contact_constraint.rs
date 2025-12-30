@@ -2,7 +2,7 @@ use glam::Vec3A;
 
 use crate::bullet::dynamics::{
     constraint_solver::{
-        contact_solver_info::ContactSolverInfo,
+        contact_solver_info,
         jacobian_entry::{JacbobianBody, get_jacobian_diagonal},
     },
     rigid_body::RigidBody,
@@ -26,7 +26,7 @@ pub fn resolve_single_collision(
     let vel = vel1 - vel2;
     let rel_vel = contact_normal_on_b.dot(vel);
 
-    let positional_error = ContactSolverInfo::ERP * -distance / time_step;
+    let positional_error = contact_solver_info::ERP * -distance / time_step;
     let velocity_error = -rel_vel;
     let denom0 = body1.compute_impulse_denominator(contact_position_world, contact_normal_on_b);
     let denom1 = body2.compute_impulse_denominator(contact_position_world, contact_normal_on_b);

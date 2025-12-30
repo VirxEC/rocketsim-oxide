@@ -1,7 +1,7 @@
 use glam::Vec3A;
 
 use super::{
-    contact_solver_info::ContactSolverInfo, solver_body::SolverBody,
+    contact_solver_info, solver_body::SolverBody,
     solver_constraint::SolverConstraint,
 };
 use crate::bullet::{
@@ -264,10 +264,10 @@ impl SequentialImpulseConstraintSolver {
         let solver_body_a = &mut self.tmp_solver_body_pool[solver_body_id_a];
 
         let rel_pos1 = normal_world_on_b * -distance;
-        let relaxation = ContactSolverInfo::SOR;
+        let relaxation = contact_solver_info::SOR;
 
         let inv_time_step = 1.0 / time_step;
-        let erp = ContactSolverInfo::ERP_2;
+        let erp = contact_solver_info::ERP_2;
 
         let torque_axis_0 = rel_pos1.cross(normal_world_on_b);
         let angular_component_a = body.inertia_tensor_world * torque_axis_0;
@@ -308,7 +308,7 @@ impl SequentialImpulseConstraintSolver {
         let velocity_impulse = velocity_error * jac_diag_ab_inv;
 
         let (rhs, rhs_penetration) =
-            if penetration > ContactSolverInfo::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
+            if penetration > contact_solver_info::SPLIT_IMPULSE_PENETRATION_THRESHOLD {
                 (penetration_impulse + velocity_impulse, 0.0)
             } else {
                 (velocity_impulse, penetration_impulse)
@@ -386,7 +386,7 @@ impl SequentialImpulseConstraintSolver {
     fn solve_group_split_impulse_iterations(&mut self) {
         let mut should_run = (1u64 << self.tmp_solver_contact_constraint_pool.len()) - 1;
 
-        for _ in 0..ContactSolverInfo::NUM_ITERATIONS {
+        for _ in 0..contact_solver_info::NUM_ITERATIONS {
             for (i, contact) in self
                 .tmp_solver_contact_constraint_pool
                 .iter_mut()
@@ -466,7 +466,7 @@ impl SequentialImpulseConstraintSolver {
     fn solve_group_iterations(&mut self) {
         self.solve_group_split_impulse_iterations();
 
-        for _ in 0..ContactSolverInfo::NUM_ITERATIONS {
+        for _ in 0..contact_solver_info::NUM_ITERATIONS {
             self.least_squares_residual = self.solve_single_iteration();
             if self.least_squares_residual == 0.0 {
                 break;
@@ -497,7 +497,7 @@ impl SequentialImpulseConstraintSolver {
                     integrate_transform(
                         &mut solver.world_transform,
                         solver.push_velocity,
-                        solver.turn_velocity * ContactSolverInfo::SPLIT_IMPULSE_TURN_ERP,
+                        solver.turn_velocity * contact_solver_info::SPLIT_IMPULSE_TURN_ERP,
                         time_step,
                     );
                 }
