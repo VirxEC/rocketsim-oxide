@@ -240,9 +240,10 @@ impl WheelInfoRL {
             -self.wheel_info.engine_force / friction_scale
         };
 
-        let total_friciton_force = forward_dir * rolling_friction * self.long_friction
+        let total_friction_force = forward_dir * rolling_friction * self.long_friction
             + axle_dir * side_impulse * self.lat_friction;
-        self.impulse = total_friciton_force * friction_scale;
+
+        self.impulse = total_friction_force * friction_scale;
     }
 
     fn update_suspension(&mut self, cb: &mut RigidBody, delta_time: f32) {
