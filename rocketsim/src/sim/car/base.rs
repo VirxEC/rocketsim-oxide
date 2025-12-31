@@ -217,10 +217,12 @@ impl Car {
         num_wheels_in_contact: u8,
         forward_speed_uu: f32,
     ) {
-        self.state.handbrake_val += (f32::from(self.state.controls.handbrake) * 2.0 - 1.0)
-            * drive_consts::POWERSLIDE_FALL_RATE
-            * tick_time;
-        self.state.handbrake_val = self.state.handbrake_val.clamp(0.0, 1.0);
+        let handbrake_delta = if self.state.controls.handbrake {
+            drive_consts::POWERSLIDE_RISE_RATE
+        } else {
+            -drive_consts::POWERSLIDE_FALL_RATE
+        } * tick_time;
+        self.state.handbrake_val = (self.state.handbrake_val + handbrake_delta).clamp(0.0, 1.0);
 
         let mut real_brake = 0.0;
         let real_throttle = if self.state.controls.boost && self.state.boost > 0.0 {
@@ -306,7 +308,7 @@ impl Car {
             } else {
                 0.0
             };
-            
+
             let mut lat_friction = if self.config.three_wheels {
                 curves::LAT_FRICTION_THREEWHEEL
             } else {
