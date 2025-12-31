@@ -4,7 +4,7 @@ mod boost_pad_config;
 mod boost_pad_grid;
 mod boost_pad_state;
 
-pub use base::*;
+pub(crate) use base::*;
 pub use boost_pad_config::*;
-pub use boost_pad_grid::*;
+pub(crate) use boost_pad_grid::*;
 pub use boost_pad_state::*;

@@ -341,7 +341,7 @@ impl Arena {
                 }
             }
 
-            BoostPadGrid::new(&boost_pad_configs)
+            BoostPadGrid::new(&boost_pad_configs, &mutator_config)
         };
 
         let rng = config.rng_seed.map_or_else(Rng::new, Rng::with_seed);
@@ -783,7 +783,7 @@ impl Arena {
     #[inline]
     #[must_use]
     pub(crate) fn boost_pads(&self) -> &[BoostPad] {
-        self.boost_pad_grid.pads()
+        &self.boost_pad_grid.all_pads
     }
 
     pub fn num_boost_pads(&self) -> usize {

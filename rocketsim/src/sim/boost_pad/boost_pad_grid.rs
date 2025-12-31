@@ -1,22 +1,22 @@
-use glam::{USizeVec2, Vec2, Vec3A};
-
 use crate::shared::bvh::SimpleNodeProcessor;
 use crate::shared::{Aabb, bvh};
 use crate::{BoostPad, BoostPadConfig, CarState, MutatorConfig, consts::boost_pads};
 
 #[derive(Debug, Clone)]
 pub(crate) struct BoostPadGrid {
-    bvh_tree: bvh::Tree,
-    all_pads: Vec<BoostPad>,
-    max_pad_z: f32,
+    pub bvh_tree: bvh::Tree,
+    pub all_pads: Vec<BoostPad>,
+    pub max_pad_z: f32,
 }
 
 impl BoostPadGrid {
     #[must_use]
-    pub fn new(pad_configs: &Vec<BoostPadConfig>) -> Self {
+    pub fn new(pad_configs: &Vec<BoostPadConfig>, mutator_config: &MutatorConfig) -> Self {
         assert!(!pad_configs.is_empty());
 
-        let mut all_pads: Vec<BoostPad> = pad_configs.clone().into_iter().map(BoostPad::new).collect();
+        let mut all_pads: Vec<BoostPad> = pad_configs.clone().into_iter().map(
+            |pad_config| BoostPad::new(pad_config, mutator_config)
+        ).collect();
 
         // Sort them to match RLBot/RLGym ordering
         all_pads.sort_by(|a, b| {
@@ -65,16 +65,6 @@ impl BoostPadGrid {
         }
     }
 
-    #[must_use]
-    pub fn pads(&self) -> &[BoostPad] {
-        &self.all_pads
-    }
-
-    #[must_use]
-    pub fn pads_mut(&mut self) -> &mut [BoostPad] {
-        &mut self.all_pads
-    }
-
     pub fn reset(&mut self) {
         for pad in &mut self.all_pads {
             pad.reset();
@@ -107,22 +97,21 @@ impl BoostPadGrid {
 
             if let Some(last_give_tick_count) = pad.gave_boost_tick_count
                 && (tick_count - last_give_tick_count) as f32 * tick_time
-                    < pad.config.get_max_cooldown(mutator_config)
+                    < pad.max_cooldown
             {
                 continue;
             }
 
             // Check if car origin is inside the cylinder hitbox
             let pad_pos = pad.config().pos;
-            let cyl_radius = pad.radius();
             let dist_sq_2d = pad_pos
                 .truncate()
                 .distance_squared(car_state.pos.truncate());
-            let overlapping = dist_sq_2d < cyl_radius * cyl_radius
+            let overlapping = dist_sq_2d < pad.cyl_radius.powi(2)
                 && (car_state.pos.z - pad_pos.z).abs() <= boost_pads::CYL_HEIGHT;
             if overlapping {
                 // Give boost
-                car_state.boost = (car_state.boost + pad.config.get_boost_amount(mutator_config))
+                car_state.boost = (car_state.boost + pad.boost_amount)
                     .min(mutator_config.car_max_boost_amount);
                 pad.gave_boost_tick_count = Some(tick_count);
                 return;
