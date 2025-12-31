@@ -32,6 +32,10 @@ impl Aabb {
     pub fn intersects(&self, rhs: &Self) -> bool {
         self.min.cmple(rhs.max).all() && self.max.cmpge(rhs.min).all()
     }
+
+    pub fn combine(&self, rhs: &Self) -> Self {
+        Self::new(self.min.min(rhs.min), self.max.max(rhs.max))
+    }
 }
 
 impl Add for Aabb {

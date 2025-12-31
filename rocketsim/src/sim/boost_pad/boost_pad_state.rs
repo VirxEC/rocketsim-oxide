@@ -6,7 +6,7 @@
 )]
 pub struct BoostPadState {
     /// The last tick when we gave a car boost
-    pub gave_boost_tick_count: Option<u64>, // TODO: Implement car-locking to improve accuracy under certain conditions
+    pub cooldown: f32,
 }
 
 impl Default for BoostPadState {
@@ -17,6 +17,10 @@ impl Default for BoostPadState {
 
 impl BoostPadState {
     pub const DEFAULT: Self = Self {
-        gave_boost_tick_count: None,
+        cooldown: 0.0,
     };
+
+    pub const fn is_active(&self) -> bool {
+        self.cooldown <= 0.0
+    }
 }

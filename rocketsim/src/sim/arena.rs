@@ -7,7 +7,7 @@ use std::{f32::consts::PI, iter::repeat_n, mem};
 
 use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
-    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, BoostPadGrid, GameMode,
+    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, BoostPadGrid, BoostPadState, GameMode,
     bullet::{
         collision::{
             broadphase::{GridBroadphase, HashedOverlappingPairCache},
@@ -144,6 +144,7 @@ impl ArenaInner {
         car_2_id: u64,
         manifold_point: &ManifoldPoint,
     ) {
+
         let [Some(car_1), Some(car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id]) else {
             panic!(
                 "on_car_car_collision() called with invalid or duplicate car ids: {car_1_id}=={car_2_id}"
@@ -424,7 +425,6 @@ impl Arena {
 
         drop(collision_shapes);
 
-        // TODO: Move to consts
         let (extent_x, floor, height) = match game_mode {
             GameMode::Hoops => (
                 consts::arena::EXTENT_X_HOOPS,
@@ -533,8 +533,13 @@ impl Arena {
     }
 
     #[must_use]
-    pub fn get_tick_rate(&self) -> f32 {
+    pub fn tick_rate(&self) -> f32 {
         1.0 / self.tick_time
+    }
+
+    #[must_use]
+    pub fn tick_time(&self) -> f32 {
+        self.tick_time
     }
 
     pub fn reset_to_random_kickoff(&mut self) {
@@ -777,14 +782,19 @@ impl Arena {
 
     #[inline]
     #[must_use]
-    pub fn boost_pads(&self) -> &[BoostPad] {
+    pub(crate) fn boost_pads(&self) -> &[BoostPad] {
         self.boost_pad_grid.pads()
     }
 
-    #[inline]
-    #[must_use]
-    pub(crate) fn boost_pads_mut(&mut self) -> &mut [BoostPad] {
-        self.boost_pad_grid.pads_mut()
+    pub fn num_boost_pads(&self) -> usize {
+        self.boost_pads().len()
+    }
+
+    pub fn get_all_boost_pad_states(&self) -> Vec<BoostPadState> {
+        (0..self.num_boost_pads())
+            .into_iter()
+            .map(|i| self.get_boost_pad_state(i))
+            .collect()
     }
 
     #[inline]
@@ -844,7 +854,7 @@ impl Arena {
     #[must_use]
     pub fn get_game_state(&self) -> GameState {
         GameState {
-            tick_rate: self.get_tick_rate(),
+            tick_rate: self.tick_time(),
             tick_count: self.tick_count(),
             game_mode: self.game_mode(),
             cars: if self.cars().is_empty() {
@@ -869,9 +879,10 @@ impl Arena {
                 Some(
                     self.boost_pads()
                         .iter()
-                        .map(|pad| BoostPadInfo {
+                        .enumerate()
+                        .map(|(pad_idx, pad)| BoostPadInfo {
                             config: *pad.config(),
-                            state: pad.state,
+                            state: self.get_boost_pad_state(pad_idx),
                         })
                         .collect(),
                 )

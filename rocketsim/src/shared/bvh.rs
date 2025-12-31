@@ -10,6 +10,24 @@ pub trait ProcessNode {
     fn process_node(&mut self, leaf_index: usize);
 }
 
+/// Just adds all the leaf indices to a Vec<usize>
+#[derive(Debug, Clone)]
+pub struct SimpleNodeProcessor {
+    pub leaf_indices: Vec<usize>,
+}
+impl SimpleNodeProcessor {
+    pub fn new() -> Self {
+        Self {
+            leaf_indices: Vec::new(),
+        }
+    }
+}
+impl ProcessNode for SimpleNodeProcessor {
+    fn process_node(&mut self, leaf_index: usize) {
+        self.leaf_indices.push(leaf_index);
+    }
+}
+
 pub trait ProcessRayNode {
     fn process_node(&mut self, leaf_index: usize, active_mask: u8, lambda_max: &mut Vec4);
 }
@@ -282,11 +300,7 @@ impl Tree {
                         );
 
                         if mask != 0 {
-                            node_callback.process_node(
-                                leaf_index,
-                                mask,
-                                &mut ray_info.lambda_max,
-                            );
+                            node_callback.process_node(leaf_index, mask, &mut ray_info.lambda_max);
                         }
                     }
                     cur_index += 1;
