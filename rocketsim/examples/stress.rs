@@ -158,11 +158,11 @@ fn main() {
 
         for _ in 0..NUM_EPISODE_TICKS {
             let ball_state = *arena.get_ball_state();
-            for &id in &ids {
+            for &idx in &ids {
                 const UPDATE_CHANCE: f32 = 0.05; // (120 * 0.05) = Avg of 6 per sec
 
                 let tick_count = arena.tick_count();
-                let car = arena.car_mut(id);
+                let car = arena.get_car_mut(idx);
                 let car_state = car.get_state();
 
                 if let Some(ball_hit_info) = car_state.ball_hit_info

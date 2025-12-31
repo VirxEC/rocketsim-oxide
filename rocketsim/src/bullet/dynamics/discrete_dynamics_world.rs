@@ -55,13 +55,6 @@ impl DiscreteDynamicsWorld {
             .add_collision_object(body, group, mask)
     }
 
-    pub fn remove_collision_object(&mut self, world_index: usize) {
-        self.non_static_rigid_bodies.retain(|&x| x != world_index);
-        self.dynamics_world
-            .collision_world
-            .remove_collision_object(world_index);
-    }
-
     pub fn add_rigid_body_default(&mut self, mut body: RigidBody) -> usize {
         if !body.collision_object.is_static_object()
             && body.get_flags() & RigidBodyFlags::DisableWorldGravity as u8 == 0

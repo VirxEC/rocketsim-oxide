@@ -40,18 +40,18 @@ impl TestCase {
             for car_setup in &self.car_setups {
                 let start_controls = car_setup.control_seq.get_controls_at_tick(0);
                 {
-                    let new_car_id = new_arena.add_car(car_setup.team, CarConfig::OCTANE);
-                    new_arena.car_mut(new_car_id).set_controls(start_controls);
+                    let new_car_idx = new_arena.add_car(car_setup.team, CarConfig::OCTANE);
+                    new_arena.get_car_mut(new_car_idx).set_controls(start_controls);
                 }
                 {
-                    let old_car_id = old_arena_ptr.pin_mut().add_car(
+                    let old_car_idx = old_arena_ptr.pin_mut().add_car(
                         state_convert::conv_to_old_team(car_setup.team),
                         OldCarConfig::octane(),
                     );
                     old_arena_ptr
                         .pin_mut()
                         .set_car_controls(
-                            old_car_id,
+                            old_car_idx,
                             state_convert::conv_to_old_car_controls(start_controls),
                         )
                         .unwrap();
@@ -59,16 +59,16 @@ impl TestCase {
             }
 
             for (i, car_setup) in self.car_setups.iter().enumerate() {
-                let new_car_id = (i + 1) as u64;
-                let old_car_id = (i + 1) as u32;
+                let new_car_idx = i;
+                let old_car_idx = (i + 1) as u32;
 
                 let new_car_state = car_setup.make_initial_car_state();
                 let old_car_state = state_convert::conv_to_old_car_state(&new_car_state);
 
-                new_arena.set_car_state(new_car_id, new_car_state);
+                new_arena.set_car_state(new_car_idx, new_car_state);
                 old_arena_ptr
                     .pin_mut()
-                    .set_car(old_car_id, old_car_state)
+                    .set_car(old_car_idx, old_car_state)
                     .unwrap();
             }
         }
@@ -113,10 +113,10 @@ impl TestCase {
                         .control_seq
                         .get_controls_at_tick(tick_count as u64);
 
-                    let new_car_id = (i + 1) as u64;
-                    let old_car_id = (i + 1) as u32;
-                    let new_car_state = new_arena.car(new_car_id).get_state();
-                    let old_car_state = &old_arena_ptr.pin_mut().get_car(old_car_id);
+                    let new_car_idx = i;
+                    let old_car_idx = (i + 1) as u32;
+                    let new_car_state = new_arena.get_car(new_car_idx).get_state();
+                    let old_car_state = &old_arena_ptr.pin_mut().get_car(old_car_idx);
                     let old_car_state_conv =
                         &state_convert::conv_to_new_car_state(old_car_state, controls);
 
@@ -148,21 +148,21 @@ impl TestCase {
                     .control_seq
                     .get_controls_at_tick(tick_count as u64);
 
-                let car_id_new = (i + 1) as u64;
-                let car_id_old = (i + 1) as u32;
-                let new_car_state = *new_arena.car(car_id_new).get_state();
-                let old_car_state = old_arena_ptr.pin_mut().get_car(car_id_old);
+                let car_idx_new = i;
+                let car_idx_old = (i + 1) as u32;
+                let new_car_state = *new_arena.get_car(car_idx_new).get_state();
+                let old_car_state = old_arena_ptr.pin_mut().get_car(car_idx_old);
 
                 // Set old car's controls to new car's controls
                 old_arena_ptr.pin_mut().set_car_controls(
-                    car_id_old,
+                    car_idx_old,
                     state_convert::conv_to_old_car_controls(controls),
                 );
 
                 // Update new arena car to old arena car's state
                 let mut old_car_state_conv =
                     state_convert::conv_to_new_car_state(&old_car_state, controls);
-                new_arena.set_car_state(car_id_new, old_car_state_conv);
+                new_arena.set_car_state(car_idx_new, old_car_state_conv);
 
                 car_state_pairs.push((new_car_state, old_car_state_conv));
             }

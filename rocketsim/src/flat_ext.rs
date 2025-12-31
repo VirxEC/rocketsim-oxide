@@ -138,7 +138,7 @@ impl From<crate::BoostPadState> for flat::BoostPadState {
             is_active: value.gave_boost_tick_count.is_none(),
             cooldown: 0.0,
             cur_locked_car: 0,
-            prev_locked_car_id: 0,
+            prev_locked_car_idx: 0,
         }
     }
 }
@@ -232,7 +232,7 @@ impl From<crate::PhysState> for flat::PhysState {
 impl From<&flat::CarContact> for crate::CarContact {
     fn from(value: &flat::CarContact) -> Self {
         Self {
-            other_car_id: value.other_car_id,
+            other_car_idx: value.other_car_idx,
             cooldown_timer: value.cooldown_timer,
         }
     }
@@ -241,7 +241,7 @@ impl From<&flat::CarContact> for crate::CarContact {
 impl From<crate::CarContact> for Box<flat::CarContact> {
     fn from(value: crate::CarContact) -> Self {
         let mut new = Self::default();
-        new.other_car_id = value.other_car_id;
+        new.other_car_idx = value.other_car_idx;
         new.cooldown_timer = value.cooldown_timer;
 
         new

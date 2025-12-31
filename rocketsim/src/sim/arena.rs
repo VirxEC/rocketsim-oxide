@@ -1,4 +1,3 @@
-use ahash::AHashMap;
 use arrayvec::ArrayVec;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
@@ -38,11 +37,10 @@ use crate::{
 pub struct ArenaInner {
     pub(crate) rng: Rng,
     pub(crate) tick_time: f32,
-    pub(crate) last_car_id: u64,
     config: ArenaConfig,
 
     pub(crate) ball: Ball,
-    pub(crate) cars: AHashMap<u64, Car>,
+    pub(crate) cars: Vec<Car>,
     pub(crate) tick_count: u64,
     pub(crate) game_mode: GameMode,
     pub(crate) mutator_config: MutatorConfig,
@@ -120,7 +118,7 @@ impl ContactAddedCallback for ArenaInner {
 impl ArenaInner {
     fn on_car_ball_collision(
         &mut self,
-        car_id: u64,
+        car_idx: usize,
         manifold_point: &ManifoldPoint,
         ball_is_body_a: bool,
     ) {
@@ -130,48 +128,47 @@ impl ArenaInner {
             manifold_point.local_point_b
         } * BT_TO_UU;
 
-        self.on_ball_hit(car_id, rel_ball_pos);
+        self.on_ball_hit(car_idx, rel_ball_pos);
     }
 
-    fn on_car_world_collision(&mut self, car_id: u64, manifold_point: &ManifoldPoint) {
-        let car = self.cars.get_mut(&car_id).unwrap();
+    fn on_car_world_collision(&mut self, car_idx: usize, manifold_point: &ManifoldPoint) {
+        let car = self.cars.get_mut(car_idx).unwrap();
         car.state.world_contact_normal = Some(manifold_point.normal_world_on_b);
     }
 
     fn on_car_car_collision(
         &mut self,
-        car_1_id: u64,
-        car_2_id: u64,
+        car_1_idx: usize,
+        car_2_idx: usize,
         manifold_point: &ManifoldPoint,
     ) {
-
-        let [Some(car_1), Some(car_2)] = self.cars.get_disjoint_mut([&car_1_id, &car_2_id]) else {
+        let Ok(both_cars) = self.cars.get_disjoint_mut([car_1_idx, car_2_idx]) else {
             panic!(
-                "on_car_car_collision() called with invalid or duplicate car ids: {car_1_id}=={car_2_id}"
+                "on_car_car_collision() called with invalid or duplicate car indices: {car_1_idx}, {car_2_idx}"
             );
         };
 
-        if car_1.state.is_demoed || car_2.state.is_demoed {
+        let (mut attacker, mut victim) = both_cars.into();
+
+        // NOTE: Checking the victim first, because in many use-cases, repeat-demo-victims are more likely
+        if victim.state.is_demoed || attacker.state.is_demoed  {
             return;
         }
 
-        let mut attacker = car_1;
-        let mut victim = car_2;
-
         // Test collision both ways
         for is_swapped in [false, true] {
-            let mut attacker_id = car_1_id;
-            let mut victim_id = car_2_id;
+            let mut attacker_idx = car_1_idx;
+            let mut victim_idx = car_2_idx;
             if is_swapped {
                 mem::swap(&mut attacker, &mut victim);
-                mem::swap(&mut attacker_id, &mut victim_id);
+                mem::swap(&mut attacker_idx, &mut victim_idx);
             }
 
             let attacker_state = &attacker.state;
             let victim_state = &victim.state;
 
             if let Some(car_contact) = attacker_state.car_contact
-                && car_contact.other_car_id == victim_id
+                && car_contact.other_car_idx == victim_idx
                 && car_contact.cooldown_timer > 0.0
             {
                 // In cooldown
@@ -244,7 +241,7 @@ impl ArenaInner {
             }
 
             attacker.state.car_contact = Some(CarContact {
-                other_car_id: victim_id,
+                other_car_idx: victim_idx,
                 cooldown_timer: self.mutator_config.bump_cooldown_time,
             });
         }
@@ -350,14 +347,13 @@ impl Arena {
             inner: ArenaInner {
                 rng,
                 config,
-                last_car_id: 0,
                 tick_time: 1. / f32::from(tick_rate),
                 ball,
                 game_mode,
                 boost_pad_grid,
                 mutator_config,
                 tick_count: 0,
-                cars: AHashMap::with_capacity(6),
+                cars: Vec::with_capacity(6)
             },
             bullet_world,
         }
@@ -554,7 +550,7 @@ impl Arena {
         let mut num_blue_cars = 0;
         let mut num_orange_cars = 0;
 
-        for (_, car) in &mut self.cars {
+        for car in &mut self.cars {
             if car.team == Team::Blue {
                 num_blue_cars += 1;
             } else {
@@ -592,18 +588,21 @@ impl Arena {
                 ..Default::default()
             };
 
-            for is_blue in [true, false] {
-                let team_cars = self.inner.cars.values_mut().filter(|car| {
-                    if is_blue {
-                        car.team == Team::Blue
-                    } else {
-                        car.team == Team::Orange
-                    }
-                });
+            for cur_team in Team::ALL {
+                let is_blue = cur_team == Team::Blue;
 
-                let Some(car) = team_cars.into_iter().nth(i) else {
+                let mut team_car_indices = Vec::with_capacity(self.inner.cars.len());
+                for car in &self.cars {
+                    if car.team == cur_team {
+                        team_car_indices.push(car.idx);
+                    }
+                }
+
+                if team_car_indices.len() <= i {
                     continue;
-                };
+                }
+
+                let car_idx = team_car_indices[i];
 
                 spawn_state.phys.rot_mat = Mat3A::from_euler(
                     EulerRot::ZYX,
@@ -617,10 +616,9 @@ impl Arena {
                     },
                 );
 
-                car.set_state(
-                    &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-                    &spawn_state,
-                );
+                let car = &mut self.inner.cars[car_idx];
+                let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
+                car.set_state(rb, &spawn_state);
             }
         }
 
@@ -647,15 +645,12 @@ impl Arena {
         // Reset tile states
     }
 
-    /// Adds a car to the match,
-    /// returning the id of the car.
-    /// The id is used as the key for the car in `Arena.cars`
-    pub fn add_car(&mut self, team: Team, config: CarConfig) -> u64 {
-        self.last_car_id += 1;
-        let id = self.last_car_id;
+    /// Creates and adds a car to the arena, returning the index of the car in the cars vector
+    pub fn add_car(&mut self, team: Team, config: CarConfig) -> usize {
+        let idx = self.cars.len();
 
         let mut car = Car::new(
-            id,
+            idx,
             team,
             &mut self.bullet_world,
             &self.inner.mutator_config,
@@ -670,37 +665,9 @@ impl Arena {
 
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
             .collision_object
-            .user_pointer = self.last_car_id;
-        self.inner.cars.insert(self.inner.last_car_id, car);
-        self.last_car_id
-    }
-
-    pub fn remove_car(&mut self, id: u64) -> bool {
-        if let Some(car) = self.cars.remove(&id) {
-            if car.rigid_body_idx < self.ball.rigid_body_idx {
-                self.ball.rigid_body_idx -= 1;
-            }
-
-            for other_car in self.cars.values_mut() {
-                if car.rigid_body_idx < other_car.rigid_body_idx {
-                    other_car.rigid_body_idx -= 1;
-                    other_car.bullet_vehicle.chassis_body_idx -= 1;
-                }
-            }
-
-            self.bullet_world
-                .remove_collision_object(car.rigid_body_idx);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn remove_all_cars(&mut self) {
-        while !self.cars().is_empty() {
-            let id = *self.cars().keys().next().unwrap();
-            self.remove_car(id);
-        }
+            .user_pointer = idx;
+        self.inner.cars.push(car);
+        idx
     }
 
     fn internal_step(&mut self) {
@@ -719,7 +686,7 @@ impl Arena {
                 });
         }
 
-        for car in self.inner.cars.values_mut() {
+        for car in &mut self.inner.cars {
             car.pre_tick_update(
                 &mut self.bullet_world,
                 &mut self.inner.rng,
@@ -734,7 +701,7 @@ impl Arena {
         self.bullet_world
             .step_simulation(self.tick_time, &mut self.inner);
 
-        for car in self.inner.cars.values_mut() {
+        for car in &mut self.inner.cars {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
             car.post_tick_update(self.inner.tick_time, rb);
             car.finish_physics_tick(rb);
@@ -799,36 +766,28 @@ impl Arena {
 
     #[inline]
     #[must_use]
-    pub const fn cars(&self) -> &AHashMap<u64, Car> {
+    pub const fn cars(&self) -> &Vec<Car> {
         &self.inner.cars
     }
 
+    #[inline]
     #[must_use]
-    pub fn car(&self, car_id: u64) -> &Car {
-        self.cars.get(&car_id).unwrap()
+    pub const fn num_cars(&self) -> usize {
+        self.inner.cars.len()
     }
 
     #[must_use]
-    pub fn car_mut(&mut self, car_id: u64) -> &mut Car {
-        self.cars.get_mut(&car_id).unwrap()
+    pub fn get_car(&self, car_idx: usize) -> &Car {
+        &self.cars[car_idx]
     }
 
     #[must_use]
-    pub fn get_car(&self, car_id: u64) -> Option<&Car> {
-        self.cars.get(&car_id)
+    pub fn get_car_mut(&mut self, car_idx: usize) -> &mut Car {
+        &mut self.cars[car_idx]
     }
 
-    #[must_use]
-    pub fn get_car_mut(&mut self, car_id: u64) -> Option<&mut Car> {
-        self.cars.get_mut(&car_id)
-    }
-
-    pub fn set_car_state(&mut self, car_id: u64, state: CarState) {
-        let car = self
-            .inner
-            .cars
-            .get_mut(&car_id)
-            .expect("No car with the given id");
+    pub fn set_car_state(&mut self, car_idx: usize, state: CarState) {
+        let car = &mut self.inner.cars[car_idx];
 
         car.set_state(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
@@ -836,12 +795,8 @@ impl Arena {
         );
     }
 
-    pub fn respawn_car(&mut self, car_id: u64) {
-        let car = self
-            .inner
-            .cars
-            .get_mut(&car_id)
-            .expect("No car with the given id");
+    pub fn respawn_car(&mut self, car_idx: usize) {
+        let car = &mut self.inner.cars[car_idx];
 
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
@@ -863,8 +818,8 @@ impl Arena {
                 Some(
                     self.cars()
                         .iter()
-                        .map(|(&id, car)| CarInfo {
-                            id,
+                        .map(|car| CarInfo {
+                            id: (car.idx + 1) as u64,
                             team: car.team,
                             state: *car.get_state(),
                             config: *car.get_config(),
@@ -904,7 +859,7 @@ impl Arena {
             }
 
             for car_info in cars {
-                self.set_car_state(car_info.id, car_info.state);
+                self.set_car_state((car_info.id - 1) as usize, car_info.state);
             }
         }
 

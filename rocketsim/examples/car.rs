@@ -7,7 +7,7 @@ fn main() {
     init_from_default(false).unwrap();
 
     let mut arena = Arena::new(GameMode::Soccar);
-    let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    let idx = arena.add_car(Team::Blue, CarConfig::OCTANE);
 
     fastrand::seed(0);
     arena.reset_to_random_kickoff();
@@ -17,7 +17,7 @@ fn main() {
     arena.set_ball_state(ball_state);
 
     let state = {
-        let car = arena.car(id);
+        let car = arena.get_car(idx);
         let mut state = *car.get_state();
         state.phys.pos.z = 43.0;
         state.is_on_ground = false;
@@ -34,7 +34,7 @@ fn main() {
     let start = Instant::now();
     for _ in 0..10_000 {
         arena.set_ball_state(ball_state);
-        arena.set_car_state(id, state);
+        arena.set_car_state(idx, state);
         arena.step(720);
     }
     let elapsed = Instant::now().duration_since(start).as_secs_f32();

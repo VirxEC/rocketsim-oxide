@@ -11,7 +11,7 @@ use crate::{BallHitInfo, CarControls, PhysState};
     derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
 )]
 pub struct CarContact {
-    pub other_car_id: u64,
+    pub other_car_idx: usize,
     pub cooldown_timer: f32,
 }
 

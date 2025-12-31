@@ -39,7 +39,7 @@ pub struct CollisionObject {
     pub friction: f32,
     pub restitution: f32,
     pub no_rot: bool,
-    pub user_pointer: u64,
+    pub user_pointer: usize,
     pub user_index: UserInfoTypes,
 }
 

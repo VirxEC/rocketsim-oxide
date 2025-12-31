@@ -31,7 +31,7 @@ use crate::{
 };
 
 pub struct Car {
-    pub id: u64,
+    pub idx: usize,
     pub team: Team,
     config: CarConfig,
     pub(crate) bullet_vehicle: VehicleRL,
@@ -42,7 +42,7 @@ pub struct Car {
 
 impl Car {
     pub(crate) fn new(
-        id: u64,
+        idx: usize,
         team: Team,
         bullet_world: &mut DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
@@ -117,7 +117,7 @@ impl Car {
         }
 
         Self {
-            id,
+            idx,
             team,
             config,
             rigid_body_idx,

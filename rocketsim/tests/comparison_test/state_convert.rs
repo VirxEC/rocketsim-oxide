@@ -104,7 +104,7 @@ pub fn conv_to_old_car_state(state: &CarState) -> OldCarState {
             contact_normal: vec3_to_old(state.world_contact_normal.unwrap_or_default()),
         },
         car_contact: OldCarContact {
-            other_car_id: state.car_contact.map_or(0, |c| c.other_car_id as u32),
+            other_car_id: state.car_contact.map_or(0, |c| (c.other_car_idx + 1) as u32),
             cooldown_timer: state.car_contact.map_or(0.0, |c| c.cooldown_timer),
         },
         is_demoed: state.is_demoed,
@@ -172,7 +172,7 @@ pub fn conv_to_new_car_state(old: &OldCarState, controls: CarControls) -> CarSta
         },
         car_contact: if old.car_contact.other_car_id != 0 || old.car_contact.cooldown_timer > 0.0 {
             Some(CarContact {
-                other_car_id: old.car_contact.other_car_id as u64,
+                other_car_idx: (old.car_contact.other_car_id - 1) as usize,
                 cooldown_timer: old.car_contact.cooldown_timer,
             })
         } else {
