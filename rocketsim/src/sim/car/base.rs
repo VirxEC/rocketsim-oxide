@@ -283,21 +283,22 @@ impl Car {
         self.bullet_vehicle.wheels[0].steer_angle = steer_angle;
         self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
-        for wheel in &mut self.bullet_vehicle.wheels {
-            let Some(ground_rb_index) = wheel.wheel_info.raycast_info.ground_object else {
-                continue;
-            };
-            let ground_rb = &bodies[ground_rb_index];
+        let car_rb = &bodies[self.rigid_body_idx];
+        let car_pos = car_rb.collision_object.get_world_transform().translation;
+        let car_vel = car_rb.linear_velocity;
+        let car_ang_vel = car_rb.angular_velocity;
 
-            let vel = ground_rb.linear_velocity;
-            let angular_vel = ground_rb.angular_velocity;
+        for wheel in &mut self.bullet_vehicle.wheels {
+            if wheel.wheel_info.raycast_info.ground_object.is_none() {
+                continue;
+            }
 
             let lat_dir = wheel.wheel_info.world_transform.matrix3.y_axis;
             let long_dir = lat_dir.cross(wheel.wheel_info.raycast_info.contact_normal_ws);
 
             let wheel_delta = wheel.wheel_info.raycast_info.hard_point_ws
-                - ground_rb.collision_object.get_world_transform().translation;
-            let cross_vec = (angular_vel.cross(wheel_delta) + vel) * BT_TO_UU;
+                - car_rb.collision_object.get_world_transform().translation;
+            let cross_vec = (car_ang_vel.cross(wheel_delta) + car_vel) * BT_TO_UU;
 
             let base_friction = cross_vec.dot(lat_dir).abs();
             let friction_curve_input = if base_friction > 5.0 {
@@ -305,7 +306,7 @@ impl Car {
             } else {
                 0.0
             };
-
+            
             let mut lat_friction = if self.config.three_wheels {
                 curves::LAT_FRICTION_THREEWHEEL
             } else {
