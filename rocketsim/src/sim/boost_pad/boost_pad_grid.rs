@@ -16,7 +16,19 @@ impl BoostPadGrid {
     pub fn new(pad_configs: &Vec<BoostPadConfig>) -> Self {
         assert!(!pad_configs.is_empty());
 
-        let all_pads: Vec<BoostPad> = pad_configs.clone().into_iter().map(BoostPad::new).collect();
+        let mut all_pads: Vec<BoostPad> = pad_configs.clone().into_iter().map(BoostPad::new).collect();
+
+        // Sort them to match RLBot/RLGym ordering
+        all_pads.sort_by(|a, b| {
+            let a_pos = a.config.pos;
+            let b_pos = b.config.pos;
+            match a_pos.y.total_cmp(&b_pos.y) {
+                std::cmp::Ordering::Equal => {
+                    a_pos.x.total_cmp(&b_pos.x)
+                }
+                other => other,
+            }
+        });
 
         let all_aabb = {
             let mut all_aabb_accum: Option<Aabb> = None;
