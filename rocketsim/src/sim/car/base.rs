@@ -286,7 +286,6 @@ impl Car {
         self.bullet_vehicle.wheels[1].steer_angle = steer_angle;
 
         let car_rb = &bodies[self.rigid_body_idx];
-        let car_pos = car_rb.collision_object.get_world_transform().translation;
         let car_vel = car_rb.linear_velocity;
         let car_ang_vel = car_rb.angular_velocity;
 
