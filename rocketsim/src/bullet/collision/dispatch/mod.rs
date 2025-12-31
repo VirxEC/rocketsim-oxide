@@ -10,3 +10,4 @@ pub mod internal_edge_utility;
 mod obb_obb_collision_algorithm;
 pub mod ray_callbacks;
 mod sphere_obb_collision_algorithm;
+pub mod tri_bvh_util;

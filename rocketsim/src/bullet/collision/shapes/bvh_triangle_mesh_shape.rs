@@ -12,7 +12,8 @@ use crate::bullet::{
     linear_math::ray_packet::RayInfo,
 };
 use crate::shared::Aabb;
-use crate::shared::bvh::{NodeOverlapCallback, RayNodeOverlapCallback, Tree};
+use crate::shared::bvh::Tree;
+use crate::bullet::collision::dispatch::tri_bvh_util::*;
 
 pub struct BvhTriangleMeshShape {
     bvh: Tree,

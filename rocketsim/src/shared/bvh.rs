@@ -3,73 +3,18 @@ use std::mem;
 
 use glam::{Vec3A, Vec4};
 
-use crate::bullet::{
-    collision::shapes::{
-        triangle_callback::{ProcessRayTriangle, ProcessTriangle},
-        triangle_mesh::TriangleMesh,
-        triangle_shape::TriangleShape,
-    },
-    linear_math::{aabb_util_2::intersect_ray_aabb_packet, ray_packet::RayInfo},
-};
+use crate::bullet::linear_math::{aabb_util_2::intersect_ray_aabb_packet, ray_packet::RayInfo};
 use crate::shared::Aabb;
 
 pub trait ProcessNode {
-    fn process_node(&mut self, triangle_index: usize);
-}
-
-pub struct NodeOverlapCallback<'a, T: ProcessTriangle> {
-    tris: &'a [TriangleShape],
-    aabbs: &'a [Aabb],
-    callback: &'a mut T,
-}
-
-impl<'a, T: ProcessTriangle> NodeOverlapCallback<'a, T> {
-    pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
-        let (tris, aabbs) = mesh_interface.get_tris_aabbs();
-
-        Self {
-            tris,
-            aabbs,
-            callback,
-        }
-    }
-}
-
-impl<T: ProcessTriangle> ProcessNode for NodeOverlapCallback<'_, T> {
-    fn process_node(&mut self, node_triangle_index: usize) {
-        self.callback.process_triangle(
-            &self.tris[node_triangle_index],
-            &self.aabbs[node_triangle_index],
-            node_triangle_index,
-        );
-    }
+    fn process_node(&mut self, leaf_index: usize);
 }
 
 pub trait ProcessRayNode {
-    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4);
+    fn process_node(&mut self, leaf_index: usize, active_mask: u8, lambda_max: &mut Vec4);
 }
 
-pub struct RayNodeOverlapCallback<'a, T: ProcessRayTriangle> {
-    tris: &'a [TriangleShape],
-    callback: &'a mut T,
-}
-
-impl<'a, T: ProcessRayTriangle> RayNodeOverlapCallback<'a, T> {
-    pub fn new(mesh_interface: &'a TriangleMesh, callback: &'a mut T) -> Self {
-        let (tris, _) = mesh_interface.get_tris_aabbs();
-
-        Self { tris, callback }
-    }
-}
-
-impl<T: ProcessRayTriangle> ProcessRayNode for RayNodeOverlapCallback<'_, T> {
-    fn process_node(&mut self, triangle_index: usize, active_mask: u8, lambda_max: &mut Vec4) {
-        self.callback
-            .process_node(&self.tris[triangle_index], active_mask, lambda_max);
-    }
-}
-
-#[derive(Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Tree {
     pub aabb: Aabb,
     pub cur_node_index: usize,
@@ -258,7 +203,7 @@ impl Tree {
             let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                BvhNodeType::Leaf { triangle_index: _ } => {
+                BvhNodeType::Leaf { leaf_index: _ } => {
                     if aabb_overlap {
                         return true;
                     }
@@ -292,9 +237,9 @@ impl Tree {
             let aabb_overlap = aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                BvhNodeType::Leaf { triangle_index } => {
+                BvhNodeType::Leaf { leaf_index } => {
                     if aabb_overlap {
-                        node_callback.process_node(triangle_index);
+                        node_callback.process_node(leaf_index);
                     }
 
                     cur_index += 1;
@@ -327,7 +272,7 @@ impl Tree {
             let overlap = ray_info.aabb.intersects(&root_node.aabb);
 
             match root_node.node_type {
-                BvhNodeType::Leaf { triangle_index } => {
+                BvhNodeType::Leaf { leaf_index } => {
                     if overlap {
                         let mask = intersect_ray_aabb_packet(
                             origins,
@@ -338,7 +283,7 @@ impl Tree {
 
                         if mask != 0 {
                             node_callback.process_node(
-                                triangle_index,
+                                leaf_index,
                                 mask,
                                 &mut ray_info.lambda_max,
                             );
@@ -374,13 +319,13 @@ impl Tree {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum BvhNodeType {
-    Leaf { triangle_index: usize },
+    Leaf { leaf_index: usize },
     Branch { escape_index: usize },
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Node {
     pub aabb: Aabb,
     pub node_type: BvhNodeType,
@@ -389,6 +334,6 @@ pub struct Node {
 impl Node {
     pub const DEFAULT: Self = Self {
         aabb: Aabb::ZERO,
-        node_type: BvhNodeType::Leaf { triangle_index: 0 },
+        node_type: BvhNodeType::Leaf { leaf_index: 0 },
     };
 }
