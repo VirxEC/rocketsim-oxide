@@ -34,20 +34,35 @@ use crate::{
     },
 };
 
-pub struct ArenaInner {
-    pub(crate) rng: Rng,
-    pub(crate) tick_time: f32,
-    config: ArenaConfig,
-
-    pub(crate) ball: Ball,
-    pub(crate) cars: Vec<Car>,
-    pub(crate) tick_count: u64,
-    pub(crate) game_mode: GameMode,
-    pub(crate) mutator_config: MutatorConfig,
-    pub(crate) boost_pad_grid: BoostPadGrid,
+// An instance of a collision event
+#[derive(Debug, Copy, Clone)]
+struct CollisionRecord {
+    pub is_swap: bool,
+    pub rb_index_a: usize,
+    pub rb_index_b: usize,
+    pub user_index_a: UserInfoTypes,
+    pub user_index_b: UserInfoTypes,
+    pub manifold_point: ManifoldPoint,
 }
 
-impl ContactAddedCallback for ArenaInner {
+// A struct to be accessed through the bullet contact callbacks
+struct ArenaContactTracker {
+    collision_records: Vec<CollisionRecord>,
+}
+
+impl ArenaContactTracker {
+    pub fn new() -> Self {
+        Self {
+            collision_records: Vec::with_capacity(4) // Rarely exceeded
+        }
+    }
+
+    pub fn drain_records(&mut self) -> Vec<CollisionRecord> {
+        self.collision_records.drain(..).collect()
+    }
+}
+
+impl ContactAddedCallback for ArenaContactTracker {
     fn callback<'a>(
         &mut self,
         manifold_point: &mut ManifoldPoint,
@@ -79,20 +94,6 @@ impl ContactAddedCallback for ArenaInner {
             };
             manifold_point.combined_friction = hit_coefs.friction;
             manifold_point.combined_restitution = hit_coefs.restitution;
-
-            match user_index_b {
-                UserInfoTypes::Ball => {
-                    self.on_car_ball_collision(body_a.user_pointer, manifold_point, should_swap);
-                }
-                UserInfoTypes::Car => {
-                    self.on_car_car_collision(
-                        body_a.user_pointer,
-                        body_b.user_pointer,
-                        manifold_point,
-                    );
-                }
-                _ => self.on_car_world_collision(body_a.user_pointer, manifold_point),
-            }
         } else if user_index_a == UserInfoTypes::Ball {
             if user_index_b == UserInfoTypes::DropshotTile {
                 todo!()
@@ -101,18 +102,39 @@ impl ContactAddedCallback for ArenaInner {
             }
         }
 
-        if should_swap {
-            mem::swap(&mut body_a, &mut body_b);
-        }
+        // NOTE: Push *before* the manifold is mutated by adjust_internal_edge_contacts()
+        self.collision_records.push(CollisionRecord {
+            is_swap: should_swap,
+            rb_index_a: body_a.world_array_index,
+            rb_index_b: body_b.world_array_index,
+            user_index_a,
+            user_index_b,
+            manifold_point: *manifold_point,
+        });
 
-        let index = if should_swap {
-            manifold_point.index_0
-        } else {
-            manifold_point.index_1
-        };
-
-        adjust_internal_edge_contacts(manifold_point, body_a, index as usize);
+        adjust_internal_edge_contacts(
+            manifold_point,
+            body_a,
+            if should_swap {
+                manifold_point.index_0
+            } else {
+                manifold_point.index_1
+            } as usize,
+        );
     }
+}
+pub struct ArenaInner {
+    pub(crate) rng: Rng,
+    pub(crate) tick_time: f32,
+    config: ArenaConfig,
+
+    pub(crate) ball: Ball,
+    pub(crate) cars: Vec<Car>,
+    pub(crate) tick_count: u64,
+    pub(crate) game_mode: GameMode,
+    pub(crate) mutator_config: MutatorConfig,
+    pub(crate) boost_pad_grid: BoostPadGrid,
+    contact_tracker: ArenaContactTracker,
 }
 
 impl ArenaInner {
@@ -151,7 +173,7 @@ impl ArenaInner {
         let (mut attacker, mut victim) = both_cars.into();
 
         // NOTE: Checking the victim first, because in many use-cases, repeat-demo-victims are more likely
-        if victim.state.is_demoed || attacker.state.is_demoed  {
+        if victim.state.is_demoed || attacker.state.is_demoed {
             return;
         }
 
@@ -197,7 +219,7 @@ impl ArenaInner {
                 } else {
                     manifold_point.local_point_a
                 }
-                .x * BT_TO_UU;
+                    .x * BT_TO_UU;
 
                 let hit_with_bumper = local_point_x > consts::car::bump::MIN_FORWARD_DIST;
                 if !hit_with_bumper {
@@ -224,7 +246,7 @@ impl ArenaInner {
                 } else {
                     consts::curves::BUMP_VEL_AMOUNT_AIR
                 }
-                .get_output(speed_towards_other_car);
+                    .get_output(speed_towards_other_car);
 
                 let hit_up_dir = if victim_state.is_on_ground {
                     victim_state.phys.rot_mat.z_axis
@@ -353,7 +375,8 @@ impl Arena {
                 boost_pad_grid,
                 mutator_config,
                 tick_count: 0,
-                cars: Vec::with_capacity(6)
+                cars: Vec::with_capacity(6),
+                contact_tracker: ArenaContactTracker::new(),
             },
             bullet_world,
         }
@@ -371,12 +394,12 @@ impl Arena {
         group: u8,
         mask: u8,
     ) {
-        let mut rb_constrution_info = RigidBodyConstructionInfo::new(0.0, shape, false);
-        rb_constrution_info.restitution = consts::arena::BASE_COEFS.restitution;
-        rb_constrution_info.friction = consts::arena::BASE_COEFS.friction;
-        rb_constrution_info.start_world_transform.translation = pos_bt;
+        let mut rb_info = RigidBodyConstructionInfo::new(0.0, shape, false);
+        rb_info.restitution = consts::arena::BASE_COEFS.restitution;
+        rb_info.friction = consts::arena::BASE_COEFS.friction;
+        rb_info.start_world_transform.translation = pos_bt;
 
-        let shape_rb = RigidBody::new(rb_constrution_info);
+        let shape_rb = RigidBody::new(rb_info);
         if (group | mask) != 0 {
             bullet_world.add_rigid_body(shape_rb, group, mask);
         } else {
@@ -641,8 +664,7 @@ impl Arena {
 
         self.boost_pad_grid.reset();
 
-        // TODO
-        // Reset tile states
+        // TODO: Reset tile states
     }
 
     /// Creates and adds a car to the arena, returning the index of the car in the cars vector
@@ -699,7 +721,27 @@ impl Arena {
         self.ball_pre_tick_update();
 
         self.bullet_world
-            .step_simulation(self.tick_time, &mut self.inner);
+            .step_simulation(self.tick_time, &mut self.inner.contact_tracker);
+        for contact in self.inner.contact_tracker.drain_records() {
+            let (body_a, body_b) = self.bullet_world.bodies_mut().get_disjoint_mut(
+                [contact.rb_index_a, contact.rb_index_b]
+            ).unwrap().into();
+
+            let user_pointer_a = body_a.collision_object.user_pointer;
+            let user_pointer_b = body_b.collision_object.user_pointer;
+
+            if contact.user_index_a == UserInfoTypes::Car {
+                match contact.user_index_b {
+                    UserInfoTypes::Ball => {
+                        self.on_car_ball_collision(user_pointer_a, &contact.manifold_point, contact.is_swap);
+                    }
+                    UserInfoTypes::Car => {
+                        self.on_car_car_collision(user_pointer_a, user_pointer_b, &contact.manifold_point);
+                    }
+                    _ => self.on_car_world_collision(user_pointer_a, &contact.manifold_point),
+                }
+            }
+        }
 
         for car in &mut self.inner.cars {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];

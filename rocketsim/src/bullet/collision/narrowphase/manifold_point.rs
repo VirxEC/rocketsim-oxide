@@ -4,7 +4,7 @@ use crate::bullet::{
     dynamics::constraint_solver::solver_body::SolverBody, linear_math::plane_space_2,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct ManifoldPoint {
     pub local_point_a: Vec3A,
     pub local_point_b: Vec3A,
