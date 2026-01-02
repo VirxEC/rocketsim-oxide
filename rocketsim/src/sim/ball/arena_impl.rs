@@ -1,7 +1,7 @@
 use crate::bullet::collision::dispatch::collision_object::ActivationState;
 use crate::consts::{dropshot, heatseeker, UU_TO_BT};
 use crate::sim::UserInfoTypes;
-use crate::{Arena, ArenaInner, BallHitInfo, BallState, GameMode, Team, consts};
+use crate::{Arena, BallHitInfo, BallState, GameMode, Team, consts};
 use glam::{Affine3A, Vec3A};
 
 impl Arena {
@@ -10,7 +10,7 @@ impl Arena {
     }
 
     pub fn set_ball_state(&mut self, state: BallState) {
-        let ball = &mut self.inner.ball;
+        let ball = &mut self.ball;
         let rb = &mut self.bullet_world.bodies_mut()[ball.rigid_body_idx];
 
         debug_assert_eq!(rb.collision_object.world_array_index, ball.rigid_body_idx);
@@ -46,7 +46,7 @@ impl Arena {
     }
 
     pub(crate) fn ball_finish_physics_tick(&mut self) {
-        let ball = &mut self.inner.ball;
+        let ball = &mut self.ball;
 
         let rb = &mut self.bullet_world.bodies_mut()[ball.rigid_body_idx];
 
@@ -55,7 +55,7 @@ impl Arena {
             ball.velocity_impulse_cache = Vec3A::ZERO;
         }
 
-        let ball_max_speed_bt = self.inner.mutator_config.ball_max_speed * consts::UU_TO_BT;
+        let ball_max_speed_bt = self.mutator_config.ball_max_speed * consts::UU_TO_BT;
         if rb.linear_velocity.length_squared() > ball_max_speed_bt * ball_max_speed_bt {
             rb.linear_velocity = rb.linear_velocity.normalize() * ball_max_speed_bt;
         }
@@ -75,7 +75,7 @@ impl Arena {
     }
 }
 
-impl ArenaInner {
+impl Arena {
     pub(crate) fn on_ball_hit(&mut self, car_idx: usize, rel_pos: Vec3A) {
         let tick_count = self.tick_count;
         let ball_state = &mut self.ball.state;

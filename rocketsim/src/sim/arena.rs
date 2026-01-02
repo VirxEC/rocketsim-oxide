@@ -1,7 +1,6 @@
 use arrayvec::ArrayVec;
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
-use std::ops::{Deref, DerefMut};
 use std::{f32::consts::PI, iter::repeat_n, mem};
 
 use super::{Ball, BoostPadConfig, Car, CarBodyConfig, CarState, MutatorConfig, PhysState, Team};
@@ -123,21 +122,8 @@ impl ContactAddedCallback for ArenaContactTracker {
         );
     }
 }
-pub struct ArenaInner {
-    pub(crate) rng: Rng,
-    pub(crate) tick_time: f32,
-    config: ArenaConfig,
 
-    pub(crate) ball: Ball,
-    pub(crate) cars: Vec<Car>,
-    pub(crate) tick_count: u64,
-    pub(crate) game_mode: GameMode,
-    pub(crate) mutator_config: MutatorConfig,
-    pub(crate) boost_pad_grid: BoostPadGrid,
-    contact_tracker: ArenaContactTracker,
-}
-
-impl ArenaInner {
+impl Arena {
     fn on_car_ball_collision(
         &mut self,
         car_idx: usize,
@@ -272,21 +258,17 @@ impl ArenaInner {
 
 pub struct Arena {
     pub(crate) bullet_world: DiscreteDynamicsWorld,
-    pub(crate) inner: ArenaInner,
-}
+    pub(crate) rng: Rng,
+    pub(crate) tick_time: f32,
+    config: ArenaConfig,
 
-// Implicit resolution of inner components
-impl Deref for Arena {
-    type Target = ArenaInner;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for Arena {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
-    }
+    pub(crate) ball: Ball,
+    pub(crate) cars: Vec<Car>,
+    pub(crate) tick_count: u64,
+    pub(crate) game_mode: GameMode,
+    pub(crate) mutator_config: MutatorConfig,
+    pub(crate) boost_pad_grid: BoostPadGrid,
+    contact_tracker: ArenaContactTracker,
 }
 
 impl Arena {
@@ -366,25 +348,23 @@ impl Arena {
         let rng = config.rng_seed.map_or_else(Rng::new, Rng::with_seed);
 
         Self {
-            inner: ArenaInner {
-                rng,
-                config,
-                tick_time: 1. / f32::from(tick_rate),
-                ball,
-                game_mode,
-                boost_pad_grid,
-                mutator_config,
-                tick_count: 0,
-                cars: Vec::with_capacity(6),
-                contact_tracker: ArenaContactTracker::new(),
-            },
+            rng,
+            config,
+            tick_time: 1. / f32::from(tick_rate),
+            ball,
+            game_mode,
+            boost_pad_grid,
+            mutator_config,
+            tick_count: 0,
+            cars: Vec::with_capacity(6),
+            contact_tracker: ArenaContactTracker::new(),
             bullet_world,
         }
     }
 
     #[must_use]
     pub const fn get_config(&self) -> &ArenaConfig {
-        &self.inner.config
+        &self.config
     }
 
     fn add_static_collision_shape(
@@ -614,7 +594,7 @@ impl Arena {
             for cur_team in Team::ALL {
                 let is_blue = cur_team == Team::Blue;
 
-                let mut team_car_indices = Vec::with_capacity(self.inner.cars.len());
+                let mut team_car_indices = Vec::with_capacity(self.cars.len());
                 for car in &self.cars {
                     if car.team == cur_team {
                         team_car_indices.push(car.idx);
@@ -639,7 +619,7 @@ impl Arena {
                     },
                 );
 
-                let car = &mut self.inner.cars[car_idx];
+                let car = &mut self.cars[car_idx];
                 let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
                 car.set_state(rb, &spawn_state);
             }
@@ -675,27 +655,27 @@ impl Arena {
             idx,
             team,
             &mut self.bullet_world,
-            &self.inner.mutator_config,
+            &self.mutator_config,
             config,
         );
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            &mut self.inner.rng,
-            self.inner.game_mode,
-            self.inner.mutator_config.car_spawn_boost_amount,
+            &mut self.rng,
+            self.game_mode,
+            self.mutator_config.car_spawn_boost_amount,
         );
 
         self.bullet_world.bodies_mut()[car.rigid_body_idx]
             .collision_object
             .user_pointer = idx;
-        self.inner.cars.push(car);
+        self.cars.push(car);
         idx
     }
 
     fn internal_step(&mut self) {
         {
             // Update ball activation
-            let ball_rb = &mut self.bullet_world.bodies_mut()[self.inner.ball.rigid_body_idx];
+            let ball_rb = &mut self.bullet_world.bodies_mut()[self.ball.rigid_body_idx];
             let should_sleep = ball_rb.linear_velocity.length_squared() == 0.0
                 && ball_rb.angular_velocity.length_squared() == 0.0;
 
@@ -708,21 +688,21 @@ impl Arena {
                 });
         }
 
-        for car in &mut self.inner.cars {
+        for car in &mut self.cars {
             car.pre_tick_update(
                 &mut self.bullet_world,
-                &mut self.inner.rng,
-                self.inner.game_mode,
-                self.inner.tick_time,
-                &self.inner.mutator_config,
+                &mut self.rng,
+                self.game_mode,
+                self.tick_time,
+                &self.mutator_config,
             );
         }
 
         self.ball_pre_tick_update();
 
         self.bullet_world
-            .step_simulation(self.tick_time, &mut self.inner.contact_tracker);
-        for contact in self.inner.contact_tracker.drain_records() {
+            .step_simulation(self.tick_time, &mut self.contact_tracker);
+        for contact in self.contact_tracker.drain_records() {
             let (body_a, body_b) = self.bullet_world.bodies_mut().get_disjoint_mut(
                 [contact.rb_index_a, contact.rb_index_b]
             ).unwrap().into();
@@ -743,16 +723,16 @@ impl Arena {
             }
         }
 
-        for car in &mut self.inner.cars {
+        for car in &mut self.cars {
             let rb = &mut self.bullet_world.bodies_mut()[car.rigid_body_idx];
-            car.post_tick_update(self.inner.tick_time, rb);
+            car.post_tick_update(self.tick_time, rb);
             car.finish_physics_tick(rb);
 
-            self.inner.boost_pad_grid.maybe_give_car_boost(
+            self.boost_pad_grid.maybe_give_car_boost(
                 &mut car.state,
-                &self.inner.mutator_config,
-                self.inner.tick_count,
-                self.inner.tick_time,
+                &self.mutator_config,
+                self.tick_count,
+                self.tick_time,
             );
         }
 
@@ -774,31 +754,31 @@ impl Arena {
     #[inline]
     #[must_use]
     pub const fn tick_count(&self) -> u64 {
-        self.inner.tick_count
+        self.tick_count
     }
 
     #[inline]
     #[must_use]
     pub const fn game_mode(&self) -> GameMode {
-        self.inner.game_mode
+        self.game_mode
     }
 
     #[inline]
     #[must_use]
     pub const fn mutator_config(&self) -> &MutatorConfig {
-        &self.inner.mutator_config
+        &self.mutator_config
     }
 
     #[inline]
     #[must_use]
     pub const fn cars(&self) -> &Vec<Car> {
-        &self.inner.cars
+        &self.cars
     }
 
     #[inline]
     #[must_use]
     pub const fn num_cars(&self) -> usize {
-        self.inner.cars.len()
+        self.cars.len()
     }
 
     #[must_use]
@@ -812,7 +792,7 @@ impl Arena {
     }
 
     pub fn set_car_state(&mut self, car_idx: usize, state: CarState) {
-        let car = &mut self.inner.cars[car_idx];
+        let car = &mut self.cars[car_idx];
 
         car.set_state(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
@@ -821,13 +801,13 @@ impl Arena {
     }
 
     pub fn respawn_car(&mut self, car_idx: usize) {
-        let car = &mut self.inner.cars[car_idx];
+        let car = &mut self.cars[car_idx];
 
         car.respawn(
             &mut self.bullet_world.bodies_mut()[car.rigid_body_idx],
-            &mut self.inner.rng,
-            self.inner.game_mode,
-            self.inner.mutator_config.car_spawn_boost_amount,
+            &mut self.rng,
+            self.game_mode,
+            self.mutator_config.car_spawn_boost_amount,
         );
     }
 
