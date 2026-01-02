@@ -9,7 +9,7 @@ use crate::consts::{
     car::drive as drive_consts, curves,
 };
 use crate::{
-    CarConfig, CarControls, CarState, CollisionMasks, GameMode, MutatorConfig, PhysState, Team,
+    CarBodyConfig, CarControls, CarState, CollisionMasks, GameMode, MutatorConfig, PhysState, Team,
     bullet::{
         collision::{
             broadphase::CollisionFilterGroups,
@@ -33,7 +33,7 @@ use crate::{
 pub struct Car {
     pub idx: usize,
     pub team: Team,
-    config: CarConfig,
+    config: CarBodyConfig,
     pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
     pub(crate) velocity_impulse_cache: Vec3A,
@@ -46,7 +46,7 @@ impl Car {
         team: Team,
         bullet_world: &mut DiscreteDynamicsWorld,
         mutator_config: &MutatorConfig,
-        config: CarConfig,
+        config: CarBodyConfig,
     ) -> Self {
         let child_hitbox_shape = BoxShape::new(config.hitbox_size * UU_TO_BT * 0.5);
         let local_inertia = child_hitbox_shape.calculate_local_intertia(car_consts::MASS_BT);
@@ -132,7 +132,7 @@ impl Car {
 
     /// Configuration for this car
     #[must_use]
-    pub const fn config(&self) -> &CarConfig {
+    pub const fn config(&self) -> &CarBodyConfig {
         &self.config
     }
 
@@ -185,7 +185,7 @@ impl Car {
     }
 
     #[must_use]
-    pub const fn get_config(&self) -> &CarConfig {
+    pub const fn get_config(&self) -> &CarBodyConfig {
         &self.config
     }
 

@@ -1,13 +1,13 @@
 #![cfg(feature = "rlviser")]
 
 use glam::{Mat3A, Vec3A};
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default, rlviser::RLViser};
+use rocketsim::{Arena, CarBodyConfig, GameMode, Team, init_from_default, rlviser::RLViser};
 
 fn main() {
     init_from_default(true).unwrap();
     let mut arena = Arena::new(GameMode::Soccar);
 
-    let id = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    let id = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
 
     let car = arena.car_mut(id);
     let mut state = *car.get_state();

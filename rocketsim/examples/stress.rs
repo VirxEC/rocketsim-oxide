@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use glam::Vec3A;
 use rocketsim::{
-    Arena, ArenaConfig, BallState, CarConfig, CarControls, CarState, GameMode, Team, consts,
+    Arena, ArenaConfig, BallState, CarBodyConfig, CarControls, CarState, GameMode, Team, consts,
     init_from_default,
 };
 
@@ -135,7 +135,7 @@ fn main() {
 
     let mut ids = Vec::new();
     for i in 0..NUM_CARS {
-        let id = arena.add_car(Team::try_from(i % 2).unwrap(), CarConfig::OCTANE);
+        let id = arena.add_car(Team::try_from(i % 2).unwrap(), CarBodyConfig::OCTANE);
         ids.push(id);
     }
 

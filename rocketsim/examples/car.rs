@@ -1,13 +1,13 @@
 use std::time::Instant;
 
 use glam::{Mat3A, Vec3A};
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default};
+use rocketsim::{Arena, CarBodyConfig, GameMode, Team, init_from_default};
 
 fn main() {
     init_from_default(false).unwrap();
 
     let mut arena = Arena::new(GameMode::Soccar);
-    let idx = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    let idx = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
 
     fastrand::seed(0);
     arena.reset_to_random_kickoff();

@@ -1,12 +1,12 @@
 use glam::{Mat3A, Vec3A};
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default};
+use rocketsim::{Arena, CarBodyConfig, GameMode, Team, init_from_default};
 
 fn main() {
     init_from_default(true).unwrap();
     let mut arena = Arena::new(GameMode::Soccar);
 
-    let idx = arena.add_car(Team::Blue, CarConfig::OCTANE);
-    let idx2 = arena.add_car(Team::Orange, CarConfig::OCTANE);
+    let idx = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
+    let idx2 = arena.add_car(Team::Orange, CarBodyConfig::OCTANE);
 
     let mut ball_state = *arena.get_ball_state();
     ball_state.phys.pos.z += 200.0;

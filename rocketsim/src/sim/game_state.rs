@@ -2,7 +2,7 @@ use glam::Vec3A;
 
 use crate::{
     GameMode,
-    sim::{BallState, BoostPadConfig, BoostPadState, CarConfig, CarState, Team},
+    sim::{BallState, BoostPadConfig, BoostPadState, CarBodyConfig, CarState, Team},
 };
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
@@ -50,7 +50,7 @@ pub struct CarInfo {
     pub id: u64,
     pub team: Team,
     pub state: CarState,
-    pub config: CarConfig,
+    pub config: CarBodyConfig,
 }
 
 #[derive(Clone, Debug, Default)]

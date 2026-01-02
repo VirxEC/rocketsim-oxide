@@ -4,9 +4,9 @@ use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
 use std::ops::{Deref, DerefMut};
 use std::{f32::consts::PI, iter::repeat_n, mem};
 
-use super::{Ball, BoostPadConfig, Car, CarConfig, CarState, MutatorConfig, PhysState, Team};
+use super::{Ball, BoostPadConfig, Car, CarBodyConfig, CarState, MutatorConfig, PhysState, Team};
 use crate::{
-    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, BoostPadGrid, BoostPadState, GameMode,
+    ARENA_COLLISION_SHAPES, ArenaConfig, ArenaMemWeightMode, BoostPadGrid, GameMode,
     bullet::{
         collision::{
             broadphase::{GridBroadphase, HashedOverlappingPairCache},
@@ -29,7 +29,7 @@ use crate::{
     consts,
     consts::{BT_TO_UU, UU_TO_BT},
     sim::{
-        BallState, BoostPad, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState, UserInfoTypes,
+        BallState, BoostPadInfo, CarContact, CarInfo, DemoMode, GameState, UserInfoTypes,
         collision_masks::CollisionMasks,
     },
 };
@@ -646,7 +646,7 @@ impl Arena {
     }
 
     /// Creates and adds a car to the arena, returning the index of the car in the cars vector
-    pub fn add_car(&mut self, team: Team, config: CarConfig) -> usize {
+    pub fn add_car(&mut self, team: Team, config: CarBodyConfig) -> usize {
         let idx = self.cars.len();
 
         let mut car = Car::new(

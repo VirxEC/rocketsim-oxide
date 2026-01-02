@@ -69,7 +69,7 @@ pub struct WheelPairConfig {
     feature = "rkyv",
     derive(rkyv::Serialize, rkyv::Deserialize, rkyv::Archive)
 )]
-pub struct CarConfig {
+pub struct CarBodyConfig {
     /// Full size of hitbox (NOT the half-size/extent)
     pub hitbox_size: Vec3A,
     /// Offset of the hitbox (from it's origin)
@@ -87,13 +87,13 @@ pub struct CarConfig {
     pub dodge_deadzone: f32,
 }
 
-impl Default for CarConfig {
+impl Default for CarBodyConfig {
     fn default() -> Self {
         Self::OCTANE
     }
 }
 
-impl CarConfig {
+impl CarBodyConfig {
     const fn make_car_config(index: usize, three_wheels: bool) -> Self {
         Self {
             hitbox_size: HITBOX_SIZES[index],

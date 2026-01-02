@@ -1,10 +1,10 @@
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default};
+use rocketsim::{Arena, CarBodyConfig, GameMode, Team, init_from_default};
 
 fn main() {
     init_from_default(true).unwrap();
     let mut arena = Arena::new(GameMode::Soccar);
 
-    let idx = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    let idx = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
 
     let car = arena.get_car_mut(idx);
     // car.controls.throttle = 1.0;

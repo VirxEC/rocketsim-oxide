@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use rocketsim::{Arena, CarConfig, GameMode, Team, init_from_default};
+use rocketsim::{Arena, CarBodyConfig, GameMode, Team, init_from_default};
 
 fn main() {
     init_from_default(true).unwrap();
@@ -13,8 +13,8 @@ fn main() {
     );
 
     fastrand::seed(0);
-    let idx = arena.add_car(Team::Blue, CarConfig::OCTANE);
-    let idx2 = arena.add_car(Team::Blue, CarConfig::OCTANE);
+    let idx = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
+    let idx2 = arena.add_car(Team::Blue, CarBodyConfig::OCTANE);
     arena.reset_to_random_kickoff();
 
     let mut ball_state = *arena.get_ball_state();

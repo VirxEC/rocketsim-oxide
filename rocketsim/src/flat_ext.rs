@@ -181,7 +181,7 @@ impl From<crate::WheelPairConfig> for flat::WheelPairConfig {
     }
 }
 
-impl From<flat::CarConfig> for crate::CarConfig {
+impl From<flat::CarConfig> for crate::CarBodyConfig {
     fn from(value: flat::CarConfig) -> Self {
         Self {
             hitbox_size: value.hitbox_size.into(),
@@ -194,8 +194,8 @@ impl From<flat::CarConfig> for crate::CarConfig {
     }
 }
 
-impl From<crate::CarConfig> for flat::CarConfig {
-    fn from(value: crate::CarConfig) -> Self {
+impl From<crate::CarBodyConfig> for flat::CarConfig {
+    fn from(value: crate::CarBodyConfig) -> Self {
         Self {
             hitbox_size: value.hitbox_size.into(),
             hitbox_pos_offset: value.hitbox_pos_offset.into(),

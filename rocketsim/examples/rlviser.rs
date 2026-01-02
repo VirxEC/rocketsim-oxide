@@ -4,7 +4,7 @@ use std::{
 };
 
 use rocketsim::{
-    Arena, CarConfig, CarControls, GameMode, Team, init_from_default, rlviser::RLViser,
+    Arena, CarBodyConfig, CarControls, GameMode, Team, init_from_default, rlviser::RLViser,
 };
 
 fn main() {
@@ -13,8 +13,8 @@ fn main() {
     let mut arena = Arena::new(GameMode::Soccar);
 
     let ids = [
-        arena.add_car(Team::Blue, CarConfig::OCTANE),
-        arena.add_car(Team::Orange, CarConfig::OCTANE),
+        arena.add_car(Team::Blue, CarBodyConfig::OCTANE),
+        arena.add_car(Team::Orange, CarBodyConfig::OCTANE),
     ];
 
     arena.reset_to_random_kickoff();
