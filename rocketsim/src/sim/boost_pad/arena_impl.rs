@@ -1,4 +1,5 @@
 use crate::{Arena, BoostPadConfig, BoostPadState};
+use crate::sim::BoostPad;
 
 impl Arena {
     pub fn get_boost_pad_state(&self, idx: usize) -> BoostPadState {
@@ -33,5 +34,20 @@ impl Arena {
 
     pub fn get_boost_pad_config(&self, idx: usize) -> &BoostPadConfig {
         self.boost_pads()[idx].config()
+    }
+
+    pub(crate) fn boost_pads(&self) -> &[BoostPad] {
+        &self.boost_pad_grid.all_pads
+    }
+
+    pub fn num_boost_pads(&self) -> usize {
+        self.boost_pads().len()
+    }
+
+    pub fn get_all_boost_pad_states(&self) -> Vec<BoostPadState> {
+        (0..self.num_boost_pads())
+            .into_iter()
+            .map(|i| self.get_boost_pad_state(i))
+            .collect()
     }
 }

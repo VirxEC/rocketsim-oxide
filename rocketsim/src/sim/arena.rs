@@ -749,23 +749,6 @@ impl Arena {
 
     #[inline]
     #[must_use]
-    pub(crate) fn boost_pads(&self) -> &[BoostPad] {
-        &self.boost_pad_grid.all_pads
-    }
-
-    pub fn num_boost_pads(&self) -> usize {
-        self.boost_pads().len()
-    }
-
-    pub fn get_all_boost_pad_states(&self) -> Vec<BoostPadState> {
-        (0..self.num_boost_pads())
-            .into_iter()
-            .map(|i| self.get_boost_pad_state(i))
-            .collect()
-    }
-
-    #[inline]
-    #[must_use]
     pub const fn cars(&self) -> &Vec<Car> {
         &self.inner.cars
     }
