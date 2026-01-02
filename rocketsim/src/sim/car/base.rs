@@ -1,13 +1,14 @@
-use std::f32::consts::PI;
-
 use fastrand::Rng;
 use glam::{Affine3A, EulerRot, Mat3A, Vec3A};
+use std::f32::consts::PI;
+use std::ops::{Deref, DerefMut};
 
 // Shorthand using aliases for constants
 use crate::consts::{
     BT_TO_UU, UU_TO_BT, bullet_vehicle as vehicle_consts, car as car_consts,
     car::drive as drive_consts, curves,
 };
+use crate::sim::car::car_info::CarInfo;
 use crate::{
     CarBodyConfig, CarControls, CarState, CollisionMasks, GameMode, MutatorConfig, PhysState, Team,
     bullet::{
@@ -31,13 +32,23 @@ use crate::{
 };
 
 pub struct Car {
-    pub idx: usize,
-    pub team: Team,
-    config: CarBodyConfig,
+    pub(crate) info: CarInfo,
     pub(crate) bullet_vehicle: VehicleRL,
     pub(crate) rigid_body_idx: usize,
     pub(crate) velocity_impulse_cache: Vec3A,
     pub(crate) state: CarState,
+}
+
+impl Deref for Car {
+    type Target = CarInfo;
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+impl DerefMut for Car {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.info
+    }
 }
 
 impl Car {
@@ -58,13 +69,14 @@ impl Car {
         let compound_shape = CompoundShape::new(child_hitbox_shape, hitbox_offset);
 
         let collision_shape = CollisionShapes::Compound(compound_shape);
-        let mut info = RigidBodyConstructionInfo::new(car_consts::MASS_BT, collision_shape, false);
-        info.friction = car_consts::BASE_COEFS.friction;
-        info.restitution = car_consts::BASE_COEFS.restitution;
-        info.start_world_transform = Affine3A::IDENTITY;
-        info.local_inertia = local_inertia;
+        let mut rb_info =
+            RigidBodyConstructionInfo::new(car_consts::MASS_BT, collision_shape, false);
+        rb_info.friction = car_consts::BASE_COEFS.friction;
+        rb_info.restitution = car_consts::BASE_COEFS.restitution;
+        rb_info.start_world_transform = Affine3A::IDENTITY;
+        rb_info.local_inertia = local_inertia;
 
-        let mut body = RigidBody::new(info);
+        let mut body = RigidBody::new(rb_info);
         body.collision_object.user_index = UserInfoTypes::Car;
         body.collision_object.collision_flags |= CollisionFlags::CustomMaterialCallback as u8;
 
@@ -117,9 +129,7 @@ impl Car {
         }
 
         Self {
-            idx,
-            team,
-            config,
+            info: CarInfo { idx, team, config },
             rigid_body_idx,
             bullet_vehicle,
             velocity_impulse_cache: Vec3A::ZERO,
@@ -128,12 +138,6 @@ impl Car {
                 ..Default::default()
             },
         }
-    }
-
-    /// Configuration for this car
-    #[must_use]
-    pub const fn config(&self) -> &CarBodyConfig {
-        &self.config
     }
 
     /// - `respawn_delay` by default is `rocketsim::consts::DEMO_RESPAWN_TIME`
@@ -186,7 +190,7 @@ impl Car {
 
     #[must_use]
     pub const fn get_config(&self) -> &CarBodyConfig {
-        &self.config
+        &self.info.config
     }
 
     pub const fn set_controls(&mut self, new_controls: CarControls) {
@@ -308,7 +312,7 @@ impl Car {
                 0.0
             };
 
-            let mut lat_friction = if self.config.three_wheels {
+            let mut lat_friction = if self.info.config.three_wheels {
                 curves::LAT_FRICTION_THREEWHEEL
             } else {
                 curves::LAT_FRICTION
